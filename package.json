@@ -1,0 +1,24 @@
+{
+  "name": "autoorder-webapp",
+  "version": "1.0.0",
+  "description": "Web Auto Order Produk Digital - Payment Gateway QRIS + Saldo + Admin Dashboard Cyberpunk",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:reload": "pm2 reload ecosystem.config.cjs --update-env",
+    "deploy:local": "bash scripts/deploy.sh"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "bcryptjs": "^2.4.3",
+    "axios": "^1.7.2",
+    "qrcode": "^1.5.3",
+    "ejs": "^3.1.10",
+    "nanoid": "^5.0.7",
+    "multer": "^1.4.5-lts.1"
+  }
+}

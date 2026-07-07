@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'profile' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Profil Saya</h2></div>
+
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Informasi Akun</h3>
+        <form method="POST" action="/profile">
+          <label>Username</label>
+          <input type="text" value="<%= user.username %>" disabled>
+          <label>Email</label>
+          <input type="email" name="email" value="<%= user.email || '' %>">
+          <label>Saldo</label>
+          <input type="text" value="Rp <%= user.saldo.toLocaleString('id-ID') %>" disabled class="mono">
+          <button class="btn solid mt-24" type="submit">Simpan Perubahan</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Ganti Password</h3>
+        <form method="POST" action="/profile/password">
+          <label>Password Lama</label>
+          <input type="password" name="oldPassword" required>
+          <label>Password Baru</label>
+          <input type="password" name="newPassword" required minlength="6">
+          <label>Konfirmasi Password Baru</label>
+          <input type="password" name="newPassword2" required minlength="6">
+          <button class="btn magenta mt-24" type="submit">Update Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

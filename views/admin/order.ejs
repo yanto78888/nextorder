@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'order' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Kelola Order</h2></div>
+
+    <% const waitingManual = orders.filter(o => o.manualRequired && o.status === 'processing'); %>
+    <% if (waitingManual.length > 0) { %>
+      <div class="alert error">⚠️ <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
+    <% } %>
+
+    <div class="card">
+      <h3>🛠 Kirim Pesanan Manual</h3>
+      <p class="helper-text">Buat order langsung untuk user tertentu (misalnya pembayaran di luar sistem, bonus, atau pengiriman produk manual).</p>
+      <form method="POST" action="/admin/order/manual">
+        <div class="grid grid-2">
+          <div>
+            <label>Pilih User</label>
+            <select name="userId" required>
+              <option value="">-- pilih user --</option>
+              <% users.forEach(u => { %>
+                <option value="<%= u.id %>"><%= u.username %> (saldo Rp <%= u.saldo.toLocaleString('id-ID') %>)</option>
+              <% }) %>
+            </select>
+
+            <label>Pilih Produk (opsional)</label>
+            <select name="productId">
+              <option value="">-- atau isi manual di bawah --</option>
+              <% products.forEach(p => { %>
+                <option value="<%= p.id %>"><%= p.name %> - Rp <%= p.price.toLocaleString('id-ID') %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label>Nama Produk Manual (jika tidak pilih di atas)</label>
+            <input type="text" name="customName" placeholder="Contoh: Netflix Premium 1 Bulan">
+            <label>Harga Manual (Rp)</label>
+            <input type="number" name="customPrice" placeholder="0">
+            <label>Status</label>
+            <select name="status">
+              <option value="completed">Selesai</option>
+              <option value="processing">Diproses</option>
+            </select>
+          </div>
+        </div>
+        <label>Catatan</label>
+        <input type="text" name="note" placeholder="Catatan internal (opsional)">
+        <label>Detail / Isi Produk yang Dikirim ke User</label>
+        <textarea name="detail" placeholder="Contoh: Email: xxx@gmail.com | Password: xxxx"></textarea>
+        <button class="btn magenta mt-24" type="submit">🚀 Kirim Pesanan</button>
+      </form>
+    </div>
+
+    <div class="section-title"><h3>Semua Order</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (orders.length === 0) { %>
+        <div class="empty-state">Belum ada order.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Update</th></tr></thead>
+        <tbody>
+          <% orders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.username %></td>
+            <td><%= o.productName %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td>
+              <span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : (o.manualRequired ? 'cancelled' : 'admin') %>"><%= o.deliveryMode || o.source %></span>
+              <% if (o.manualRequired && o.status === 'processing') { %><br><span class="helper-text" style="color:var(--danger);">butuh manual</span><% } %>
+            </td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td style="max-width:180px; font-size:12px; color:var(--text-dim);"><%= o.detail || '-' %></td>
+            <td>
+              <form method="POST" action="/admin/order/<%= o.id %>/status" class="flex">
+                <select name="status" style="width:120px;">
+                  <option value="processing" <%= o.status === 'processing' ? 'selected' : '' %>>Diproses</option>
+                  <option value="completed" <%= o.status === 'completed' ? 'selected' : '' %>>Selesai</option>
+                  <option value="cancelled" <%= o.status === 'cancelled' ? 'selected' : '' %>>Batal</option>
+                </select>
+                <textarea name="detail" placeholder="isi produk..." style="width:180px; min-height:42px;"><%= o.detail || '' %></textarea>
+                <button class="btn small solid" type="submit">Update</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

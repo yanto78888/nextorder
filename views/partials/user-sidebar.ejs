@@ -1,0 +1,16 @@
+<div class="sidebar">
+  <div class="brand">
+    ⚡ <%= config.siteName %>
+    <small><%= config.siteTagline %></small>
+  </div>
+
+  <a href="/dashboard" class="nav-link <%= active === 'dashboard' ? 'active' : '' %>">🏠 Dashboard</a>
+  <a href="/produk" class="nav-link <%= active === 'produk' ? 'active' : '' %>">🛒 Katalog Produk</a>
+  <a href="/topup" class="nav-link <%= active === 'topup' ? 'active' : '' %>">💳 Top Up Saldo</a>
+  <a href="/riwayat" class="nav-link <%= active === 'riwayat' ? 'active' : '' %>">📜 Riwayat Order</a>
+  <a href="/profile" class="nav-link <%= active === 'profile' ? 'active' : '' %>">👤 Profil</a>
+
+  <form action="/logout" method="POST" style="margin-top:auto; padding-top: 14px;">
+    <button type="submit" class="nav-link" style="width:100%; text-align:left; background:transparent; border:1px solid var(--border-glow); cursor:pointer; font-family: inherit;">🚪 Keluar</button>
+  </form>
+</div>

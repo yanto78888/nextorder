@@ -1,0 +1,16 @@
+<div class="sidebar">
+  <div class="brand">
+    ⚡ <%= config.siteName %>
+    <small>ADMIN CONTROL</small>
+  </div>
+
+  <a href="/admin" class="nav-link <%= active === 'dashboard' ? 'active' : '' %>">🖥 Overview</a>
+  <a href="/admin/produk" class="nav-link <%= active === 'produk' ? 'active' : '' %>">📦 Kelola Produk</a>
+  <a href="/admin/order" class="nav-link <%= active === 'order' ? 'active' : '' %>">🧾 Kelola Order</a>
+  <a href="/admin/users" class="nav-link <%= active === 'users' ? 'active' : '' %>">👥 Kelola User</a>
+  <a href="/admin/settings" class="nav-link <%= active === 'settings' ? 'active' : '' %>">⚙️ Pengaturan</a>
+
+  <form action="/logout" method="POST" style="margin-top:auto; padding-top: 14px;">
+    <button type="submit" class="nav-link" style="width:100%; text-align:left; background:transparent; border:1px solid var(--border-glow); cursor:pointer; font-family: inherit;">🚪 Keluar</button>
+  </form>
+</div>

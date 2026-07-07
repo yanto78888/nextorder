@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">⚡ Daftar Akun</h1>
+      <div class="auth-sub"><%= config.siteName %></div>
+
+      <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+      <form method="POST" action="/register">
+        <label>Username</label>
+        <input type="text" name="username" required autofocus>
+        <label>Email (opsional)</label>
+        <input type="email" name="email">
+        <label>Password</label>
+        <input type="password" name="password" required minlength="6">
+        <label>Konfirmasi Password</label>
+        <input type="password" name="password2" required minlength="6">
+        <button class="btn solid mt-24" type="submit" style="width:100%;">Buat Akun</button>
+      </form>
+
+      <div class="auth-footer">Sudah punya akun? <a href="/login">Masuk di sini</a></div>
+    </div>
+  </div>
+</body>
+</html>

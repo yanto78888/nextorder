@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">⚡ <%= config.siteName %></h1>
+      <div class="auth-sub"><%= config.siteTagline %></div>
+
+      <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+      <form method="POST" action="/login">
+        <label>Username</label>
+        <input type="text" name="username" required autofocus>
+        <label>Password</label>
+        <input type="password" name="password" required>
+        <button class="btn solid mt-24" type="submit" style="width:100%;">Masuk ke Terminal</button>
+      </form>
+
+      <div class="auth-footer">Belum punya akun? <a href="/register">Daftar sekarang</a></div>
+    </div>
+  </div>
+</body>
+</html>

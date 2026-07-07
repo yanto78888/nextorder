@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'dashboard' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>System Overview</h2></div>
+
+    <% if (manualOrders && manualOrders.length > 0) { %>
+      <div class="alert error">
+        ⚠️ Ada <b><%= manualOrders.length %></b> order yang menunggu kirim manual karena stok otomatis habis.
+        <a href="/admin/order" style="color:var(--cyan); font-weight:700;">Buka Kelola Order</a>
+      </div>
+    <% } %>
+    <% if (emptyStockProducts && emptyStockProducts.length > 0) { %>
+      <div class="alert error">
+        📦 Produk aktif dengan stok otomatis kosong: <%= emptyStockProducts.map(p => p.name).join(', ') %>.
+      </div>
+    <% } %>
+
+    <div class="grid grid-4">
+      <div class="card stat-card">
+        <div class="label">Total User</div>
+        <div class="value"><%= totalUsers %></div>
+      </div>
+      <div class="card stat-card magenta">
+        <div class="label">Total Order</div>
+        <div class="value"><%= stats.totalOrders %></div>
+      </div>
+      <div class="card stat-card amber">
+        <div class="label">Diproses</div>
+        <div class="value"><%= stats.processing %></div>
+      </div>
+      <div class="card stat-card magenta">
+        <div class="label">Butuh Manual</div>
+        <div class="value"><%= stats.manualRequired || 0 %></div>
+      </div>
+      <div class="card stat-card success">
+        <div class="label">Total Revenue</div>
+        <div class="value">Rp <%= stats.totalRevenue.toLocaleString('id-ID') %></div>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Order Terbaru</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (recentOrders.length === 0) { %>
+        <div class="empty-state">Belum ada order masuk.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Total</th><th>Sumber</th><th>Status</th><th>Tanggal</th></tr></thead>
+        <tbody>
+          <% recentOrders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.username %></td>
+            <td><%= o.productName %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= o.source === 'admin' ? 'admin' : 'user' %>"><%= o.source %></span></td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

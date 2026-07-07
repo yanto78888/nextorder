@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'produk' }) %>
+
+  <div class="main">
+    <div class="topbar">
+      <h2>Katalog Produk</h2>
+      <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% if (products.length === 0) { %>
+      <div class="card empty-state">Belum ada produk tersedia saat ini.</div>
+    <% } else { %>
+    <div class="grid grid-3">
+      <% products.forEach(p => { %>
+      <div class="product-card">
+        <div class="product-thumb">
+          <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %>NO IMAGE<% } %>
+        </div>
+        <div class="product-body">
+          <div class="product-cat"><%= p.category %></div>
+          <div class="product-name"><%= p.name %></div>
+          <div class="product-desc"><%= p.description %></div>
+          <div class="product-price">Rp <%= p.price.toLocaleString('id-ID') %></div>
+          <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
+          <div class="helper-text">
+            <% if (stockCount > 0) { %>
+              ⚡ Stok otomatis tersedia: <%= stockCount %>
+            <% } else { %>
+              🛠 Stok otomatis habis, pesanan dikirim manual oleh admin
+            <% } %>
+          </div>
+
+          <form method="POST" action="/order" class="flex" style="margin-top:8px;">
+            <input type="hidden" name="productId" value="<%= p.id %>">
+            <input type="number" name="qty" value="1" min="1" style="width:70px;">
+            <button type="submit" class="btn small solid" style="flex:1;">Beli Sekarang</button>
+          </form>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

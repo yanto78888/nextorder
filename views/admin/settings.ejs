@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'settings' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Pengaturan Sistem</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+
+    <form method="POST" action="/admin/settings">
+      <div class="grid grid-2">
+
+        <div class="card">
+          <h3>🌐 Identitas Website</h3>
+          <label>Nama Situs</label>
+          <input type="text" name="siteName" value="<%= config.siteName %>">
+          <label>Tagline</label>
+          <input type="text" name="siteTagline" value="<%= config.siteTagline %>">
+          <label>Nomor WhatsApp Owner (opsional)</label>
+          <input type="text" name="ownerWhatsapp" value="<%= config.ownerWhatsapp || '' %>">
+        </div>
+
+        <div class="card">
+          <h3>🤖 Notifikasi Telegram</h3>
+          <p class="helper-text">Buat bot via @BotFather, lalu masukkan token & chat ID tujuan notifikasi di sini.</p>
+          <label>Bot Token</label>
+          <input type="text" name="botToken" value="<%= config.telegram.botToken %>" placeholder="123456:ABC-DEF...">
+          <label>Chat ID Tujuan</label>
+          <input type="text" name="chatId" value="<%= config.telegram.chatId %>" placeholder="Contoh: 123456789">
+          <label class="flex" style="margin-top:16px;">
+            <input type="checkbox" name="notifyOnDeposit" style="width:auto;" <%= config.telegram.notifyOnDeposit ? 'checked' : '' %>>
+            Notifikasi saat Deposit Berhasil
+          </label>
+          <label class="flex">
+            <input type="checkbox" name="notifyOnOrder" style="width:auto;" <%= config.telegram.notifyOnOrder ? 'checked' : '' %>>
+            Notifikasi saat Order Masuk
+          </label>
+          <label class="flex">
+            <input type="checkbox" name="notifyOnRegister" style="width:auto;" <%= config.telegram.notifyOnRegister ? 'checked' : '' %>>
+            Notifikasi saat User Baru Daftar
+          </label>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <h3>💳 Payment Gateway QRIS</h3>
+          <p class="helper-text">Menggunakan QRIS statis + pengecekan mutasi otomatis (contoh provider: qiospay.id). Semua data disimpan di data/config.json, bukan .env.</p>
+          <label>String QRIS Statis (dari merchant QRIS kamu)</label>
+          <textarea name="qrString" required><%= config.qris.qrString %></textarea>
+          <div class="grid grid-2">
+            <div>
+              <label>Merchant Code</label>
+              <input type="text" name="merchantCode" value="<%= config.qris.merchantCode %>">
+            </div>
+            <div>
+              <label>API Key</label>
+              <input type="text" name="apiKey" value="<%= config.qris.apiKey %>">
+            </div>
+            <div>
+              <label>Fee (%)</label>
+              <input type="number" step="0.01" name="feePercent" value="<%= config.qris.feePercent %>">
+            </div>
+            <div>
+              <label>Minimal Deposit (Rp)</label>
+              <input type="number" name="depositMin" value="<%= config.qris.depositMin %>">
+            </div>
+            <div>
+              <label>Waktu Expired QR (menit)</label>
+              <input type="number" name="expiredMinutes" value="<%= config.qris.expiredMinutes %>">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn solid mt-24" type="submit">💾 Simpan Semua Pengaturan</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

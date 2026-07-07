@@ -1,0 +1,22 @@
+{
+  "siteName": "NEXORDER",
+  "siteTagline": "Automated Digital Goods Terminal",
+  "qris": {
+    "qrString": "00020101021126670016COM.NOBUBANK.WWW01189360050300000907180214709256799296900303UMI51440014ID.CO.QRIS.WWW0215ID20254207229980303UMI5204481253033605802ID5912RAIDEN PULSA6007CILACAP61055321162070703A0163047CA9",
+    "merchantCode": "",
+    "apiKey": "",
+    "provider": "qiospay",
+    "feePercent": 0.7,
+    "depositMin": 1000,
+    "expiredMinutes": 10,
+    "pollIntervalSeconds": 30
+  },
+  "telegram": {
+    "botToken": "",
+    "chatId": "",
+    "notifyOnDeposit": true,
+    "notifyOnOrder": true,
+    "notifyOnRegister": false
+  },
+  "ownerWhatsapp": ""
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'users' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Kelola User</h2></div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% users.forEach(u => { %>
+          <tr>
+            <td><%= u.username %></td>
+            <td><%= u.email || '-' %></td>
+            <td class="mono">Rp <%= u.saldo.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= u.role %>"><%= u.role %></span></td>
+            <td><span class="badge <%= u.status === 'active' ? 'active' : 'cancelled' %>"><%= u.status %></span></td>
+            <td>
+              <div class="flex" style="flex-wrap:wrap;">
+                <form method="POST" action="/admin/users/<%= u.id %>/saldo" class="flex">
+                  <input type="number" name="amount" placeholder="+/- saldo" style="width:110px;">
+                  <button class="btn small solid" type="submit">Set</button>
+                </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/status">
+                  <input type="hidden" name="status" value="<%= u.status === 'active' ? 'banned' : 'active' %>">
+                  <button class="btn small <%= u.status === 'active' ? 'danger' : 'ghost' %>" type="submit">
+                    <%= u.status === 'active' ? 'Blokir' : 'Aktifkan' %>
+                  </button>
+                </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/role">
+                  <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+                  <button class="btn small ghost" type="submit">
+                    Jadikan <%= u.role === 'admin' ? 'User' : 'Admin' %>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

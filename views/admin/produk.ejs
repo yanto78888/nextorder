@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'produk' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Kelola Produk</h2></div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3><%= editProduct ? 'Edit Produk' : 'Tambah Produk Baru' %></h3>
+        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>">
+          <label>Nama Produk</label>
+          <input type="text" name="name" required value="<%= editProduct ? editProduct.name : '' %>">
+          <label>Kategori</label>
+          <input type="text" name="category" placeholder="Streaming / Akun Game / dll" value="<%= editProduct ? editProduct.category : '' %>">
+          <label>Deskripsi</label>
+          <textarea name="description"><%= editProduct ? editProduct.description : '' %></textarea>
+          <label>Harga (Rp)</label>
+          <input type="number" name="price" required value="<%= editProduct ? editProduct.price : '' %>">
+          <label>Catatan Stok (internal, opsional)</label>
+          <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
+          <label>Tambah Stok Otomatis</label>
+          <textarea name="stockItems" placeholder="1 baris = 1 stok. Contoh:
+email1@gmail.com | pass123
+email2@gmail.com | pass456"></textarea>
+          <div class="helper-text">Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. Jika stok habis, order masuk notifikasi manual admin.</div>
+          <label>URL Thumbnail (opsional)</label>
+          <input type="text" name="thumbnail" placeholder="https://..." value="<%= editProduct ? editProduct.thumbnail : '' %>">
+          <% if (editProduct) { %>
+          <label>Status</label>
+          <select name="status">
+            <option value="active" <%= editProduct.status === 'active' ? 'selected' : '' %>>Aktif</option>
+            <option value="inactive" <%= editProduct.status === 'inactive' ? 'selected' : '' %>>Nonaktif</option>
+          </select>
+          <% } %>
+          <div class="flex mt-24">
+            <button class="btn solid" type="submit"><%= editProduct ? 'Simpan Perubahan' : 'Tambah Produk' %></button>
+            <% if (editProduct) { %><a href="/admin/produk" class="btn ghost">Batal</a><% } %>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Daftar Produk (<%= products.length %>)</h3>
+        <% if (products.length === 0) { %>
+          <div class="empty-state">Belum ada produk.</div>
+        <% } else { %>
+        <table>
+          <thead><tr><th>Nama</th><th>Harga</th><th>Stok Auto</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody>
+            <% products.forEach(p => { %>
+            <tr>
+              <td><%= p.name %><br><span class="helper-text"><%= p.category %></span></td>
+              <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+              <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
+              <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
+              <td>
+                <div class="flex">
+                  <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                  <form method="POST" action="/admin/produk/<%= p.id %>/hapus" onsubmit="return confirm('Hapus produk ini?')">
+                    <button class="btn small danger" type="submit">Hapus</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+
+      <% if (editProduct) { %>
+      <div class="card mt-24">
+        <h3>Stok Otomatis: <%= editProduct.name %></h3>
+        <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>
+        <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock">
+          <label>Tambah Stok Baru</label>
+          <textarea name="stockItems" placeholder="1 baris = 1 stok"></textarea>
+          <button class="btn solid mt-16" type="submit">+ Add Stock</button>
+        </form>
+
+        <div class="section-title"><h3>Daftar Stok (<%= editProduct.stockItems ? editProduct.stockItems.length : 0 %>)</h3><div class="line"></div></div>
+        <% if (!editProduct.stockItems || editProduct.stockItems.length === 0) { %>
+          <div class="alert error">Stok otomatis habis. Jika user beli produk ini, sistem akan menunggu admin kirim manual dan menampilkan notifikasi.</div>
+        <% } else { %>
+          <table>
+            <thead><tr><th>Isi Stok</th><th>Dibuat</th><th>Aksi</th></tr></thead>
+            <tbody>
+              <% editProduct.stockItems.forEach(item => { %>
+              <tr>
+                <td class="mono" style="white-space:pre-wrap; max-width:520px;"><%= item.value %></td>
+                <td><%= new Date(item.createdAt).toLocaleString('id-ID') %></td>
+                <td>
+                  <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock/<%= item.id %>/hapus" onsubmit="return confirm('Hapus stok ini?')">
+                    <button class="btn small danger" type="submit">Del Stock</button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+      <% } %>
+  </div>
+</div>
+</body>
+</html>
