@@ -11,6 +11,9 @@
       <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
     </div>
 
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
     <div class="grid grid-2">
       <div class="card" id="form-card">
         <h3>Isi Saldo via QRIS</h3>
@@ -33,6 +36,7 @@
           <tr><td>Total Bayar</td><td class="mono" id="d-total"></td></tr>
           <tr><td>ID Transaksi</td><td class="mono" id="d-trxid"></td></tr>
         </table>
+        <button class="btn danger mt-16" id="btn-cancel" style="width:100%;">Batal Transaksi</button>
       </div>
     </div>
 
@@ -42,7 +46,7 @@
         <div class="empty-state">Belum ada riwayat top up.</div>
       <% } else { %>
       <table>
-        <thead><tr><th>ID</th><th>Nominal</th><th>Total Bayar</th><th>Status</th><th>Tanggal</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nominal</th><th>Total Bayar</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
         <tbody>
           <% deposits.forEach(d => { %>
           <tr>
@@ -51,6 +55,15 @@
             <td class="mono">Rp <%= d.total.toLocaleString('id-ID') %></td>
             <td><span class="badge <%= d.status %>"><%= d.status %></span></td>
             <td><%= new Date(d.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <% if (d.status === 'pending') { %>
+              <form method="POST" action="/topup/<%= d.trxid %>/batal" onsubmit="return confirm('Batalkan transaksi top up ini?')">
+                <button class="btn small danger" type="submit">Batal</button>
+              </form>
+              <% } else { %>
+              <span class="helper-text">-</span>
+              <% } %>
+            </td>
           </tr>
           <% }) %>
         </tbody>

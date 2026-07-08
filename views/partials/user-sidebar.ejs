@@ -1,16 +1,17 @@
-<div class="sidebar">
+<div class="phone-topbar">
   <div class="brand">
     ⚡ <%= config.siteName %>
     <small><%= config.siteTagline %></small>
   </div>
-
-  <a href="/dashboard" class="nav-link <%= active === 'dashboard' ? 'active' : '' %>">🏠 Dashboard</a>
-  <a href="/produk" class="nav-link <%= active === 'produk' ? 'active' : '' %>">🛒 Katalog Produk</a>
-  <a href="/topup" class="nav-link <%= active === 'topup' ? 'active' : '' %>">💳 Top Up Saldo</a>
-  <a href="/riwayat" class="nav-link <%= active === 'riwayat' ? 'active' : '' %>">📜 Riwayat Order</a>
-  <a href="/profile" class="nav-link <%= active === 'profile' ? 'active' : '' %>">👤 Profil</a>
-
-  <form action="/logout" method="POST" style="margin-top:auto; padding-top: 14px;">
-    <button type="submit" class="nav-link" style="width:100%; text-align:left; background:transparent; border:1px solid var(--border-glow); cursor:pointer; font-family: inherit;">🚪 Keluar</button>
+  <form action="/logout" method="POST">
+    <button type="submit" class="icon-btn" title="Keluar">🚪</button>
   </form>
 </div>
+
+<nav class="bottom-nav">
+  <a href="/dashboard" class="nav-item <%= active === 'dashboard' ? 'active' : '' %>"><span class="nav-icon">🏠</span><span>Home</span></a>
+  <a href="/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">🛒</span><span>Produk</span></a>
+  <a href="/topup" class="nav-item <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon">💳</span><span>Top Up</span></a>
+  <a href="/riwayat" class="nav-item <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon">📜</span><span>Riwayat</span></a>
+  <a href="/profile" class="nav-item <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon">👤</span><span>Profil</span></a>
+</nav>

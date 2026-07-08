@@ -3,7 +3,7 @@ import { requireLogin } from '../middleware/auth.js';
 import { findUserById, updateUser, setPassword, verifyPassword, deductSaldo } from '../lib/users.js';
 import { getActiveProducts, findProductById, takeProductStock, countStock } from '../lib/products.js';
 import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
-import { createDeposit, getDeposit, getDepositsByUser } from '../lib/deposit.js';
+import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 
@@ -121,7 +121,13 @@ router.get('/riwayat', (req, res) => {
 
 router.get('/topup', (req, res) => {
   const deposits = getDepositsByUser(req.session.user.id).slice(0, 10);
-  res.render('topup', { deposits, config: getConfig(), user: findUserById(req.session.user.id) });
+  res.render('topup', {
+    deposits,
+    config: getConfig(),
+    user: findUserById(req.session.user.id),
+    success: req.query.success || null,
+    error: req.query.error || null
+  });
 });
 
 router.post('/api/topup', async (req, res) => {
@@ -141,6 +147,26 @@ router.get('/api/topup/status/:trxid', (req, res) => {
   if (!dep) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
   if (dep.userId !== req.session.user.id) return res.status(403).json({ error: 'Akses ditolak' });
   res.json({ status: dep.status, amount: dep.amount, total: dep.total });
+});
+
+// Batal deposit lewat AJAX (dipakai saat QR sedang tampil)
+router.post('/api/topup/cancel/:trxid', async (req, res) => {
+  try {
+    const dep = await cancelDeposit(req.params.trxid, req.session.user.id);
+    res.json({ ok: true, status: dep.status });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Batal deposit lewat form biasa (dipakai dari tabel riwayat top up)
+router.post('/topup/:trxid/batal', async (req, res) => {
+  try {
+    await cancelDeposit(req.params.trxid, req.session.user.id);
+    res.redirect('/topup?success=' + encodeURIComponent('Transaksi top up berhasil dibatalkan'));
+  } catch (err) {
+    res.redirect('/topup?error=' + encodeURIComponent(err.message));
+  }
 });
 
 export default router;

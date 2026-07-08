@@ -1,5 +1,6 @@
 let pollTimer = null;
 let countdownTimer = null;
+let currentTrxid = null;
 
 document.getElementById('btn-create').addEventListener('click', async () => {
   const amountInput = document.getElementById('amount');
@@ -38,6 +39,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
 });
 
 function showQr(deposit) {
+  currentTrxid = deposit.trxid;
   document.getElementById('qr-card').style.display = 'block';
   document.getElementById('qr-image').src = deposit.imageBase64;
   document.getElementById('d-amount').textContent = 'Rp ' + Number(deposit.amount).toLocaleString('id-ID');
@@ -45,9 +47,39 @@ function showQr(deposit) {
   document.getElementById('d-trxid').textContent = deposit.trxid;
   document.getElementById('qr-status').textContent = 'Menunggu pembayaran...';
 
+  const cancelBtn = document.getElementById('btn-cancel');
+  cancelBtn.style.display = 'inline-flex';
+  cancelBtn.disabled = false;
+  cancelBtn.textContent = 'Batal Transaksi';
+
   startCountdown(new Date(deposit.expiredAt).getTime());
   startPolling(deposit.trxid);
 }
+
+document.getElementById('btn-cancel').addEventListener('click', async () => {
+  if (!currentTrxid) return;
+  if (!confirm('Batalkan transaksi top up ini?')) return;
+
+  const btn = document.getElementById('btn-cancel');
+  btn.disabled = true;
+  btn.textContent = 'Membatalkan...';
+
+  try {
+    const res = await fetch(`/api/topup/cancel/${currentTrxid}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal membatalkan transaksi');
+
+    clearInterval(pollTimer);
+    clearInterval(countdownTimer);
+    document.getElementById('qr-status').textContent = '🚫 Transaksi dibatalkan.';
+    btn.style.display = 'none';
+    setTimeout(() => window.location.reload(), 1200);
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+    btn.textContent = 'Batal Transaksi';
+  }
+});
 
 function startCountdown(expiredAtMs) {
   clearInterval(countdownTimer);
@@ -80,11 +112,18 @@ function startPolling(trxid) {
         clearInterval(pollTimer);
         clearInterval(countdownTimer);
         document.getElementById('qr-status').textContent = '✅ Pembayaran berhasil! Saldo telah ditambahkan.';
+        document.getElementById('btn-cancel').style.display = 'none';
         setTimeout(() => window.location.reload(), 2000);
       } else if (data.status === 'expired') {
         clearInterval(pollTimer);
         clearInterval(countdownTimer);
         document.getElementById('qr-status').textContent = '❌ Transaksi kadaluarsa.';
+        document.getElementById('btn-cancel').style.display = 'none';
+      } else if (data.status === 'cancelled') {
+        clearInterval(pollTimer);
+        clearInterval(countdownTimer);
+        document.getElementById('qr-status').textContent = '🚫 Transaksi dibatalkan.';
+        document.getElementById('btn-cancel').style.display = 'none';
       }
     } catch (err) {
       // silent retry

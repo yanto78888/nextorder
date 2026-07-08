@@ -6,76 +6,107 @@
   <%- include('../partials/admin-sidebar', { active: 'settings' }) %>
 
   <div class="main">
-    <div class="topbar"><h2>Pengaturan Sistem</h2></div>
+    <div class="topbar">
+      <h2>Pengaturan</h2>
+      <div class="user-chip"><span class="dot"></span> Admin: <%= (typeof adminUser !== 'undefined' && adminUser) ? adminUser.username : 'admin' %></div>
+    </div>
 
-    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (typeof accountError !== 'undefined' && accountError) { %><div class="alert error"><%= accountError %></div><% } %>
 
-    <form method="POST" action="/admin/settings">
-      <div class="grid grid-2">
+    <%
+      const qris = config.qris || {};
+      const telegram = config.telegram || {};
+      const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
+    %>
 
-        <div class="card">
-          <h3>🌐 Identitas Website</h3>
-          <label>Nama Situs</label>
-          <input type="text" name="siteName" value="<%= config.siteName %>">
+    <div class="grid grid-2 settings-grid">
+      <div class="card">
+        <h3>Identitas Website</h3>
+        <form method="POST" action="/admin/settings">
+          <label>Nama Website</label>
+          <input type="text" name="siteName" required value="<%= config.siteName || '' %>">
+
           <label>Tagline</label>
-          <input type="text" name="siteTagline" value="<%= config.siteTagline %>">
-          <label>Nomor WhatsApp Owner (opsional)</label>
-          <input type="text" name="ownerWhatsapp" value="<%= config.ownerWhatsapp || '' %>">
-        </div>
+          <input type="text" name="siteTagline" value="<%= config.siteTagline || '' %>">
 
-        <div class="card">
-          <h3>🤖 Notifikasi Telegram</h3>
-          <p class="helper-text">Buat bot via @BotFather, lalu masukkan token & chat ID tujuan notifikasi di sini.</p>
-          <label>Bot Token</label>
-          <input type="text" name="botToken" value="<%= config.telegram.botToken %>" placeholder="123456:ABC-DEF...">
-          <label>Chat ID Tujuan</label>
-          <input type="text" name="chatId" value="<%= config.telegram.chatId %>" placeholder="Contoh: 123456789">
-          <label class="flex" style="margin-top:16px;">
-            <input type="checkbox" name="notifyOnDeposit" style="width:auto;" <%= config.telegram.notifyOnDeposit ? 'checked' : '' %>>
-            Notifikasi saat Deposit Berhasil
-          </label>
-          <label class="flex">
-            <input type="checkbox" name="notifyOnOrder" style="width:auto;" <%= config.telegram.notifyOnOrder ? 'checked' : '' %>>
-            Notifikasi saat Order Masuk
-          </label>
-          <label class="flex">
-            <input type="checkbox" name="notifyOnRegister" style="width:auto;" <%= config.telegram.notifyOnRegister ? 'checked' : '' %>>
-            Notifikasi saat User Baru Daftar
-          </label>
-        </div>
+          <label>Nomor WhatsApp Owner</label>
+          <input type="text" name="ownerWhatsapp" placeholder="628xxxxxxxxxx" value="<%= config.ownerWhatsapp || '' %>">
+          <div class="helper-text">Dipakai untuk tombol bantuan/kontak owner kalau ada di template.</div>
 
-        <div class="card" style="grid-column: 1 / -1;">
-          <h3>💳 Payment Gateway QRIS</h3>
-          <p class="helper-text">Menggunakan QRIS statis + pengecekan mutasi otomatis (contoh provider: qiospay.id). Semua data disimpan di data/config.json, bukan .env.</p>
-          <label>String QRIS Statis (dari merchant QRIS kamu)</label>
-          <textarea name="qrString" required><%= config.qris.qrString %></textarea>
-          <div class="grid grid-2">
-            <div>
-              <label>Merchant Code</label>
-              <input type="text" name="merchantCode" value="<%= config.qris.merchantCode %>">
-            </div>
-            <div>
-              <label>API Key</label>
-              <input type="text" name="apiKey" value="<%= config.qris.apiKey %>">
-            </div>
+          <div class="section-title"><h3>QRIS</h3><div class="line"></div></div>
+
+          <label>QR String Statis</label>
+          <textarea name="qrString" placeholder="Tempel QR string merchant di sini"><%= qris.qrString || '' %></textarea>
+
+          <label>Merchant Code</label>
+          <input type="text" name="merchantCode" value="<%= qris.merchantCode || '' %>">
+
+          <label>API Key Mutasi</label>
+          <input type="text" name="apiKey" value="<%= qris.apiKey || '' %>">
+
+          <div class="grid grid-3 form-mini-grid">
             <div>
               <label>Fee (%)</label>
-              <input type="number" step="0.01" name="feePercent" value="<%= config.qris.feePercent %>">
+              <input type="number" step="0.01" name="feePercent" value="<%= (typeof qris.feePercent !== 'undefined' && qris.feePercent !== null) ? qris.feePercent : 0.7 %>">
             </div>
             <div>
-              <label>Minimal Deposit (Rp)</label>
-              <input type="number" name="depositMin" value="<%= config.qris.depositMin %>">
+              <label>Minimal Deposit</label>
+              <input type="number" name="depositMin" value="<%= qris.depositMin || 1000 %>">
             </div>
             <div>
-              <label>Waktu Expired QR (menit)</label>
-              <input type="number" name="expiredMinutes" value="<%= config.qris.expiredMinutes %>">
+              <label>Expired (menit)</label>
+              <input type="number" name="expiredMinutes" value="<%= qris.expiredMinutes || 10 %>">
             </div>
           </div>
-        </div>
+
+          <div class="section-title"><h3>Telegram</h3><div class="line"></div></div>
+
+          <label>Bot Token</label>
+          <input type="text" name="botToken" value="<%= telegram.botToken || '' %>">
+
+          <label>Chat ID</label>
+          <input type="text" name="chatId" value="<%= telegram.chatId || '' %>">
+
+          <div class="toggle-list mt-16">
+            <label class="check-row"><input type="checkbox" name="notifyOnDeposit" <%= telegram.notifyOnDeposit ? 'checked' : '' %>> Notifikasi deposit sukses</label>
+            <label class="check-row"><input type="checkbox" name="notifyOnOrder" <%= telegram.notifyOnOrder ? 'checked' : '' %>> Notifikasi order masuk</label>
+            <label class="check-row"><input type="checkbox" name="notifyOnRegister" <%= telegram.notifyOnRegister ? 'checked' : '' %>> Notifikasi user daftar</label>
+          </div>
+
+          <button class="btn solid mt-24" type="submit" style="width:100%;">Simpan Pengaturan</button>
+        </form>
       </div>
 
-      <button class="btn solid mt-24" type="submit">💾 Simpan Semua Pengaturan</button>
-    </form>
+      <div class="card account-card">
+        <h3>Akun Admin</h3>
+        <p class="helper-text">Ubah username dan password admin langsung dari panel ini. Masukkan password admin saat ini untuk konfirmasi.</p>
+
+        <form method="POST" action="/admin/settings/account" autocomplete="off">
+          <label>Username Admin Sekarang</label>
+          <input type="text" value="<%= currentAdmin.username || '' %>" disabled>
+
+          <label>Username Baru</label>
+          <input type="text" name="newUsername" placeholder="Kosongkan jika tidak diganti" value="<%= currentAdmin.username || '' %>" autocomplete="new-password">
+          <div class="helper-text">Boleh huruf, angka, titik, strip, dan underscore. Minimal 3 karakter.</div>
+
+          <label>Password Admin Saat Ini</label>
+          <input type="password" name="currentPassword" required placeholder="Wajib diisi untuk validasi" autocomplete="current-password">
+
+          <label>Password Baru</label>
+          <input type="password" name="newPassword" placeholder="Kosongkan jika tidak diganti" autocomplete="new-password">
+
+          <label>Ulangi Password Baru</label>
+          <input type="password" name="newPassword2" placeholder="Ulangi password baru" autocomplete="new-password">
+
+          <button class="btn magenta mt-24" type="submit" style="width:100%;">Update Akun Admin</button>
+        </form>
+
+        <div class="alert success mt-24 account-note">
+          Tips: setelah username/password berhasil diubah, login berikutnya pakai data baru.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </body>

@@ -8,10 +8,12 @@
   <div class="main">
     <div class="topbar"><h2>Kelola Produk</h2></div>
 
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
     <div class="grid grid-2">
       <div class="card">
         <h3><%= editProduct ? 'Edit Produk' : 'Tambah Produk Baru' %></h3>
-        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>">
+        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>" enctype="multipart/form-data">
           <label>Nama Produk</label>
           <input type="text" name="name" required value="<%= editProduct ? editProduct.name : '' %>">
           <label>Kategori</label>
@@ -27,8 +29,15 @@
 email1@gmail.com | pass123
 email2@gmail.com | pass456"></textarea>
           <div class="helper-text">Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. Jika stok habis, order masuk notifikasi manual admin.</div>
-          <label>URL Thumbnail (opsional)</label>
-          <input type="text" name="thumbnail" placeholder="https://..." value="<%= editProduct ? editProduct.thumbnail : '' %>">
+          <label>Foto Produk</label>
+          <% if (editProduct && editProduct.thumbnail) { %>
+          <div class="thumb-preview">
+            <img src="<%= editProduct.thumbnail %>" alt="Foto saat ini">
+            <span class="helper-text">Foto saat ini. Upload file baru untuk menggantinya.</span>
+          </div>
+          <% } %>
+          <input type="file" name="thumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
+          <div class="helper-text">Upload foto dari galeri/kamera. Format JPG/PNG/WEBP/GIF, maks 3MB.<% if (editProduct) { %> Kosongkan jika tidak ingin mengubah foto.<% } %></div>
           <% if (editProduct) { %>
           <label>Status</label>
           <select name="status">
