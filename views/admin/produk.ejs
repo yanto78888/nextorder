@@ -25,9 +25,7 @@
           <label>Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
           <label>Tambah Stok Otomatis</label>
-          <textarea name="stockItems" placeholder="1 baris = 1 stok. Contoh:
-email1@gmail.com | pass123
-email2@gmail.com | pass456"></textarea>
+          <input type="text" name="stockItems" placeholder="Isi 1 stok, contoh: email1@gmail.com | pass123">
           <div class="helper-text">Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. Jika stok habis, order masuk notifikasi manual admin.</div>
           <label>Foto Produk</label>
           <% if (editProduct && editProduct.thumbnail) { %>
@@ -88,7 +86,7 @@ email2@gmail.com | pass456"></textarea>
         <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>
         <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock">
           <label>Tambah Stok Baru</label>
-          <textarea name="stockItems" placeholder="1 baris = 1 stok"></textarea>
+          <input type="text" name="stockItems" placeholder="Isi 1 stok, contoh: email1@gmail.com | pass123" required>
           <button class="btn solid mt-16" type="submit">+ Add Stock</button>
         </form>
 
