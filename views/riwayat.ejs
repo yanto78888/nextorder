@@ -25,7 +25,13 @@
             <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
             <td><span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : 'admin' %>"><%= o.deliveryMode || o.source %></span></td>
             <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
-            <td style="max-width:260px; font-size:12px; color:var(--text-dim); white-space:pre-wrap;"><%= o.detail || (o.manualRequired ? 'Menunggu admin kirim manual' : '-') %></td>
+            <td style="max-width:260px; font-size:12px; color:var(--text-dim);">
+              <% if (o.qty > 3 && o.detail) { %>
+                <a href="/riwayat/<%= o.id %>/download" class="btn small solid">⬇ Download .txt</a>
+              <% } else { %>
+                <span style="white-space:pre-wrap;"><%= o.detail || (o.manualRequired ? 'Menunggu admin kirim manual' : '-') %></span>
+              <% } %>
+            </td>
             <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
           </tr>
           <% }) %>
