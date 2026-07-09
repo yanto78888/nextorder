@@ -11,6 +11,45 @@
     <% if (error) { %><div class="alert error"><%= error %></div><% } %>
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
 
+    <div class="grid grid-3">
+      <div class="card stat-card">
+        <div class="label">Saldo Aktif</div>
+        <div class="value">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <a href="/topup" class="btn small solid" style="align-self:flex-start;">+ Top Up</a>
+      </div>
+      <div class="card stat-card magenta">
+        <div class="label">Total Order</div>
+        <div class="value"><%= totalOrder %></div>
+      </div>
+      <div class="card stat-card success">
+        <div class="label">Total Pembelanjaan</div>
+        <div class="value">Rp <%= totalSpent.toLocaleString('id-ID') %></div>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Order Terbaru</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (recentOrders.length === 0) { %>
+        <div class="empty-state">Belum ada order. <a href="/produk" style="color:var(--cyan)">Mulai belanja →</a></div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Produk</th><th>Total</th><th>Status</th><th>Tanggal</th></tr></thead>
+        <tbody>
+          <% recentOrders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.productName %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+
+    <div class="section-title"><h3>Akun</h3><div class="line"></div></div>
     <div class="grid grid-2">
       <div class="card">
         <h3>Informasi Akun</h3>

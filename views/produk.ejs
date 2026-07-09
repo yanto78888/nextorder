@@ -8,7 +8,12 @@
   <div class="main">
     <div class="topbar">
       <h2>Katalog Produk</h2>
-      <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+      <div class="flex" style="gap:8px;">
+        <% if ((user.membership || 'reguler') !== 'reguler') { %>
+          <span class="badge member-<%= user.membership %>"><%= user.membership === 'platinum' ? '💎 Platinum' : '🥇 Gold' %></span>
+        <% } %>
+        <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+      </div>
     </div>
 
     <% if (memberDiscount > 0) { %>
