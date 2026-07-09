@@ -10,7 +10,7 @@
 
     <div class="card">
       <table>
-        <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Member</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody>
           <% users.forEach(u => { %>
           <tr>
@@ -18,6 +18,7 @@
             <td><%= u.email || '-' %></td>
             <td class="mono">Rp <%= u.saldo.toLocaleString('id-ID') %></td>
             <td><span class="badge <%= u.role %>"><%= u.role %></span></td>
+            <td><span class="badge member-<%= u.membership || 'reguler' %>"><%= (u.membership || 'reguler') %></span></td>
             <td><span class="badge <%= u.status === 'active' ? 'active' : 'cancelled' %>"><%= u.status %></span></td>
             <td>
               <div class="flex" style="flex-wrap:wrap;">
@@ -36,6 +37,14 @@
                   <button class="btn small ghost" type="submit">
                     Jadikan <%= u.role === 'admin' ? 'User' : 'Admin' %>
                   </button>
+                </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/membership" class="flex">
+                  <select name="membership" style="width:110px;">
+                    <% membershipList.forEach(t => { %>
+                      <option value="<%= t.key %>" <%= (u.membership || 'reguler') === t.key ? 'selected' : '' %>><%= t.label %></option>
+                    <% }) %>
+                  </select>
+                  <button class="btn small magenta" type="submit">Set Member</button>
                 </form>
               </div>
             </td>
