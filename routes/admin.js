@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { requireAdmin } from '../middleware/auth.js';
 import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
+import { getMembershipList } from '../lib/membership.js';
 import {
   getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock
 } from '../lib/products.js';
@@ -178,7 +179,7 @@ router.post('/order/manual', async (req, res) => {
 
 // ---------- USERS ----------
 router.get('/users', (req, res) => {
-  res.render('admin/users', { users: getAllUsers(), config: getConfig() });
+  res.render('admin/users', { users: getAllUsers(), config: getConfig(), membershipList: getMembershipList() });
 });
 
 router.post('/users/:id/saldo', (req, res) => {
@@ -194,6 +195,14 @@ router.post('/users/:id/status', (req, res) => {
 
 router.post('/users/:id/role', (req, res) => {
   updateUser(req.params.id, { role: req.body.role });
+  res.redirect('/admin/users');
+});
+
+router.post('/users/:id/membership', (req, res) => {
+  const tier = req.body.membership;
+  if (['reguler', 'gold', 'platinum'].includes(tier)) {
+    updateUser(req.params.id, { membership: tier });
+  }
   res.redirect('/admin/users');
 });
 

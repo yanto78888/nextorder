@@ -1,11 +1,15 @@
 import express from 'express';
 import { requireLogin } from '../middleware/auth.js';
-import { findUserById, updateUser, setPassword, verifyPassword, deductSaldo } from '../lib/users.js';
+import {
+  findUserById, updateUser, setPassword, verifyPassword, deductSaldo,
+  getMembershipDiscount, upgradeMembership
+} from '../lib/users.js';
 import { getActiveProducts, findProductById, takeProductStock, countStock } from '../lib/products.js';
 import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
+import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
 
 const router = express.Router();
 router.use(requireLogin);
@@ -24,37 +28,82 @@ router.get('/dashboard', (req, res) => {
 
 router.get('/profile', (req, res) => {
   const user = findUserById(req.session.user.id);
-  res.render('profile', { user, error: null, success: null, config: getConfig() });
+  res.render('profile', {
+    user, error: req.query.error || null, success: req.query.success || null, config: getConfig(),
+    membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership)
+  });
 });
 
 router.post('/profile', (req, res) => {
   const user = findUserById(req.session.user.id);
   const { email } = req.body;
   updateUser(user.id, { email });
-  res.render('profile', { user: findUserById(user.id), error: null, success: 'Profil berhasil diperbarui', config: getConfig() });
+  const updated = findUserById(user.id);
+  res.render('profile', {
+    user: updated, error: null, success: 'Profil berhasil diperbarui', config: getConfig(),
+    membershipList: getMembershipList(), currentTier: getMembershipTier(updated.membership)
+  });
 });
 
 router.post('/profile/password', (req, res) => {
   const user = findUserById(req.session.user.id);
   const { oldPassword, newPassword, newPassword2 } = req.body;
+  const membershipList = getMembershipList();
 
   if (!verifyPassword(user, oldPassword)) {
-    return res.render('profile', { user, error: 'Password lama salah', success: null, config: getConfig() });
+    return res.render('profile', { user, error: 'Password lama salah', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
   }
   if (newPassword !== newPassword2) {
-    return res.render('profile', { user, error: 'Konfirmasi password baru tidak cocok', success: null, config: getConfig() });
+    return res.render('profile', { user, error: 'Konfirmasi password baru tidak cocok', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
   }
   if (newPassword.length < 6) {
-    return res.render('profile', { user, error: 'Password minimal 6 karakter', success: null, config: getConfig() });
+    return res.render('profile', { user, error: 'Password minimal 6 karakter', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
   }
   setPassword(user.id, newPassword);
-  res.render('profile', { user: findUserById(user.id), error: null, success: 'Password berhasil diubah', config: getConfig() });
+  const updated = findUserById(user.id);
+  res.render('profile', { user: updated, error: null, success: 'Password berhasil diubah', config: getConfig(), membershipList, currentTier: getMembershipTier(updated.membership) });
+});
+
+// Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo
+router.post('/membership/upgrade', (req, res) => {
+  try {
+    const tierKey = req.body.tier;
+    const user = findUserById(req.session.user.id);
+    const updated = upgradeMembership(user.id, tierKey);
+    req.session.user.membership = updated.membership;
+    const tier = getMembershipTier(updated.membership);
+    res.redirect('/profile?success=' + encodeURIComponent(`Berhasil upgrade ke member ${tier.label}! Diskon Rp ${tier.discount.toLocaleString('id-ID')} berlaku di setiap pembelian.`));
+  } catch (err) {
+    res.redirect('/profile?error=' + encodeURIComponent(err.message));
+  }
 });
 
 router.get('/produk', (req, res) => {
+  const user = findUserById(req.session.user.id);
+  const discount = getMembershipDiscount(user);
+  const products = getActiveProducts().map(p => ({
+    ...p,
+    finalPrice: applyMemberDiscount(p.price, user.membership)
+  }));
+
+  // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
+  const categoryOrder = [];
+  const grouped = {};
+  products.forEach(p => {
+    const cat = p.category || 'Umum';
+    if (!grouped[cat]) {
+      grouped[cat] = [];
+      categoryOrder.push(cat);
+    }
+    grouped[cat].push(p);
+  });
+  const rows = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
+
   res.render('produk', {
-    products: getActiveProducts(),
-    user: findUserById(req.session.user.id),
+    products,
+    rows,
+    memberDiscount: discount,
+    user,
     config: getConfig(),
     error: req.query.error || null
   });
@@ -68,7 +117,8 @@ router.post('/order', async (req, res) => {
   if (!product || product.status !== 'active') {
     return res.redirect('/produk?error=Produk tidak tersedia');
   }
-  const total = product.price * qty;
+  const unitPrice = applyMemberDiscount(product.price, user.membership);
+  const total = unitPrice * qty;
   if (user.saldo < total) {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
   }
@@ -84,7 +134,7 @@ router.post('/order', async (req, res) => {
     username: user.username,
     productId: product.id,
     productName: product.name,
-    price: product.price,
+    price: unitPrice,
     qty,
     source: 'user',
     status: isAutoDelivered ? 'completed' : 'processing',
