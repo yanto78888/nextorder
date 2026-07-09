@@ -1,21 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono&display=swap');
 
 :root {
-  --bg-deep: #060812;
-  --bg-panel: #0d1226;
-  --bg-panel-2: #121a38;
-  --border-glow: rgba(0, 255, 242, 0.22);
-  --cyan: #00fff2;
-  --magenta: #ff2ec4;
-  --amber: #ffc400;
-  --success: #00ffab;
-  --danger: #ff3860;
-  --text-main: #e7edff;
-  --text-dim: #7c88ad;
-  --radius: 10px;
-  --font-display: 'Orbitron', sans-serif;
-  --font-body: 'Chakra Petch', sans-serif;
-  --font-mono: 'Share Tech Mono', monospace;
+  /* Netflix-style dark palette: hitam pekat + merah aksen */
+  --bg-deep: #0a0a0a;
+  --bg-panel: #141414;
+  --bg-panel-2: #1f1f1f;
+  --border-glow: rgba(255, 255, 255, 0.09);
+  --cyan: #e50914;
+  --magenta: #f5c518;
+  --amber: #ffd700;
+  --success: #2ecc71;
+  --danger: #e50914;
+  --text-main: #f5f5f1;
+  --text-dim: #8c8c8c;
+  --radius: 6px;
+  --gold: #ffd700;
+  --platinum: #b9c2cc;
+  --font-display: 'Bebas Neue', 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
 }
 
 * { box-sizing: border-box; }
@@ -31,11 +34,9 @@ html, body {
 
 body {
   background-image:
-    linear-gradient(rgba(0,255,242,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,242,0.035) 1px, transparent 1px),
-    radial-gradient(circle at 15% 0%, rgba(255,46,196,0.10), transparent 40%),
-    radial-gradient(circle at 85% 100%, rgba(0,255,242,0.10), transparent 40%);
-  background-size: 42px 42px, 42px 42px, cover, cover;
+    radial-gradient(ellipse at top, rgba(229,9,20,0.08), transparent 55%),
+    radial-gradient(ellipse at bottom, rgba(0,0,0,0.6), transparent 60%);
+  background-color: var(--bg-deep);
   background-attachment: fixed;
 }
 
@@ -514,4 +515,116 @@ input[type="file"]::file-selector-button {
   .nav-item { font-size: 8px; }
   .nav-item .nav-icon { font-size: 16px; }
   .brand small { font-size: 8px; }
+}
+
+/* ---------- MEMBERSHIP ---------- */
+.member-alert {
+  background: linear-gradient(90deg, rgba(255,215,0,0.12), rgba(255,215,0,0.03));
+  border-color: var(--gold);
+  color: #ffe680;
+}
+
+.badge.member-reguler { background: rgba(140,140,140,0.15); color: var(--text-dim); }
+.badge.member-gold { background: rgba(255,215,0,0.16); color: var(--gold); border: 1px solid rgba(255,215,0,0.4); }
+.badge.member-platinum { background: rgba(185,194,204,0.16); color: var(--platinum); border: 1px solid rgba(185,194,204,0.4); }
+
+.member-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.member-card-icon { font-size: 30px; }
+.member-card-title { font-family: var(--font-display); font-size: 20px; letter-spacing: 1px; }
+.member-card-price { font-family: var(--font-mono); font-size: 16px; color: var(--text-main); }
+.member-card-benefit { font-size: 11px; color: var(--text-dim); }
+.member-card.member-gold::before { background: linear-gradient(90deg, var(--gold), #ffb700); }
+.member-card.member-platinum::before { background: linear-gradient(90deg, var(--platinum), #7f97a8); }
+.member-card.member-gold .member-card-title { color: var(--gold); }
+.member-card.member-platinum .member-card-title { color: var(--platinum); }
+
+/* ---------- NETFLIX-STYLE CATALOG ROWS ---------- */
+.nf-row { margin-bottom: 26px; }
+.nf-row-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-left: 2px;
+  color: var(--text-main);
+}
+.nf-row-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.nf-row-track::-webkit-scrollbar { height: 6px; }
+.nf-row-track::-webkit-scrollbar-thumb { background: var(--bg-panel-2); border-radius: 3px; }
+
+.nf-card {
+  flex: 0 0 auto;
+  width: 160px;
+  scroll-snap-align: start;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.nf-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: var(--cyan);
+}
+.nf-card-thumb {
+  position: relative;
+  height: 110px;
+  background: linear-gradient(135deg, #1a1a1a, #000);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.nf-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.nf-noimg {
+  font-family: var(--font-display);
+  font-size: 34px;
+  color: var(--text-dim);
+}
+.nf-stock-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 9px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.nf-stock-tag.ok { background: rgba(46,204,113,0.85); color: #06210f; }
+.nf-stock-tag.warn { background: rgba(255,215,0,0.85); color: #241a00; }
+
+.nf-card-body { padding: 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.nf-card-name { font-size: 13px; font-weight: 700; line-height: 1.25; }
+.nf-card-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex: 1;
+}
+.nf-card-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.nf-price-old { font-size: 11px; color: var(--text-dim); text-decoration: line-through; }
+.nf-price-now { font-family: var(--font-mono); color: var(--cyan); font-size: 14px; font-weight: 700; }
+
+@media (max-width: 520px) {
+  .nf-card { width: 140px; }
+  .nf-card-thumb { height: 96px; }
 }
