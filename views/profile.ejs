@@ -21,6 +21,8 @@
           <input type="email" name="email" value="<%= user.email || '' %>">
           <label>Saldo</label>
           <input type="text" value="Rp <%= user.saldo.toLocaleString('id-ID') %>" disabled class="mono">
+          <label>Status Member</label>
+          <input type="text" value="<%= currentTier.icon %> <%= currentTier.label %>" disabled>
           <button class="btn solid mt-24" type="submit">Simpan Perubahan</button>
         </form>
       </div>
@@ -37,6 +39,29 @@
           <button class="btn magenta mt-24" type="submit">Update Password</button>
         </form>
       </div>
+    </div>
+
+    <div class="section-title"><h3>Membership</h3><div class="line"></div></div>
+    <div class="grid grid-3">
+      <% membershipList.filter(t => t.key !== 'reguler').forEach(t => { %>
+        <div class="card member-card member-<%= t.key %>">
+          <div class="member-card-icon"><%= t.icon %></div>
+          <div class="member-card-title"><%= t.label %></div>
+          <div class="member-card-price">Rp <%= t.price.toLocaleString('id-ID') %></div>
+          <div class="member-card-benefit">Potongan Rp <%= t.discount.toLocaleString('id-ID') %> di setiap pembelian produk</div>
+
+          <% if (currentTier.key === t.key) { %>
+            <button class="btn small solid mt-16" type="button" disabled style="width:100%;">Member Aktif</button>
+          <% } else if (currentTier.order > t.order) { %>
+            <button class="btn small ghost mt-16" type="button" disabled style="width:100%;">Sudah Terlewati</button>
+          <% } else { %>
+            <form method="POST" action="/membership/upgrade">
+              <input type="hidden" name="tier" value="<%= t.key %>">
+              <button class="btn small magenta mt-16" type="submit" style="width:100%;">Upgrade Sekarang</button>
+            </form>
+          <% } %>
+        </div>
+      <% }) %>
     </div>
   </div>
 </div>
