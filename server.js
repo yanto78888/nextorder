@@ -54,7 +54,7 @@ bootstrap();
 // ---------- routes ----------
 app.get('/', (req, res) => {
   if (req.session.user) {
-    return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/dashboard');
+    return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/produk');
   }
   res.redirect('/login');
 });
