@@ -158,6 +158,16 @@ router.get('/riwayat', (req, res) => {
   });
 });
 
+// Order dengan qty > 3 dikirim dalam bentuk file .txt biar gak numpuk di halaman
+router.get('/riwayat/:id/download', (req, res) => {
+  const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+  if (!order || !order.detail) return res.status(404).send('Detail order tidak ditemukan');
+  const filename = `${order.productName.replace(/[^a-z0-9]+/gi, '-')}-${order.id}.txt`;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(order.detail);
+});
+
 router.get('/topup', (req, res) => {
   const deposits = getDepositsByUser(req.session.user.id).slice(0, 10);
   res.render('topup', {
