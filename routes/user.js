@@ -14,23 +14,18 @@ import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../li
 const router = express.Router();
 router.use(requireLogin);
 
-router.get('/dashboard', (req, res) => {
-  const user = findUserById(req.session.user.id);
-  const orders = getOrdersByUser(user.id);
-  res.render('dashboard', {
-    user,
-    totalOrder: orders.length,
-    totalSpent: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
-    recentOrders: orders.slice(0, 5),
-    config: getConfig()
-  });
-});
+// /dashboard lama dipindah ke /produk (home) dan statistiknya digabung ke /profile
+router.get('/dashboard', (req, res) => res.redirect('/produk'));
 
 router.get('/profile', (req, res) => {
   const user = findUserById(req.session.user.id);
+  const orders = getOrdersByUser(user.id);
   res.render('profile', {
     user, error: req.query.error || null, success: req.query.success || null, config: getConfig(),
-    membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership)
+    membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership),
+    totalOrder: orders.length,
+    totalSpent: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
+    recentOrders: orders.slice(0, 5)
   });
 });
 
@@ -38,30 +33,24 @@ router.post('/profile', (req, res) => {
   const user = findUserById(req.session.user.id);
   const { email } = req.body;
   updateUser(user.id, { email });
-  const updated = findUserById(user.id);
-  res.render('profile', {
-    user: updated, error: null, success: 'Profil berhasil diperbarui', config: getConfig(),
-    membershipList: getMembershipList(), currentTier: getMembershipTier(updated.membership)
-  });
+  res.redirect('/profile?success=' + encodeURIComponent('Profil berhasil diperbarui'));
 });
 
 router.post('/profile/password', (req, res) => {
   const user = findUserById(req.session.user.id);
   const { oldPassword, newPassword, newPassword2 } = req.body;
-  const membershipList = getMembershipList();
 
   if (!verifyPassword(user, oldPassword)) {
-    return res.render('profile', { user, error: 'Password lama salah', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
+    return res.redirect('/profile?error=' + encodeURIComponent('Password lama salah'));
   }
   if (newPassword !== newPassword2) {
-    return res.render('profile', { user, error: 'Konfirmasi password baru tidak cocok', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
+    return res.redirect('/profile?error=' + encodeURIComponent('Konfirmasi password baru tidak cocok'));
   }
   if (newPassword.length < 6) {
-    return res.render('profile', { user, error: 'Password minimal 6 karakter', success: null, config: getConfig(), membershipList, currentTier: getMembershipTier(user.membership) });
+    return res.redirect('/profile?error=' + encodeURIComponent('Password minimal 6 karakter'));
   }
   setPassword(user.id, newPassword);
-  const updated = findUserById(user.id);
-  res.render('profile', { user: updated, error: null, success: 'Password berhasil diubah', config: getConfig(), membershipList, currentTier: getMembershipTier(updated.membership) });
+  res.redirect('/profile?success=' + encodeURIComponent('Password berhasil diubah'));
 });
 
 // Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo

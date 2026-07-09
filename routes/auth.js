@@ -6,7 +6,7 @@ import { notifyRegister } from '../lib/telegram.js';
 const router = express.Router();
 
 router.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/dashboard');
+  if (req.session.user) return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/produk');
   res.render('login', { error: null, config: getConfig() });
 });
 
@@ -20,11 +20,11 @@ router.post('/login', (req, res) => {
     return res.render('login', { error: 'Akun anda diblokir. Hubungi admin.', config: getConfig() });
   }
   req.session.user = { id: user.id, username: user.username, role: user.role };
-  res.redirect(user.role === 'admin' ? '/admin' : '/dashboard');
+  res.redirect(user.role === 'admin' ? '/admin' : '/produk');
 });
 
 router.get('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/dashboard');
+  if (req.session.user) return res.redirect('/produk');
   res.render('register', { error: null, config: getConfig() });
 });
 
@@ -46,7 +46,7 @@ router.post('/register', async (req, res) => {
     const user = createUser({ username, email, password });
     req.session.user = { id: user.id, username: user.username, role: user.role };
     notifyRegister({ username: user.username }).catch(() => {});
-    res.redirect('/dashboard');
+    res.redirect('/produk');
   } catch (err) {
     res.render('register', { error: err.message, config: cfg });
   }
