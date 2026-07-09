@@ -40,7 +40,7 @@ app.use(attachUser);
 function bootstrap() {
   const users = getAllUsers();
   if (users.length === 0) {
-    createUser({ username: 'admin', email: '', password: 'admin123', role: 'admin' });
+    createUser({ username: 'skirk', email: '', password: 'binigw', role: 'admin' });
     console.log('===================================================');
     console.log(' Akun admin default dibuat!');
     console.log(' Username : admin');
