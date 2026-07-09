@@ -9,8 +9,8 @@
 
 import { getAllUsers, createUser, updateUser, setPassword } from '../lib/users.js';
 
-const DEFAULT_USERNAME = 'admin';
-const DEFAULT_PASSWORD = 'admin123';
+const DEFAULT_USERNAME = 'skirk';
+const DEFAULT_PASSWORD = 'binigw';
 
 function run() {
   const users = getAllUsers();
