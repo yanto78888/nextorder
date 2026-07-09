@@ -23,6 +23,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true, app: 'nextorder' });
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'nexorder-secret-key-ganti-jika-perlu',
   resave: false,

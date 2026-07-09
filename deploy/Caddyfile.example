@@ -1,0 +1,6 @@
+# Contoh reverse proxy Caddy untuk Nextorder.
+# Ganti nextorder.domainkamu.com dengan domain/subdomain kamu.
+nextorder.domainkamu.com {
+  encode gzip zstd
+  reverse_proxy 127.0.0.1:3000
+}
