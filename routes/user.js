@@ -14,6 +14,7 @@ import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
+import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 
 const router = express.Router();
 
@@ -341,9 +342,14 @@ router.get('/produk/:id', (req, res) => {
     return res.redirect('/produk?error=Produk tidak ditemukan');
   }
   const finalPrice = user ? applyMemberDiscount(product.price, user.membership) : product.price;
+  const reviews = getReviewsByProduct(product.id);
+  const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
+
   res.render('produk-detail', {
     product,
     finalPrice,
+    reviews,
+    hasReviewed,
     user,
     config: getConfig(),
     error: req.query.error || null,
@@ -351,25 +357,30 @@ router.get('/produk/:id', (req, res) => {
   });
 });
 
-// Submit rating
-router.post('/produk/:id/rating', requireLogin, (req, res) => {
+// Submit ulasan (rating + komentar) — 1x per user per produk
+router.post('/produk/:id/review', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
   const product = findProductById(req.params.id);
   if (!product) return res.redirect('/produk');
 
-  const newRating = Math.min(5, Math.max(1, parseInt(req.body.rating) || 0));
-  if (!newRating) return res.redirect(`/produk/${req.params.id}?error=Rating tidak valid`);
-
-  const currentCount = product.ratingCount || 0;
-  const currentRating = product.rating || 0;
-  const newCount = currentCount + 1;
-  const avgRating = ((currentRating * currentCount) + newRating) / newCount;
-
-  updateProduct(product.id, {
-    rating: Math.round(avgRating * 10) / 10,
-    ratingCount: newCount
-  });
-
-  res.redirect(`/produk/${product.id}?success=Terima kasih atas ratingmu! ⭐`);
+  try {
+    const { avg, count } = createReview({
+      userId: user.id,
+      username: user.username,
+      productId: product.id,
+      productName: product.name,
+      rating: req.body.rating,
+      comment: req.body.comment
+    });
+    // Sync rating ke produk
+    updateProduct(product.id, {
+      rating: Math.round(avg * 10) / 10,
+      ratingCount: count
+    });
+    res.redirect(`/produk/${product.id}?success=Ulasan kamu berhasil dikirim! ⭐`);
+  } catch (err) {
+    res.redirect(`/produk/${product.id}?error=${encodeURIComponent(err.message)}`);
+  }
 });
 
 // QRIS order init: buat deposit untuk total produk, lalu redirect ke halaman topup-like dengan QR

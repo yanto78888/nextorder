@@ -12,6 +12,7 @@ import {
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats } from '../lib/orders.js';
 import { notifyOrder } from '../lib/telegram.js';
+import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -91,14 +92,50 @@ router.get('/', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const manualOrders = orders.filter(o => o.manualRequired && o.status === 'processing');
   const emptyStockProducts = getAllProducts().filter(p => p.status === 'active' && (!p.stockItems || p.stockItems.length === 0));
+
+  // Buat data grafik 7 hari terakhir
+  const now = new Date();
+  const chartDays = 7;
+  const chartLabels = [];
+  const chartRevenue = [];
+  const chartOrders = [];
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayOrders = orders.filter(o => o.createdAt && o.createdAt.startsWith(dateStr) && o.status !== 'cancelled');
+    chartLabels.push(label);
+    chartOrders.push(dayOrders.length);
+    chartRevenue.push(dayOrders.reduce((s, o) => s + (o.total || 0), 0));
+  }
+
+  // Status breakdown untuk donut
+  const completed = orders.filter(o => o.status === 'completed').length;
+  const processing = orders.filter(o => o.status === 'processing').length;
+  const cancelled = orders.filter(o => o.status === 'cancelled').length;
+
   res.render('admin/dashboard', {
     stats,
     totalUsers: users.length,
-    recentOrders: orders.slice(0, 8),
+    recentOrders: orders.slice(0, 6),
+    recentReviews: getRecentReviews(5),
     manualOrders,
     emptyStockProducts,
-    config: getConfig()
+    config: getConfig(),
+    chartLabels: JSON.stringify(chartLabels),
+    chartRevenue: JSON.stringify(chartRevenue),
+    chartOrders: JSON.stringify(chartOrders),
+    statusCompleted: completed,
+    statusProcessing: processing,
+    statusCancelled: cancelled
   });
+});
+
+// Hapus review dari admin
+router.post('/review/delete/:id', (req, res) => {
+  deleteReview(req.params.id);
+  res.redirect('/admin?success=Ulasan dihapus');
 });
 
 // ---------- PRODUK ----------
