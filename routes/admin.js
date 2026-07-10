@@ -55,6 +55,26 @@ function uploadThumbnail(req, res, next) {
   });
 }
 
+// ---------- UPLOAD BANNER IKLAN ----------
+const bannerDir = path.join(__dirname, '..', 'public', 'uploads', 'banners');
+fs.mkdirSync(bannerDir, { recursive: true });
+
+const bannerStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, bannerDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `banner_${Date.now()}${ext}`);
+  }
+});
+const uploadBanner = multer({
+  storage: bannerStorage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(jpe?g|png|webp|gif)$/i.test(file.originalname) && /^image\//i.test(file.mimetype || '');
+    ok ? cb(null, true) : cb(new Error('Format harus gambar'));
+  }
+});
+
 function renderSettings(req, res, extra = {}) {
   res.render('admin/settings', {
     config: getConfig(),
@@ -217,38 +237,58 @@ router.post('/settings', (req, res) => {
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
-    groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText
+    groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
+    marqueeEnabled, marqueeText
   } = req.body;
 
+  // Proses banner dari bannerLink[] array
+  const existing = (getConfig().banners || []);
+  const linkArr = [].concat(req.body['bannerLink[]'] || req.body.bannerLink || []);
+  const titleArr = [].concat(req.body['bannerTitle[]'] || req.body.bannerTitle || []);
+  const keepArr = [].concat(req.body['bannerId[]'] || req.body.bannerId || []);
+  const banners = existing
+    .filter(b => keepArr.includes(b.id))
+    .map(b => {
+      const idx = keepArr.indexOf(b.id);
+      return { ...b, link: linkArr[idx] || b.link, title: titleArr[idx] || b.title };
+    });
+
   updateConfig({
-    siteName,
-    siteTagline,
-    ownerWhatsapp,
-    qris: {
-      qrString,
-      merchantCode,
-      apiKey,
-      feePercent: parseFloat(feePercent),
-      depositMin: parseInt(depositMin),
-      expiredMinutes: parseInt(expiredMinutes)
-    },
-    telegram: {
-      botToken,
-      chatId,
-      notifyOnDeposit: notifyOnDeposit === 'on',
-      notifyOnOrder: notifyOnOrder === 'on',
-      notifyOnRegister: notifyOnRegister === 'on'
-    },
-    community: {
-      groupEnabled: groupEnabled === 'on',
-      groupTitle,
-      groupMessage,
-      groupLink,
-      groupButtonText
-    }
+    siteName, siteTagline, ownerWhatsapp,
+    qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
+    telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
+    community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
+    marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
+    banners
   });
 
   renderSettings(req, res, { success: 'Pengaturan berhasil disimpan' });
+});
+
+// Upload banner baru
+router.post('/settings/banner/add', (req, res) => {
+  uploadBanner.single('bannerImage')(req, res, (err) => {
+    if (err) return res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
+    if (!req.file) return res.redirect('/admin/settings?error=Pilih gambar banner');
+    const cfg = getConfig();
+    const banners = cfg.banners || [];
+    banners.push({
+      id: 'b' + Date.now(),
+      image: '/uploads/banners/' + req.file.filename,
+      link: req.body.bannerLinkNew || '',
+      title: req.body.bannerTitleNew || 'Banner'
+    });
+    updateConfig({ banners });
+    res.redirect('/admin/settings?success=Banner berhasil ditambahkan');
+  });
+});
+
+// Hapus banner
+router.post('/settings/banner/delete/:id', (req, res) => {
+  const cfg = getConfig();
+  const banners = (cfg.banners || []).filter(b => b.id !== req.params.id);
+  updateConfig({ banners });
+  res.redirect('/admin/settings?success=Banner dihapus');
 });
 
 // Ubah username/password admin dari halaman Settings.

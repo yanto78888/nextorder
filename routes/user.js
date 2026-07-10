@@ -139,6 +139,8 @@ router.get('/produk', (req, res) => {
     memberDiscount: discount,
     user,
     config: getConfig(),
+    banners: (getConfig().banners || []).filter(b => b.image),
+    marquee: getConfig().marquee || {},
     error: req.query.error || null
   });
 });
