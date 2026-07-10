@@ -11,6 +11,24 @@
     <% if (error) { %><div class="alert error"><%= error %></div><% } %>
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
 
+    <div class="card avatar-card">
+      <div class="avatar-card-preview">
+        <% if (user.avatar) { %>
+          <img src="<%= user.avatar %>" alt="<%= user.username %>">
+        <% } else { %>
+          <span class="avatar-initial"><%= (user.username || '?').charAt(0).toUpperCase() %></span>
+        <% } %>
+      </div>
+      <div class="avatar-card-form">
+        <h3 style="margin-bottom:2px;">Foto Profil</h3>
+        <div class="helper-text" style="margin-top:0;">JPG, PNG, WEBP, atau GIF, maksimal 2MB. Foto ini tampil bulat di pojok kanan atas.</div>
+        <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="avatar-form">
+          <input type="file" name="avatarFile" accept="image/jpeg,image/png,image/webp,image/gif" required>
+          <button class="btn small solid mt-16" type="submit">Ganti Foto</button>
+        </form>
+      </div>
+    </div>
+
     <div class="grid grid-3">
       <div class="card stat-card">
         <div class="label">Saldo Aktif</div>

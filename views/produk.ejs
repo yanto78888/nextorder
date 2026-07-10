@@ -3,18 +3,57 @@
 <head><%- include('partials/head') %></head>
 <body>
 <div class="app-shell">
-  <%- include('partials/user-sidebar', { active: 'produk' }) %>
+  <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
 
   <div class="main">
     <div class="topbar">
       <h2>Katalog Produk</h2>
       <div class="flex" style="gap:8px;">
-        <% if ((user.membership || 'reguler') !== 'reguler') { %>
+        <% if (user && (user.membership || 'reguler') !== 'reguler') { %>
           <span class="badge member-<%= user.membership %>"><%= user.membership === 'platinum' ? '💎 Platinum' : '🥇 Gold' %></span>
         <% } %>
-        <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <% if (user) { %>
+          <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <% } else { %>
+          <a href="/login" class="user-chip guest-chip"><span class="dot guest"></span> Masuk / Daftar</a>
+        <% } %>
       </div>
     </div>
+
+    <!-- Quick actions: Deposit & Riwayat -->
+    <div class="quick-actions">
+      <% if (user) { %>
+        <a href="/topup" class="quick-action-btn qa-deposit">
+          <span class="qa-icon">💳</span>
+          <span class="qa-label">Deposit</span>
+        </a>
+        <a href="/riwayat" class="quick-action-btn qa-riwayat">
+          <span class="qa-icon">📜</span>
+          <span class="qa-label">Riwayat</span>
+        </a>
+        <a href="/profile" class="quick-action-btn qa-profile">
+          <span class="qa-icon">👤</span>
+          <span class="qa-label">Profil</span>
+        </a>
+      <% } else { %>
+        <a href="/login" class="quick-action-btn qa-deposit">
+          <span class="qa-icon">💳</span>
+          <span class="qa-label">Deposit</span>
+        </a>
+        <a href="/login" class="quick-action-btn qa-riwayat">
+          <span class="qa-icon">📜</span>
+          <span class="qa-label">Riwayat</span>
+        </a>
+        <a href="/login" class="quick-action-btn qa-profile">
+          <span class="qa-icon">🔑</span>
+          <span class="qa-label">Masuk</span>
+        </a>
+      <% } %>
+    </div>
+
+    <% if (!user) { %>
+      <div class="alert guest-alert">👋 Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
+    <% } %>
 
     <% if (memberDiscount > 0) { %>
       <div class="alert member-alert">
@@ -48,11 +87,15 @@
                     <% } %>
                     <span class="nf-price-now">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
                   </div>
-                  <form method="POST" action="/order" class="flex" style="margin-top:8px;">
-                    <input type="hidden" name="productId" value="<%= p.id %>">
-                    <input type="number" name="qty" value="1" min="1" style="width:60px;">
-                    <button type="submit" class="btn small solid" style="flex:1;">Beli</button>
-                  </form>
+                  <% if (user) { %>
+                    <form method="POST" action="/order" class="flex" style="margin-top:8px;">
+                      <input type="hidden" name="productId" value="<%= p.id %>">
+                      <input type="number" name="qty" value="1" min="1" style="width:60px;">
+                      <button type="submit" class="btn small solid" style="flex:1;">Beli</button>
+                    </form>
+                  <% } else { %>
+                    <a href="/login" class="btn small ghost" style="margin-top:8px; width:100%;">Login untuk Beli</a>
+                  <% } %>
                 </div>
               </div>
             <% }) %>
