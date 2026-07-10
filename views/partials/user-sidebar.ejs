@@ -1,12 +1,80 @@
+<%
+  const isGuest = !user;
+  const avatarUrl = (!isGuest && user.avatar) ? user.avatar : '';
+  const initial = isGuest ? '?' : (user.username || '?').charAt(0).toUpperCase();
+  const community = (typeof config !== 'undefined' && config.community) ? config.community : {};
+%>
+
 <div class="phone-topbar">
-  <div class="brand">
+  <button type="button" class="icon-btn hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
+    <span class="hamburger-lines"><span></span><span></span><span></span></span>
+  </button>
+
+  <div class="brand brand-center">
     ⚡ <%= config.siteName %>
     <small><%= config.siteTagline %></small>
   </div>
-  <form action="/logout" method="POST">
-    <button type="submit" class="icon-btn" title="Keluar">🚪</button>
-  </form>
+
+  <% if (isGuest) { %>
+    <a href="/login" class="avatar-btn avatar-guest" title="Masuk / Daftar">
+      <span class="avatar-initial">?</span>
+    </a>
+  <% } else { %>
+    <a href="/profile" class="avatar-btn" title="Profil Saya">
+      <% if (avatarUrl) { %>
+        <img src="<%= avatarUrl %>" alt="<%= user.username %>">
+      <% } else { %>
+        <span class="avatar-initial"><%= initial %></span>
+      <% } %>
+    </a>
+  <% } %>
 </div>
+
+<!-- ===== DRAWER (garis 3 pojok kiri atas) ===== -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawerPanel">
+  <div class="drawer-head">
+    <div class="drawer-user">
+      <div class="drawer-avatar">
+        <% if (avatarUrl) { %>
+          <img src="<%= avatarUrl %>" alt="<%= user.username %>">
+        <% } else { %>
+          <span class="avatar-initial"><%= initial %></span>
+        <% } %>
+      </div>
+      <div class="drawer-user-info">
+        <div class="drawer-username"><%= isGuest ? 'Tamu' : user.username %></div>
+        <% if (!isGuest) { %>
+          <div class="drawer-saldo mono">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <% } else { %>
+          <div class="drawer-saldo">Belum masuk akun</div>
+        <% } %>
+      </div>
+    </div>
+    <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">✕</button>
+  </div>
+
+  <nav class="drawer-nav">
+    <a href="/produk" class="drawer-link <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">🏠</span> Beranda</a>
+    <% if (!isGuest) { %>
+      <a href="/topup" class="drawer-link <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon">💳</span> Deposit / Top Up</a>
+      <a href="/riwayat" class="drawer-link <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon">📜</span> Riwayat Order</a>
+      <a href="/profile" class="drawer-link <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon">👤</span> Profil Saya</a>
+    <% } else { %>
+      <a href="/login" class="drawer-link"><span class="nav-icon">🔑</span> Masuk</a>
+      <a href="/register" class="drawer-link"><span class="nav-icon">📝</span> Daftar Akun</a>
+    <% } %>
+    <% if (community.groupLink) { %>
+      <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="drawer-link drawer-link-group"><span class="nav-icon">👥</span> Gabung Grup Komunitas</a>
+    <% } %>
+  </nav>
+
+  <% if (!isGuest) { %>
+    <form action="/logout" method="POST" class="drawer-logout">
+      <button type="submit" class="btn danger" style="width:100%;">🚪 Keluar</button>
+    </form>
+  <% } %>
+</aside>
 
 <nav class="bottom-nav">
   <a href="/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">🏠</span><span>Home</span></a>
@@ -14,3 +82,81 @@
   <a href="/riwayat" class="nav-item <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon">📜</span><span>Riwayat</span></a>
   <a href="/profile" class="nav-item <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon">👤</span><span>Profil</span></a>
 </nav>
+
+<script>
+(function () {
+  var openBtn = document.getElementById('drawerOpenBtn');
+  var closeBtn = document.getElementById('drawerCloseBtn');
+  var overlay = document.getElementById('drawerOverlay');
+  var panel = document.getElementById('drawerPanel');
+
+  function openDrawer() {
+    overlay.classList.add('show');
+    panel.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    overlay.classList.remove('show');
+    panel.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  if (openBtn) openBtn.addEventListener('click', openDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  if (overlay) overlay.addEventListener('click', closeDrawer);
+})();
+</script>
+
+<!-- ===== POPUP NOTIFIKASI GRUP (muncul sekali saat pertama buka app) ===== -->
+<% if (community.groupEnabled !== false && community.groupLink) { %>
+<div class="group-modal-overlay" id="groupModalOverlay">
+  <div class="group-modal">
+    <div class="group-modal-icon">👥</div>
+    <h3 class="group-modal-title"><%= community.groupTitle || 'Gabung Komunitas Kita!' %></h3>
+    <p class="group-modal-msg"><%= community.groupMessage || 'Dapatkan info promo, update stok, dan bantuan tercepat lewat grup resmi kami.' %></p>
+    <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="btn solid group-modal-cta" id="groupModalJoinBtn" style="width:100%;">
+      <%= community.groupButtonText || 'Gabung Sekarang' %>
+    </a>
+    <button type="button" class="btn ghost group-modal-later" id="groupModalLaterBtn" style="width:100%;">Nanti Saja</button>
+    <label class="check-row group-modal-check">
+      <input type="checkbox" id="groupModalDontShow"> Jangan tampilkan lagi
+    </label>
+  </div>
+</div>
+<script>
+(function () {
+  var HIDE_FOREVER_KEY = 'nx_hide_group_modal';
+  var SHOWN_SESSION_KEY = 'nx_group_modal_shown';
+  try {
+    if (localStorage.getItem(HIDE_FOREVER_KEY) === '1') return;
+    if (sessionStorage.getItem(SHOWN_SESSION_KEY) === '1') return;
+  } catch (e) {}
+
+  var overlay = document.getElementById('groupModalOverlay');
+  if (!overlay) return;
+
+  function hideModal() {
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  function persistIfChecked() {
+    var checkbox = document.getElementById('groupModalDontShow');
+    if (checkbox && checkbox.checked) {
+      try { localStorage.setItem(HIDE_FOREVER_KEY, '1'); } catch (e) {}
+    }
+  }
+
+  try { sessionStorage.setItem(SHOWN_SESSION_KEY, '1'); } catch (e) {}
+
+  setTimeout(function () {
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }, 400);
+
+  var laterBtn = document.getElementById('groupModalLaterBtn');
+  var joinBtn = document.getElementById('groupModalJoinBtn');
+  if (laterBtn) laterBtn.addEventListener('click', function () { persistIfChecked(); hideModal(); });
+  if (joinBtn) joinBtn.addEventListener('click', function () { persistIfChecked(); setTimeout(hideModal, 150); });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) { persistIfChecked(); hideModal(); } });
+})();
+</script>
+<% } %>
