@@ -53,10 +53,11 @@ bootstrap();
 
 // ---------- routes ----------
 app.get('/', (req, res) => {
-  if (req.session.user) {
-    return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/produk');
+  if (req.session.user && req.session.user.role === 'admin') {
+    return res.redirect('/admin');
   }
-  res.redirect('/login');
+  // Tamu (belum login) langsung diarahkan ke beranda/katalog, tidak dipaksa login dulu
+  res.redirect('/produk');
 });
 
 app.use('/', authRoutes);
