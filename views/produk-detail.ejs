@@ -4,9 +4,9 @@
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
-
   <div class="main detail-main">
 
+    <!-- Hero Image -->
     <div class="detail-hero">
       <% if (product.thumbnail) { %>
         <img class="detail-thumb" src="<%= product.thumbnail %>" alt="<%= product.name %>">
@@ -27,36 +27,16 @@
 
       <h1 class="detail-title"><%= product.name %></h1>
 
-      <!-- Rating Bintang -->
-      <div class="rating-row" data-product-id="<%= product.id %>">
-        <div class="stars-display" id="starsDisplay">
-          <% for(let i=1; i<=5; i++) { %>
-            <span class="star <%= i <= Math.round(product.rating || 0) ? 'filled' : '' %>" data-val="<%= i %>">★</span>
-          <% } %>
+      <!-- Rating display -->
+      <div class="rating-row">
+        <div class="stars-display">
+          <% const avgR = product.rating || 0; for(let i=1;i<=5;i++){%><span class="star <%= i<=Math.round(avgR)?'filled':'' %>">★</span><%}%>
         </div>
-        <span class="rating-score"><%= (product.rating || 0).toFixed(1) %></span>
+        <span class="rating-score"><%= avgR.toFixed(1) %></span>
         <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
-        <% if (user) { %>
-          <button class="btn-rate" id="rateToggleBtn">Beri Rating</button>
-        <% } %>
       </div>
 
-      <% if (user) { %>
-        <div class="rate-input-row" id="rateInputRow" style="display:none;">
-          <div class="stars-input" id="starsInput">
-            <% for(let i=1; i<=5; i++) { %>
-              <span class="star-input" data-val="<%= i %>">★</span>
-            <% } %>
-          </div>
-          <span class="rate-hint" id="rateHint">Pilih bintang</span>
-          <form method="POST" action="/produk/<%= product.id %>/rating" id="rateForm">
-            <input type="hidden" name="rating" id="ratingInput" value="">
-            <button type="submit" class="btn small solid" id="rateSubmitBtn" disabled>Kirim Rating</button>
-          </form>
-        </div>
-      <% } %>
-
-      <!-- Statistik: Terjual & Stok -->
+      <!-- Stats -->
       <div class="detail-stats-row">
         <div class="detail-stat">
           <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
@@ -65,12 +45,12 @@
         <div class="detail-stat-divider"></div>
         <div class="detail-stat">
           <div class="detail-stat-val"><%= stockCount %></div>
-          <div class="detail-stat-label">Stok Tersedia</div>
+          <div class="detail-stat-label">Stok</div>
         </div>
         <div class="detail-stat-divider"></div>
         <div class="detail-stat">
           <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
-          <div class="detail-stat-label">Harga<%= finalPrice < product.price ? ' (diskon)' : '' %></div>
+          <div class="detail-stat-label">Harga</div>
         </div>
       </div>
 
@@ -82,14 +62,7 @@
         </div>
       <% } %>
 
-      <% if (product.stockNote) { %>
-        <div class="detail-section">
-          <div class="detail-section-title">Catatan Pengiriman</div>
-          <div class="detail-desc"><%= product.stockNote %></div>
-        </div>
-      <% } %>
-
-      <!-- Harga & Pilih Metode Bayar -->
+      <!-- Buy Box -->
       <% if (user) { %>
         <div class="detail-buy-box">
           <div class="detail-price-main">
@@ -117,7 +90,7 @@
                 <div class="method-icon">💳</div>
                 <div class="method-info">
                   <div class="method-name">Saldo</div>
-                  <div class="method-sub" id="saldoInfo">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                  <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
                 </div>
                 <div class="method-check">✓</div>
               </div>
@@ -128,7 +101,7 @@
                 <div class="method-icon">📱</div>
                 <div class="method-info">
                   <div class="method-name">QRIS</div>
-                  <div class="method-sub">Bayar langsung via QRIS / scan</div>
+                  <div class="method-sub">Bayar via scan QR</div>
                 </div>
                 <div class="method-check">✓</div>
               </div>
@@ -144,12 +117,9 @@
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
           </form>
 
-          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn">
-            🛒 Beli Sekarang
-          </button>
-
+          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn">🛒 Beli Sekarang</button>
           <% if (user.saldo < finalPrice) { %>
-            <div class="alert error" style="margin-top:10px; font-size:12px;">Saldo kamu tidak cukup — pertimbangkan pilih bayar via QRIS.</div>
+            <div class="alert error" style="margin-top:8px; font-size:12px;">Saldo tidak cukup — gunakan QRIS.</div>
           <% } %>
         </div>
       <% } else { %>
@@ -160,96 +130,117 @@
         </div>
       <% } %>
 
-    </div>
-  </div>
-</div>
+      <!-- ====== ULASAN / KOMENTAR ====== -->
+      <div class="reviews-section">
+        <div class="reviews-header">
+          <div class="detail-section-title">Ulasan Pembeli</div>
+          <span class="reviews-count"><%= reviews.length %> ulasan</span>
+        </div>
+
+        <!-- Form ulasan (hanya user login & belum review) -->
+        <% if (user && !hasReviewed) { %>
+          <div class="review-form-card">
+            <div class="review-form-title">Tulis Ulasanmu</div>
+            <form method="POST" action="/produk/<%= product.id %>/review" class="review-form">
+              <div class="review-stars-input" id="reviewStarsInput">
+                <% for(let i=1;i<=5;i++){%><span class="rev-star-btn" data-val="<%= i %>">★</span><%}%>
+              </div>
+              <input type="hidden" name="rating" id="reviewRatingVal" value="">
+              <p class="rev-star-hint" id="revStarHint">Ketuk bintang untuk memberi nilai</p>
+              <textarea name="comment" class="review-textarea" placeholder="Ceritakan pengalamanmu menggunakan produk ini... (opsional, maks 500 karakter)" maxlength="500" rows="3"></textarea>
+              <button type="submit" class="btn solid review-submit-btn" id="reviewSubmitBtn" disabled>Kirim Ulasan</button>
+            </form>
+          </div>
+        <% } else if (user && hasReviewed) { %>
+          <div class="review-already">✅ Kamu sudah memberikan ulasan untuk produk ini.</div>
+        <% } else { %>
+          <div class="review-login-prompt"><a href="/login" style="color:var(--cyan);">Login</a> untuk menulis ulasan.</div>
+        <% } %>
+
+        <!-- Daftar ulasan -->
+        <% if (reviews.length === 0) { %>
+          <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! ⭐</div>
+        <% } else { %>
+          <div class="review-list">
+            <% reviews.forEach(r => { %>
+            <div class="review-card">
+              <div class="review-card-top">
+                <div class="review-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+                <div class="review-card-meta">
+                  <div class="review-username"><%= r.username %></div>
+                  <div class="review-date"><%= new Date(r.createdAt).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}) %></div>
+                </div>
+                <div class="review-stars-display">
+                  <% for(let i=1;i<=5;i++){%><span class="<%= i<=r.rating?'rstar-on':'rstar-off' %>">★</span><%}%>
+                </div>
+              </div>
+              <% if (r.comment) { %>
+                <div class="review-comment"><%= r.comment %></div>
+              <% } %>
+            </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+    </div><!-- /detail-body -->
+  </div><!-- /main -->
+</div><!-- /app-shell -->
 
 <script>
-(function () {
-  var unitPrice = <%= finalPrice %>;
-  var qtyEl = document.getElementById('qtyInput');
-  var totalEl = document.getElementById('totalPreview');
-  var buyQtySaldo = document.getElementById('buyQtySaldo');
-  var buyQtyQris = document.getElementById('buyQtyQris');
-  var minusBtn = document.getElementById('qtyMinus');
-  var plusBtn = document.getElementById('qtyPlus');
-  var buyBtn = document.getElementById('buyMainBtn');
+(function(){
+  // Qty stepper
+  var unitPrice=<%= finalPrice %>;
+  var qEl=document.getElementById('qtyInput');
+  var tEl=document.getElementById('totalPreview');
+  function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
+  function upd(){var q=Math.max(1,parseInt(qEl.value)||1);qEl.value=q;
+    var qs=document.getElementById('buyQtySaldo');var qq=document.getElementById('buyQtyQris');
+    if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);}
+  if(qEl){qEl.addEventListener('input',upd);
+    var m=document.getElementById('qtyMinus');var p=document.getElementById('qtyPlus');
+    if(m)m.addEventListener('click',function(){qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1);upd();});
+    if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
 
-  function formatRupiah(n) {
-    return 'Rp ' + n.toLocaleString('id-ID');
-  }
-  function updateTotal() {
-    var q = Math.max(1, parseInt(qtyEl.value) || 1);
-    qtyEl.value = q;
-    if (buyQtySaldo) buyQtySaldo.value = q;
-    if (buyQtyQris) buyQtyQris.value = q;
-    if (totalEl) totalEl.textContent = formatRupiah(unitPrice * q);
-  }
+  // Method tabs
+  var radios=document.querySelectorAll('input[name="payMethod"]');
+  radios.forEach(function(r){r.addEventListener('change',function(){
+    document.querySelectorAll('.method-card').forEach(function(c){c.classList.remove('selected');});
+    r.closest('.method-tab').querySelector('.method-card').classList.add('selected');
+  });});
+  var def=document.querySelector('input[name="payMethod"]:checked');
+  if(def)def.closest('.method-tab').querySelector('.method-card').classList.add('selected');
 
-  if (qtyEl) {
-    qtyEl.addEventListener('input', updateTotal);
-    if (minusBtn) minusBtn.addEventListener('click', function () { qtyEl.value = Math.max(1, (parseInt(qtyEl.value)||1) - 1); updateTotal(); });
-    if (plusBtn) plusBtn.addEventListener('click', function () { qtyEl.value = (parseInt(qtyEl.value)||1) + 1; updateTotal(); });
-  }
-
-  // Pilih metode & tombol beli
-  var methodTabs = document.querySelectorAll('input[name="payMethod"]');
-  var formSaldo = document.getElementById('buyFormSaldo');
-  var formQris = document.getElementById('buyFormQris');
-
-  if (buyBtn) {
-    buyBtn.addEventListener('click', function () {
-      var method = 'saldo';
-      methodTabs.forEach(function (r) { if (r.checked) method = r.value; });
-      if (method === 'qris') {
-        if (formQris) formQris.submit();
-      } else {
-        if (formSaldo) formSaldo.submit();
-      }
-    });
-  }
-
-  // Highlight metode card saat dipilih
-  methodTabs.forEach(function (radio) {
-    radio.addEventListener('change', function () {
-      document.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('selected'); });
-      radio.closest('.method-tab').querySelector('.method-card').classList.add('selected');
-    });
+  // Buy button
+  var buyBtn=document.getElementById('buyMainBtn');
+  if(buyBtn)buyBtn.addEventListener('click',function(){
+    var m='saldo';radios.forEach(function(r){if(r.checked)m=r.value;});
+    if(m==='qris'){var f=document.getElementById('buyFormQris');if(f)f.submit();}
+    else{var f=document.getElementById('buyFormSaldo');if(f)f.submit();}
   });
-  // Set default visual
-  var defaultChecked = document.querySelector('input[name="payMethod"]:checked');
-  if (defaultChecked) defaultChecked.closest('.method-tab').querySelector('.method-card').classList.add('selected');
 
-  // Rating input UI
-  var rateToggle = document.getElementById('rateToggleBtn');
-  var rateRow = document.getElementById('rateInputRow');
-  var starsInput = document.querySelectorAll('.star-input');
-  var ratingInput = document.getElementById('ratingInput');
-  var rateSubmit = document.getElementById('rateSubmitBtn');
-  var rateHint = document.getElementById('rateHint');
-  var labels = ['Sangat Buruk', 'Kurang Baik', 'Cukup', 'Bagus', 'Sangat Bagus'];
-
-  if (rateToggle) {
-    rateToggle.addEventListener('click', function () {
-      rateRow.style.display = rateRow.style.display === 'none' ? 'flex' : 'none';
+  // Review star input
+  var stars=document.querySelectorAll('.rev-star-btn');
+  var ratingInput=document.getElementById('reviewRatingVal');
+  var hint=document.getElementById('revStarHint');
+  var submitBtn=document.getElementById('reviewSubmitBtn');
+  var labels=['Sangat Buruk','Kurang Baik','Cukup','Bagus Sekali','Luar Biasa!'];
+  stars.forEach(function(s){
+    s.addEventListener('mouseenter',function(){
+      var v=parseInt(s.dataset.val);
+      stars.forEach(function(x){x.classList.toggle('hov',parseInt(x.dataset.val)<=v);});
+      if(hint)hint.textContent=labels[v-1];
     });
-  }
-  starsInput.forEach(function (star) {
-    star.addEventListener('mouseenter', function () {
-      var v = parseInt(star.dataset.val);
-      starsInput.forEach(function (s) { s.classList.toggle('hovered', parseInt(s.dataset.val) <= v); });
-      if (rateHint) rateHint.textContent = labels[v - 1];
+    s.addEventListener('mouseleave',function(){
+      stars.forEach(function(x){x.classList.remove('hov');});
+      if(hint&&!ratingInput.value)hint.textContent='Ketuk bintang untuk memberi nilai';
     });
-    star.addEventListener('mouseleave', function () {
-      starsInput.forEach(function (s) { s.classList.remove('hovered'); });
-      if (!ratingInput.value) rateHint.textContent = 'Pilih bintang';
-    });
-    star.addEventListener('click', function () {
-      var v = parseInt(star.dataset.val);
-      ratingInput.value = v;
-      starsInput.forEach(function (s) { s.classList.toggle('active', parseInt(s.dataset.val) <= v); });
-      if (rateSubmit) rateSubmit.disabled = false;
-      if (rateHint) rateHint.textContent = labels[v - 1];
+    s.addEventListener('click',function(){
+      var v=parseInt(s.dataset.val);
+      if(ratingInput)ratingInput.value=v;
+      stars.forEach(function(x){x.classList.toggle('sel',parseInt(x.dataset.val)<=v);x.classList.remove('hov');});
+      if(hint)hint.textContent=labels[v-1];
+      if(submitBtn)submitBtn.disabled=false;
     });
   });
 })();
