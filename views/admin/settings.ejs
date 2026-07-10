@@ -60,6 +60,24 @@
             </div>
           </div>
 
+          <div class="section-title"><h3>Popup Notifikasi Grup</h3><div class="line"></div></div>
+          <div class="helper-text mt-16" style="margin-top:0;">Popup ini muncul sekali saat pengunjung pertama kali membuka aplikasi, mengajak mereka join grup. Pengguna bisa mencentang "Jangan tampilkan lagi" supaya tidak muncul terus.</div>
+
+          <% const community = config.community || {}; %>
+          <label class="check-row mt-16"><input type="checkbox" name="groupEnabled" <%= community.groupEnabled !== false ? 'checked' : '' %>> Aktifkan popup notifikasi grup</label>
+
+          <label>Judul Popup</label>
+          <input type="text" name="groupTitle" placeholder="Gabung Komunitas Kita!" value="<%= community.groupTitle || '' %>">
+
+          <label>Pesan Popup</label>
+          <textarea name="groupMessage" placeholder="Dapatkan info promo, update stok, dan bantuan tercepat lewat grup resmi kami."><%= community.groupMessage || '' %></textarea>
+
+          <label>Link Grup (WhatsApp / Telegram)</label>
+          <input type="text" name="groupLink" placeholder="https://chat.whatsapp.com/xxxxx" value="<%= community.groupLink || '' %>">
+
+          <label>Teks Tombol</label>
+          <input type="text" name="groupButtonText" placeholder="Gabung Sekarang" value="<%= community.groupButtonText || '' %>">
+
           <div class="section-title"><h3>Telegram</h3><div class="line"></div></div>
 
           <label>Bot Token</label>
