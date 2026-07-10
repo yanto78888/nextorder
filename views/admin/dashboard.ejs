@@ -1,72 +1,222 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('../partials/head') %></head>
+<head><%- include('../partials/head') %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
 <body>
 <div class="app-shell">
-  <%- include('../partials/admin-sidebar', { active: 'dashboard' }) %>
+  <%- include('../partials/admin-sidebar', { active: 'dashboard', config }) %>
 
-  <div class="main">
-    <div class="topbar"><h2>System Overview</h2></div>
+  <div class="main adm-main">
 
+    <!-- Page header -->
+    <div class="adm-page-header">
+      <div>
+        <div class="adm-page-title">Dashboard</div>
+        <div class="adm-page-sub" id="liveDate"></div>
+      </div>
+      <a href="/admin/order" class="btn small solid">+ Order</a>
+    </div>
+
+    <!-- Alert warnings -->
     <% if (manualOrders && manualOrders.length > 0) { %>
-      <div class="alert error">
-        ⚠️ Ada <b><%= manualOrders.length %></b> order yang menunggu kirim manual karena stok otomatis habis.
-        <a href="/admin/order" style="color:var(--cyan); font-weight:700;">Buka Kelola Order</a>
+      <div class="adm-alert-banner adm-alert-red">
+        <span class="adm-alert-icon">⚠️</span>
+        <span><b><%= manualOrders.length %> order</b> menunggu kirim manual</span>
+        <a href="/admin/order" class="adm-alert-cta">Proses →</a>
       </div>
     <% } %>
     <% if (emptyStockProducts && emptyStockProducts.length > 0) { %>
-      <div class="alert error">
-        📦 Produk aktif dengan stok otomatis kosong: <%= emptyStockProducts.map(p => p.name).join(', ') %>.
+      <div class="adm-alert-banner adm-alert-yellow">
+        <span class="adm-alert-icon">📦</span>
+        <span>Stok kosong: <b><%= emptyStockProducts.map(p => p.name).join(', ') %></b></span>
+        <a href="/admin/produk" class="adm-alert-cta">Isi Stok →</a>
       </div>
     <% } %>
 
-    <div class="grid grid-4">
-      <div class="card stat-card">
-        <div class="label">Total User</div>
-        <div class="value"><%= totalUsers %></div>
+    <!-- KPI Grid 2x2 -->
+    <div class="adm-kpi-grid">
+      <div class="adm-kpi-card kpi-blue">
+        <div class="kpi-top">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-trend">+<%= totalUsers %></div>
+        </div>
+        <div class="kpi-val"><%= totalUsers %></div>
+        <div class="kpi-label">Total User</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= Math.min(100,totalUsers*5) %>%"></div></div>
       </div>
-      <div class="card stat-card magenta">
-        <div class="label">Total Order</div>
-        <div class="value"><%= stats.totalOrders %></div>
+
+      <div class="adm-kpi-card kpi-red">
+        <div class="kpi-top">
+          <div class="kpi-icon">🛒</div>
+          <div class="kpi-trend"><%= stats.totalOrders %></div>
+        </div>
+        <div class="kpi-val"><%= stats.totalOrders %></div>
+        <div class="kpi-label">Total Order</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= Math.min(100,stats.totalOrders*2) %>%"></div></div>
       </div>
-      <div class="card stat-card amber">
-        <div class="label">Diproses</div>
-        <div class="value"><%= stats.processing %></div>
+
+      <div class="adm-kpi-card kpi-green">
+        <div class="kpi-top">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-trend"><%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%</div>
+        </div>
+        <div class="kpi-val"><%= statusCompleted %></div>
+        <div class="kpi-label">Selesai</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%"></div></div>
       </div>
-      <div class="card stat-card magenta">
-        <div class="label">Butuh Manual</div>
-        <div class="value"><%= stats.manualRequired || 0 %></div>
-      </div>
-      <div class="card stat-card success">
-        <div class="label">Total Revenue</div>
-        <div class="value">Rp <%= stats.totalRevenue.toLocaleString('id-ID') %></div>
+
+      <div class="adm-kpi-card kpi-amber">
+        <div class="kpi-top">
+          <div class="kpi-icon">⏳</div>
+          <div class="kpi-trend"><%= statusProcessing %></div>
+        </div>
+        <div class="kpi-val"><%= statusProcessing %></div>
+        <div class="kpi-label">Diproses</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusProcessing/stats.totalOrders*100) : 0 %>%"></div></div>
       </div>
     </div>
 
-    <div class="section-title"><h3>Order Terbaru</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (recentOrders.length === 0) { %>
-        <div class="empty-state">Belum ada order masuk.</div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Total</th><th>Sumber</th><th>Status</th><th>Tanggal</th></tr></thead>
-        <tbody>
-          <% recentOrders.forEach(o => { %>
-          <tr>
-            <td class="mono"><%= o.id %></td>
-            <td><%= o.username %></td>
-            <td><%= o.productName %></td>
-            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= o.source === 'admin' ? 'admin' : 'user' %>"><%= o.source %></span></td>
-            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
-            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
+    <!-- Revenue + Donut -->
+    <div class="adm-revenue-card">
+      <div class="adm-rev-left">
+        <div class="adm-rev-eyebrow">Total Revenue</div>
+        <div class="adm-rev-main">Rp <%= stats.totalRevenue.toLocaleString('id-ID') %></div>
+        <div class="adm-rev-sub">
+          <span class="pill-badge green"><%= statusCompleted %> selesai</span>
+          <span class="pill-badge amber"><%= statusProcessing %> proses</span>
+          <span class="pill-badge red"><%= statusCancelled %> batal</span>
+        </div>
+      </div>
+      <div class="adm-donut-wrap">
+        <canvas id="donutChart" width="88" height="88"></canvas>
+        <div class="adm-donut-center">
+          <div class="adm-donut-pct"><%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%</div>
+          <div class="adm-donut-lab">done</div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
+
+    <!-- Line Chart -->
+    <div class="adm-chart-card">
+      <div class="adm-chart-header">
+        <div class="adm-chart-title">Performa 7 Hari Terakhir</div>
+        <div class="adm-chart-tabs">
+          <button class="adm-tab active" data-chart="revenue">Revenue</button>
+          <button class="adm-tab" data-chart="orders">Orders</button>
+        </div>
+      </div>
+      <div class="adm-chart-wrap">
+        <canvas id="lineChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Order Terbaru -->
+    <div class="adm-section-header">
+      <div class="adm-section-title">Order Terbaru</div>
+      <a href="/admin/order" class="adm-see-all">Lihat Semua →</a>
+    </div>
+
+    <% if (recentOrders.length === 0) { %>
+      <div class="adm-empty">Belum ada order masuk.</div>
+    <% } else { %>
+      <div class="adm-order-list">
+        <% recentOrders.forEach(o => { %>
+        <div class="adm-order-row">
+          <div class="adm-order-status-dot dot-<%= o.status %>"></div>
+          <div class="adm-order-info">
+            <div class="adm-order-name"><%= o.productName %></div>
+            <div class="adm-order-meta"><b><%= o.username %></b> · <span class="mono" style="font-size:10px;"><%= o.id.slice(-8) %></span></div>
+          </div>
+          <div class="adm-order-right">
+            <div class="adm-order-total">Rp <%= o.total.toLocaleString('id-ID') %></div>
+            <div class="adm-order-date"><%= new Date(o.createdAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) %></div>
+          </div>
+          <a href="/admin/order?id=<%= o.id %>" class="adm-order-arrow">›</a>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <!-- Ulasan Terbaru -->
+    <div class="adm-section-header" style="margin-top:24px;">
+      <div class="adm-section-title">Ulasan Terbaru</div>
+    </div>
+
+    <% if (!recentReviews || recentReviews.length === 0) { %>
+      <div class="adm-empty">Belum ada ulasan masuk.</div>
+    <% } else { %>
+      <div class="adm-review-list">
+        <% recentReviews.forEach(r => { %>
+        <div class="adm-review-card">
+          <div class="adm-review-top">
+            <div class="adm-review-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+            <div class="adm-review-meta">
+              <div class="adm-review-user"><%= r.username %></div>
+              <div class="adm-review-product"><%= r.productName %></div>
+            </div>
+            <div class="adm-review-stars">
+              <% for(let i=1;i<=5;i++){%><span class="<%= i<=r.rating?'star-on':'star-off' %>">★</span><%}%>
+            </div>
+            <form method="POST" action="/admin/review/delete/<%= r.id %>" style="margin:0;">
+              <button type="submit" class="adm-del-btn" title="Hapus ulasan" onclick="return confirm('Hapus ulasan ini?')">✕</button>
+            </form>
+          </div>
+          <% if (r.comment) { %>
+            <div class="adm-review-comment">"<%= r.comment %>"</div>
+          <% } %>
+          <div class="adm-review-date"><%= new Date(r.createdAt).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}) %></div>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+// Live date
+(function(){var el=document.getElementById('liveDate');if(!el)return;function t(){el.textContent=new Date().toLocaleString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}t();setInterval(t,30000);})();
+
+Chart.defaults.color='#8c8c8c';
+Chart.defaults.font.family='Inter, sans-serif';
+Chart.defaults.font.size=11;
+
+var labels=<%- chartLabels %>;
+var revenueData=<%- chartRevenue %>;
+var ordersData=<%- chartOrders %>;
+
+var lineCtx=document.getElementById('lineChart').getContext('2d');
+var gradR=lineCtx.createLinearGradient(0,0,0,160);gradR.addColorStop(0,'rgba(229,9,20,0.3)');gradR.addColorStop(1,'rgba(229,9,20,0)');
+var gradG=lineCtx.createLinearGradient(0,0,0,160);gradG.addColorStop(0,'rgba(245,197,24,0.3)');gradG.addColorStop(1,'rgba(245,197,24,0)');
+
+var lineChart=new Chart(lineCtx,{
+  type:'line',
+  data:{labels:labels,datasets:[{label:'Revenue (Rp)',data:revenueData,borderColor:'#e50914',backgroundColor:gradR,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#e50914',pointBorderColor:'#0a0a0a',pointBorderWidth:2,tension:0.4,fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1f1f1f',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f5f5f1',bodyColor:'#8c8c8c',
+      callbacks:{label:function(c){return c.dataset.label==='Revenue (Rp)'?'Rp '+c.raw.toLocaleString('id-ID'):c.raw+' order';}}}},
+    scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8c8c8c'},border:{color:'rgba(255,255,255,0.06)'}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8c8c8c',callback:function(v){return v>=1000?(v/1000)+'rb':v;}},beginAtZero:true,border:{color:'rgba(255,255,255,0.06)'}}}}
+});
+
+document.querySelectorAll('.adm-tab').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.adm-tab').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    var t=btn.dataset.chart;
+    var ds=lineChart.data.datasets[0];
+    if(t==='revenue'){ds.label='Revenue (Rp)';ds.data=revenueData;ds.borderColor='#e50914';ds.backgroundColor=gradR;ds.pointBackgroundColor='#e50914';}
+    else{ds.label='Jumlah Order';ds.data=ordersData;ds.borderColor='#f5c518';ds.backgroundColor=gradG;ds.pointBackgroundColor='#f5c518';}
+    lineChart.update();
+  });
+});
+
+var doCtx=document.getElementById('donutChart').getContext('2d');
+new Chart(doCtx,{type:'doughnut',
+  data:{datasets:[{data:[<%=statusCompleted%>,<%=statusProcessing%>,<%=statusCancelled%>,Math.max(0,<%=stats.totalOrders%>===0?1:0)],backgroundColor:['#2ecc71','#f5c518','#e50914','#1a1a1a'],borderWidth:0,hoverOffset:3}]},
+  options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+});
+</script>
 </body>
 </html>
