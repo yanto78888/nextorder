@@ -8,7 +8,7 @@ import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo,
   getMembershipDiscount, upgradeMembership
 } from '../lib/users.js';
-import { getActiveProducts, findProductById, takeProductStock, countStock } from '../lib/products.js';
+import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct } from '../lib/products.js';
 import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
@@ -187,6 +187,9 @@ router.post('/order', requireLogin, async (req, res) => {
     needsManual: !isAutoDelivered
   }).catch(() => {});
 
+  // Update total terjual di produk
+  updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+
   const msg = isAutoDelivered
     ? 'Order berhasil, stok otomatis sudah dikirim. Cek detail pesanan di riwayat.'
     : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
@@ -260,6 +263,145 @@ router.post('/topup/:trxid/batal', requireLogin, async (req, res) => {
     res.redirect('/topup?success=' + encodeURIComponent('Transaksi top up berhasil dibatalkan'));
   } catch (err) {
     res.redirect('/topup?error=' + encodeURIComponent(err.message));
+  }
+});
+
+// Setelah QRIS terbayar, buat order otomatis dari saldo yang sudah masuk
+router.get('/order/qris-confirm', requireLogin, async (req, res) => {
+  try {
+    const pending = req.session.pendingQrisOrder;
+    const { trxid } = req.query;
+
+    if (!pending || pending.depositTrxid !== trxid) {
+      return res.redirect('/produk?error=' + encodeURIComponent('Sesi order tidak ditemukan'));
+    }
+
+    const dep = getDeposit(trxid);
+    if (!dep || dep.status !== 'paid') {
+      return res.redirect('/produk?error=' + encodeURIComponent('Pembayaran belum dikonfirmasi'));
+    }
+
+    const user = findUserById(req.session.user.id);
+    const product = findProductById(pending.productId);
+    const qty = pending.qty || 1;
+
+    if (!product || product.status !== 'active') {
+      return res.redirect('/produk?error=' + encodeURIComponent('Produk tidak tersedia'));
+    }
+
+    const unitPrice = applyMemberDiscount(product.price, user.membership);
+    const total = unitPrice * qty;
+
+    if (user.saldo < total) {
+      return res.redirect('/produk?error=' + encodeURIComponent('Saldo tidak cukup setelah deposit'));
+    }
+
+    deductSaldo(user.id, total);
+
+    const stockAvailable = countStock(product);
+    const takenStock = stockAvailable >= qty ? takeProductStock(product.id, qty) : null;
+    const isAutoDelivered = Array.isArray(takenStock) && takenStock.length === qty;
+
+    const order = createOrder({
+      userId: user.id,
+      username: user.username,
+      productId: product.id,
+      productName: product.name,
+      price: unitPrice,
+      qty,
+      source: 'user',
+      status: isAutoDelivered ? 'completed' : 'processing',
+      deliveryMode: isAutoDelivered ? 'auto' : 'manual',
+      manualRequired: !isAutoDelivered,
+      detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
+      note: 'Dibayar via QRIS'
+    });
+
+    updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: !isAutoDelivered }).catch(() => {});
+
+    delete req.session.pendingQrisOrder;
+
+    const msg = isAutoDelivered
+      ? 'Pembayaran QRIS berhasil! Stok otomatis sudah dikirim.'
+      : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
+    res.redirect('/riwayat?success=' + encodeURIComponent(msg));
+  } catch (err) {
+    res.redirect('/produk?error=' + encodeURIComponent(err.message));
+  }
+});
+
+// ==================== DETAIL PRODUK ====================
+router.get('/produk/:id', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const product = findProductById(req.params.id);
+  if (!product || product.status !== 'active') {
+    return res.redirect('/produk?error=Produk tidak ditemukan');
+  }
+  const finalPrice = user ? applyMemberDiscount(product.price, user.membership) : product.price;
+  res.render('produk-detail', {
+    product,
+    finalPrice,
+    user,
+    config: getConfig(),
+    error: req.query.error || null,
+    success: req.query.success || null
+  });
+});
+
+// Submit rating
+router.post('/produk/:id/rating', requireLogin, (req, res) => {
+  const product = findProductById(req.params.id);
+  if (!product) return res.redirect('/produk');
+
+  const newRating = Math.min(5, Math.max(1, parseInt(req.body.rating) || 0));
+  if (!newRating) return res.redirect(`/produk/${req.params.id}?error=Rating tidak valid`);
+
+  const currentCount = product.ratingCount || 0;
+  const currentRating = product.rating || 0;
+  const newCount = currentCount + 1;
+  const avgRating = ((currentRating * currentCount) + newRating) / newCount;
+
+  updateProduct(product.id, {
+    rating: Math.round(avgRating * 10) / 10,
+    ratingCount: newCount
+  });
+
+  res.redirect(`/produk/${product.id}?success=Terima kasih atas ratingmu! ⭐`);
+});
+
+// QRIS order init: buat deposit untuk total produk, lalu redirect ke halaman topup-like dengan QR
+router.post('/order/qris-init', requireLogin, async (req, res) => {
+  try {
+    const user = findUserById(req.session.user.id);
+    const product = findProductById(req.body.productId);
+    const qty = Math.max(1, parseInt(req.body.qty) || 1);
+
+    if (!product || product.status !== 'active') {
+      return res.redirect('/produk?error=Produk tidak tersedia');
+    }
+    const unitPrice = applyMemberDiscount(product.price, user.membership);
+    const total = unitPrice * qty;
+
+    const deposit = await createDeposit(user, total);
+
+    // Simpan info order pending ke session supaya bisa dikonfirmasi setelah deposit berhasil
+    req.session.pendingQrisOrder = {
+      productId: product.id,
+      qty,
+      depositTrxid: deposit.trxid
+    };
+
+    res.render('order-qris', {
+      deposit,
+      product,
+      qty,
+      total,
+      user,
+      config: getConfig()
+    });
+  } catch (err) {
+    res.redirect(`/produk/${req.body.productId}?error=${encodeURIComponent(err.message)}`);
   }
 });
 
