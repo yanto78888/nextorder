@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
+
+  <div class="main detail-main">
+
+    <div class="detail-hero">
+      <% if (product.thumbnail) { %>
+        <img class="detail-thumb" src="<%= product.thumbnail %>" alt="<%= product.name %>">
+      <% } else { %>
+        <div class="detail-thumb detail-thumb-placeholder"><%= product.name.charAt(0).toUpperCase() %></div>
+      <% } %>
+      <div class="detail-hero-overlay"></div>
+      <a href="/produk" class="detail-back-btn">← Kembali</a>
+    </div>
+
+    <div class="detail-body">
+
+      <div class="detail-meta-row">
+        <% const stockCount = product.stockItems ? product.stockItems.length : 0; %>
+        <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%= stockCount > 0 ? '⚡ Auto' : '🛠 Manual' %></span>
+        <span class="detail-category"><%= product.category || 'Umum' %></span>
+      </div>
+
+      <h1 class="detail-title"><%= product.name %></h1>
+
+      <!-- Rating Bintang -->
+      <div class="rating-row" data-product-id="<%= product.id %>">
+        <div class="stars-display" id="starsDisplay">
+          <% for(let i=1; i<=5; i++) { %>
+            <span class="star <%= i <= Math.round(product.rating || 0) ? 'filled' : '' %>" data-val="<%= i %>">★</span>
+          <% } %>
+        </div>
+        <span class="rating-score"><%= (product.rating || 0).toFixed(1) %></span>
+        <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
+        <% if (user) { %>
+          <button class="btn-rate" id="rateToggleBtn">Beri Rating</button>
+        <% } %>
+      </div>
+
+      <% if (user) { %>
+        <div class="rate-input-row" id="rateInputRow" style="display:none;">
+          <div class="stars-input" id="starsInput">
+            <% for(let i=1; i<=5; i++) { %>
+              <span class="star-input" data-val="<%= i %>">★</span>
+            <% } %>
+          </div>
+          <span class="rate-hint" id="rateHint">Pilih bintang</span>
+          <form method="POST" action="/produk/<%= product.id %>/rating" id="rateForm">
+            <input type="hidden" name="rating" id="ratingInput" value="">
+            <button type="submit" class="btn small solid" id="rateSubmitBtn" disabled>Kirim Rating</button>
+          </form>
+        </div>
+      <% } %>
+
+      <!-- Statistik: Terjual & Stok -->
+      <div class="detail-stats-row">
+        <div class="detail-stat">
+          <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
+          <div class="detail-stat-label">Terjual</div>
+        </div>
+        <div class="detail-stat-divider"></div>
+        <div class="detail-stat">
+          <div class="detail-stat-val"><%= stockCount %></div>
+          <div class="detail-stat-label">Stok Tersedia</div>
+        </div>
+        <div class="detail-stat-divider"></div>
+        <div class="detail-stat">
+          <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+          <div class="detail-stat-label">Harga<%= finalPrice < product.price ? ' (diskon)' : '' %></div>
+        </div>
+      </div>
+
+      <!-- Deskripsi -->
+      <% if (product.description) { %>
+        <div class="detail-section">
+          <div class="detail-section-title">Deskripsi Produk</div>
+          <div class="detail-desc"><%= product.description %></div>
+        </div>
+      <% } %>
+
+      <% if (product.stockNote) { %>
+        <div class="detail-section">
+          <div class="detail-section-title">Catatan Pengiriman</div>
+          <div class="detail-desc"><%= product.stockNote %></div>
+        </div>
+      <% } %>
+
+      <!-- Harga & Pilih Metode Bayar -->
+      <% if (user) { %>
+        <div class="detail-buy-box">
+          <div class="detail-price-main">
+            <% if (finalPrice < product.price) { %>
+              <span class="detail-price-old">Rp <%= product.price.toLocaleString('id-ID') %></span>
+            <% } %>
+            <span class="detail-price-now">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
+          </div>
+
+          <div class="detail-qty-row">
+            <label>Jumlah:</label>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn" id="qtyMinus">−</button>
+              <input type="number" id="qtyInput" value="1" min="1" max="<%= stockCount > 0 ? stockCount : 99 %>">
+              <button type="button" class="qty-btn" id="qtyPlus">+</button>
+            </div>
+            <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
+          </div>
+
+          <div class="detail-method-title">Metode Pembayaran</div>
+          <div class="payment-method-tabs">
+            <label class="method-tab">
+              <input type="radio" name="payMethod" value="saldo" checked>
+              <div class="method-card">
+                <div class="method-icon">💳</div>
+                <div class="method-info">
+                  <div class="method-name">Saldo</div>
+                  <div class="method-sub" id="saldoInfo">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                </div>
+                <div class="method-check">✓</div>
+              </div>
+            </label>
+            <label class="method-tab">
+              <input type="radio" name="payMethod" value="qris">
+              <div class="method-card">
+                <div class="method-icon">📱</div>
+                <div class="method-info">
+                  <div class="method-name">QRIS</div>
+                  <div class="method-sub">Bayar langsung via QRIS / scan</div>
+                </div>
+                <div class="method-check">✓</div>
+              </div>
+            </label>
+          </div>
+
+          <form method="POST" action="/order" id="buyFormSaldo">
+            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="qty" id="buyQtySaldo" value="1">
+          </form>
+          <form method="POST" action="/order/qris-init" id="buyFormQris">
+            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="qty" id="buyQtyQris" value="1">
+          </form>
+
+          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn">
+            🛒 Beli Sekarang
+          </button>
+
+          <% if (user.saldo < finalPrice) { %>
+            <div class="alert error" style="margin-top:10px; font-size:12px;">Saldo kamu tidak cukup — pertimbangkan pilih bayar via QRIS.</div>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="detail-buy-box guest-buy-box">
+          <div class="detail-price-now" style="margin-bottom:12px;">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+          <a href="/login" class="btn solid" style="width:100%;">🔑 Login untuk Beli</a>
+          <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
+        </div>
+      <% } %>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var unitPrice = <%= finalPrice %>;
+  var qtyEl = document.getElementById('qtyInput');
+  var totalEl = document.getElementById('totalPreview');
+  var buyQtySaldo = document.getElementById('buyQtySaldo');
+  var buyQtyQris = document.getElementById('buyQtyQris');
+  var minusBtn = document.getElementById('qtyMinus');
+  var plusBtn = document.getElementById('qtyPlus');
+  var buyBtn = document.getElementById('buyMainBtn');
+
+  function formatRupiah(n) {
+    return 'Rp ' + n.toLocaleString('id-ID');
+  }
+  function updateTotal() {
+    var q = Math.max(1, parseInt(qtyEl.value) || 1);
+    qtyEl.value = q;
+    if (buyQtySaldo) buyQtySaldo.value = q;
+    if (buyQtyQris) buyQtyQris.value = q;
+    if (totalEl) totalEl.textContent = formatRupiah(unitPrice * q);
+  }
+
+  if (qtyEl) {
+    qtyEl.addEventListener('input', updateTotal);
+    if (minusBtn) minusBtn.addEventListener('click', function () { qtyEl.value = Math.max(1, (parseInt(qtyEl.value)||1) - 1); updateTotal(); });
+    if (plusBtn) plusBtn.addEventListener('click', function () { qtyEl.value = (parseInt(qtyEl.value)||1) + 1; updateTotal(); });
+  }
+
+  // Pilih metode & tombol beli
+  var methodTabs = document.querySelectorAll('input[name="payMethod"]');
+  var formSaldo = document.getElementById('buyFormSaldo');
+  var formQris = document.getElementById('buyFormQris');
+
+  if (buyBtn) {
+    buyBtn.addEventListener('click', function () {
+      var method = 'saldo';
+      methodTabs.forEach(function (r) { if (r.checked) method = r.value; });
+      if (method === 'qris') {
+        if (formQris) formQris.submit();
+      } else {
+        if (formSaldo) formSaldo.submit();
+      }
+    });
+  }
+
+  // Highlight metode card saat dipilih
+  methodTabs.forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      document.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('selected'); });
+      radio.closest('.method-tab').querySelector('.method-card').classList.add('selected');
+    });
+  });
+  // Set default visual
+  var defaultChecked = document.querySelector('input[name="payMethod"]:checked');
+  if (defaultChecked) defaultChecked.closest('.method-tab').querySelector('.method-card').classList.add('selected');
+
+  // Rating input UI
+  var rateToggle = document.getElementById('rateToggleBtn');
+  var rateRow = document.getElementById('rateInputRow');
+  var starsInput = document.querySelectorAll('.star-input');
+  var ratingInput = document.getElementById('ratingInput');
+  var rateSubmit = document.getElementById('rateSubmitBtn');
+  var rateHint = document.getElementById('rateHint');
+  var labels = ['Sangat Buruk', 'Kurang Baik', 'Cukup', 'Bagus', 'Sangat Bagus'];
+
+  if (rateToggle) {
+    rateToggle.addEventListener('click', function () {
+      rateRow.style.display = rateRow.style.display === 'none' ? 'flex' : 'none';
+    });
+  }
+  starsInput.forEach(function (star) {
+    star.addEventListener('mouseenter', function () {
+      var v = parseInt(star.dataset.val);
+      starsInput.forEach(function (s) { s.classList.toggle('hovered', parseInt(s.dataset.val) <= v); });
+      if (rateHint) rateHint.textContent = labels[v - 1];
+    });
+    star.addEventListener('mouseleave', function () {
+      starsInput.forEach(function (s) { s.classList.remove('hovered'); });
+      if (!ratingInput.value) rateHint.textContent = 'Pilih bintang';
+    });
+    star.addEventListener('click', function () {
+      var v = parseInt(star.dataset.val);
+      ratingInput.value = v;
+      starsInput.forEach(function (s) { s.classList.toggle('active', parseInt(s.dataset.val) <= v); });
+      if (rateSubmit) rateSubmit.disabled = false;
+      if (rateHint) rateHint.textContent = labels[v - 1];
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -72,7 +72,7 @@
           <div class="nf-row-title"><%= row.category %></div>
           <div class="nf-row-track">
             <% row.products.forEach(p => { %>
-              <div class="nf-card">
+              <a href="/produk/<%= p.id %>" class="nf-card nf-card-link">
                 <div class="nf-card-thumb">
                   <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %><span class="nf-noimg"><%= p.name.slice(0,1) %></span><% } %>
                   <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
@@ -80,24 +80,20 @@
                 </div>
                 <div class="nf-card-body">
                   <div class="nf-card-name"><%= p.name %></div>
-                  <div class="nf-card-desc"><%= p.description %></div>
+                  <!-- Rating mini -->
+                  <div class="nf-rating">
+                    <% const r = Math.round(p.rating || 0); for(let i=1;i<=5;i++){ %><span class="nf-star <%= i<=r?'on':'' %>">★</span><% } %>
+                    <span class="nf-rating-num"><%= (p.rating||0).toFixed(1) %></span>
+                    <% if (p.totalSold) { %><span class="nf-sold"><%= p.totalSold %> terjual</span><% } %>
+                  </div>
                   <div class="nf-card-price">
                     <% if (p.finalPrice < p.price) { %>
                       <span class="nf-price-old">Rp <%= p.price.toLocaleString('id-ID') %></span>
                     <% } %>
                     <span class="nf-price-now">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
                   </div>
-                  <% if (user) { %>
-                    <form method="POST" action="/order" class="flex" style="margin-top:8px;">
-                      <input type="hidden" name="productId" value="<%= p.id %>">
-                      <input type="number" name="qty" value="1" min="1" style="width:60px;">
-                      <button type="submit" class="btn small solid" style="flex:1;">Beli</button>
-                    </form>
-                  <% } else { %>
-                    <a href="/login" class="btn small ghost" style="margin-top:8px; width:100%;">Login untuk Beli</a>
-                  <% } %>
                 </div>
-              </div>
+              </a>
             <% }) %>
           </div>
         </div>
