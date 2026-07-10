@@ -1,4 +1,8 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo,
@@ -12,12 +16,37 @@ import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
 
 const router = express.Router();
-router.use(requireLogin);
+
+// ---------- UPLOAD FOTO PROFIL ----------
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const avatarDir = path.join(__dirname, '..', 'public', 'uploads', 'avatars');
+fs.mkdirSync(avatarDir, { recursive: true });
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, avatarDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique = Date.now() + '_' + Math.round(Math.random() * 1e6);
+    cb(null, `avatar_${unique}${ext}`);
+  }
+});
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    const allowedExt = /\.(jpe?g|png|webp|gif)$/i;
+    const allowedMime = /^image\/(jpeg|png|webp|gif)$/i;
+    if (!allowedExt.test(file.originalname) || !allowedMime.test(file.mimetype || '')) {
+      return cb(new Error('Format foto harus JPG, PNG, WEBP, atau GIF'));
+    }
+    cb(null, true);
+  }
+});
 
 // /dashboard lama dipindah ke /produk (home) dan statistiknya digabung ke /profile
-router.get('/dashboard', (req, res) => res.redirect('/produk'));
+router.get('/dashboard', requireLogin, (req, res) => res.redirect('/produk'));
 
-router.get('/profile', (req, res) => {
+router.get('/profile', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const orders = getOrdersByUser(user.id);
   res.render('profile', {
@@ -29,14 +58,29 @@ router.get('/profile', (req, res) => {
   });
 });
 
-router.post('/profile', (req, res) => {
+router.post('/profile', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const { email } = req.body;
   updateUser(user.id, { email });
   res.redirect('/profile?success=' + encodeURIComponent('Profil berhasil diperbarui'));
 });
 
-router.post('/profile/password', (req, res) => {
+// Ganti foto profil (avatar bulat di pojok kanan atas)
+router.post('/profile/avatar', requireLogin, (req, res) => {
+  uploadAvatar.single('avatarFile')(req, res, (err) => {
+    if (err) {
+      return res.redirect('/profile?error=' + encodeURIComponent(err.message));
+    }
+    if (!req.file) {
+      return res.redirect('/profile?error=' + encodeURIComponent('Pilih foto terlebih dahulu'));
+    }
+    const user = findUserById(req.session.user.id);
+    updateUser(user.id, { avatar: '/uploads/avatars/' + req.file.filename });
+    res.redirect('/profile?success=' + encodeURIComponent('Foto profil berhasil diperbarui'));
+  });
+});
+
+router.post('/profile/password', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const { oldPassword, newPassword, newPassword2 } = req.body;
 
@@ -54,7 +98,7 @@ router.post('/profile/password', (req, res) => {
 });
 
 // Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo
-router.post('/membership/upgrade', (req, res) => {
+router.post('/membership/upgrade', requireLogin, (req, res) => {
   try {
     const tierKey = req.body.tier;
     const user = findUserById(req.session.user.id);
@@ -68,11 +112,12 @@ router.post('/membership/upgrade', (req, res) => {
 });
 
 router.get('/produk', (req, res) => {
-  const user = findUserById(req.session.user.id);
-  const discount = getMembershipDiscount(user);
+  // Beranda bisa dibuka tanpa login (mode tamu). Kalau sudah login, tampilkan saldo & diskon member.
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const discount = user ? getMembershipDiscount(user) : 0;
   const products = getActiveProducts().map(p => ({
     ...p,
-    finalPrice: applyMemberDiscount(p.price, user.membership)
+    finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price
   }));
 
   // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
@@ -98,7 +143,7 @@ router.get('/produk', (req, res) => {
   });
 });
 
-router.post('/order', async (req, res) => {
+router.post('/order', requireLogin, async (req, res) => {
   const user = findUserById(req.session.user.id);
   const product = findProductById(req.body.productId);
   const qty = Math.max(1, parseInt(req.body.qty) || 1);
@@ -148,7 +193,7 @@ router.post('/order', async (req, res) => {
   res.redirect('/riwayat?success=' + encodeURIComponent(msg));
 });
 
-router.get('/riwayat', (req, res) => {
+router.get('/riwayat', requireLogin, (req, res) => {
   const orders = getOrdersByUser(req.session.user.id);
   res.render('riwayat', {
     orders,
@@ -159,7 +204,7 @@ router.get('/riwayat', (req, res) => {
 });
 
 // Order dengan qty > 3 dikirim dalam bentuk file .txt biar gak numpuk di halaman
-router.get('/riwayat/:id/download', (req, res) => {
+router.get('/riwayat/:id/download', requireLogin, (req, res) => {
   const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
   if (!order || !order.detail) return res.status(404).send('Detail order tidak ditemukan');
   const filename = `${order.productName.replace(/[^a-z0-9]+/gi, '-')}-${order.id}.txt`;
@@ -168,7 +213,7 @@ router.get('/riwayat/:id/download', (req, res) => {
   res.send(order.detail);
 });
 
-router.get('/topup', (req, res) => {
+router.get('/topup', requireLogin, (req, res) => {
   const deposits = getDepositsByUser(req.session.user.id).slice(0, 10);
   res.render('topup', {
     deposits,
@@ -179,7 +224,7 @@ router.get('/topup', (req, res) => {
   });
 });
 
-router.post('/api/topup', async (req, res) => {
+router.post('/api/topup', requireLogin, async (req, res) => {
   try {
     const user = findUserById(req.session.user.id);
     const amount = parseInt(req.body.amount);
@@ -191,7 +236,7 @@ router.post('/api/topup', async (req, res) => {
   }
 });
 
-router.get('/api/topup/status/:trxid', (req, res) => {
+router.get('/api/topup/status/:trxid', requireLogin, (req, res) => {
   const dep = getDeposit(req.params.trxid);
   if (!dep) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
   if (dep.userId !== req.session.user.id) return res.status(403).json({ error: 'Akses ditolak' });
@@ -199,7 +244,7 @@ router.get('/api/topup/status/:trxid', (req, res) => {
 });
 
 // Batal deposit lewat AJAX (dipakai saat QR sedang tampil)
-router.post('/api/topup/cancel/:trxid', async (req, res) => {
+router.post('/api/topup/cancel/:trxid', requireLogin, async (req, res) => {
   try {
     const dep = await cancelDeposit(req.params.trxid, req.session.user.id);
     res.json({ ok: true, status: dep.status });
@@ -209,7 +254,7 @@ router.post('/api/topup/cancel/:trxid', async (req, res) => {
 });
 
 // Batal deposit lewat form biasa (dipakai dari tabel riwayat top up)
-router.post('/topup/:trxid/batal', async (req, res) => {
+router.post('/topup/:trxid/batal', requireLogin, async (req, res) => {
   try {
     await cancelDeposit(req.params.trxid, req.session.user.id);
     res.redirect('/topup?success=' + encodeURIComponent('Transaksi top up berhasil dibatalkan'));

@@ -216,7 +216,8 @@ router.post('/settings', (req, res) => {
     siteName, siteTagline,
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
-    ownerWhatsapp
+    ownerWhatsapp,
+    groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText
   } = req.body;
 
   updateConfig({
@@ -237,6 +238,13 @@ router.post('/settings', (req, res) => {
       notifyOnDeposit: notifyOnDeposit === 'on',
       notifyOnOrder: notifyOnOrder === 'on',
       notifyOnRegister: notifyOnRegister === 'on'
+    },
+    community: {
+      groupEnabled: groupEnabled === 'on',
+      groupTitle,
+      groupMessage,
+      groupLink,
+      groupButtonText
     }
   });
 
