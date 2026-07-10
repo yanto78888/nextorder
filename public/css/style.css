@@ -1336,3 +1336,183 @@ input[type="file"]::file-selector-button {
   .nav-item.active { padding-left: 12px; padding-right: 12px; }
   .banner-slider { aspect-ratio: 16 / 7; }
 }
+
+/* =====================================================================
+   ADMIN DASHBOARD REDESIGN + REVIEWS / KOMENTAR
+   ===================================================================== */
+
+/* ---- Admin page header ---- */
+.adm-page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.adm-page-title { font-family:var(--font-display); font-size:22px; letter-spacing:1px; }
+.adm-page-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
+
+/* ---- Alert banners ---- */
+.adm-alert-banner {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border-radius:10px; margin-bottom:10px;
+  font-size:13px; font-weight:600;
+}
+.adm-alert-red { background:rgba(229,9,20,0.1); border:1px solid rgba(229,9,20,0.3); color:#ff6b6b; }
+.adm-alert-yellow { background:rgba(245,197,24,0.08); border:1px solid rgba(245,197,24,0.3); color:#f5c518; }
+.adm-alert-icon { font-size:16px; flex-shrink:0; }
+.adm-alert-cta { margin-left:auto; font-size:12px; color:#fff; border:1px solid rgba(255,255,255,0.2); border-radius:6px; padding:3px 10px; flex-shrink:0; }
+.adm-alert-cta:hover { background:rgba(255,255,255,0.1); }
+
+/* ---- KPI Cards 2×2 ---- */
+.adm-kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.adm-kpi-card {
+  border-radius:14px; padding:14px;
+  background:var(--bg-panel);
+  border:1.5px solid var(--border-glow);
+  position:relative; overflow:hidden;
+}
+.adm-kpi-card::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; border-radius:14px 14px 0 0; }
+.kpi-red::before { background:linear-gradient(90deg,#e50914,#ff4d4d); box-shadow:0 0 12px rgba(229,9,20,0.5); }
+.kpi-green::before { background:linear-gradient(90deg,#2ecc71,#27ae60); box-shadow:0 0 12px rgba(46,204,113,0.4); }
+.kpi-amber::before { background:linear-gradient(90deg,#f5c518,#e6a817); box-shadow:0 0 12px rgba(245,197,24,0.4); }
+.kpi-blue::before { background:linear-gradient(90deg,#3498db,#2980b9); box-shadow:0 0 12px rgba(52,152,219,0.4); }
+
+.kpi-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.kpi-icon { font-size:18px; }
+.kpi-trend { font-size:10px; font-weight:700; color:var(--text-dim); background:rgba(255,255,255,0.05); border-radius:999px; padding:2px 8px; }
+.kpi-val { font-family:var(--font-display); font-size:30px; line-height:1; margin-bottom:4px; }
+.kpi-label { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+.kpi-bar { height:3px; background:rgba(255,255,255,0.06); border-radius:999px; overflow:hidden; }
+.kpi-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--cyan),#ff4d4d); transition:width .6s ease; }
+
+/* ---- Revenue card ---- */
+.adm-revenue-card {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:linear-gradient(135deg,#141414 0%,#0f0f0f 100%);
+  border:1.5px solid rgba(229,9,20,0.25);
+  border-radius:14px; padding:18px 16px; margin-bottom:14px;
+  box-shadow:0 0 30px rgba(229,9,20,0.08) inset;
+}
+.adm-rev-eyebrow { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin-bottom:4px; }
+.adm-rev-main { font-family:var(--font-display); font-size:26px; color:var(--success); margin-bottom:8px; }
+.adm-rev-sub { display:flex; gap:6px; flex-wrap:wrap; }
+.pill-badge { font-size:10px; font-weight:700; padding:2px 10px; border-radius:999px; }
+.pill-badge.green { background:rgba(46,204,113,0.15); color:#2ecc71; border:1px solid rgba(46,204,113,0.3); }
+.pill-badge.amber { background:rgba(245,197,24,0.12); color:#f5c518; border:1px solid rgba(245,197,24,0.3); }
+.pill-badge.red { background:rgba(229,9,20,0.12); color:#ff6b6b; border:1px solid rgba(229,9,20,0.3); }
+
+.adm-donut-wrap { position:relative; flex-shrink:0; }
+.adm-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.adm-donut-pct { font-size:16px; font-weight:800; }
+.adm-donut-lab { font-size:9px; color:var(--text-dim); text-transform:uppercase; }
+
+/* ---- Chart card ---- */
+.adm-chart-card {
+  background:var(--bg-panel); border:1.5px solid var(--border-glow);
+  border-radius:14px; padding:16px; margin-bottom:16px;
+}
+.adm-chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.adm-chart-title { font-size:14px; font-weight:700; }
+.adm-chart-tabs { display:flex; gap:6px; }
+.adm-tab { background:transparent; border:1px solid var(--border-glow); border-radius:999px; color:var(--text-dim); font-size:11px; font-weight:600; padding:4px 12px; cursor:pointer; transition:all .15s; }
+.adm-tab.active { background:var(--cyan); border-color:var(--cyan); color:#fff; box-shadow:0 4px 12px rgba(229,9,20,0.4); }
+.adm-chart-wrap { height:140px; }
+
+/* ---- Section headers ---- */
+.adm-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.adm-section-title { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.adm-see-all { font-size:12px; color:var(--text-dim); }
+.adm-see-all:hover { color:var(--cyan); }
+.adm-empty { font-size:13px; color:var(--text-dim); padding:16px; text-align:center; background:var(--bg-panel); border-radius:10px; border:1px solid var(--border-glow); }
+
+/* ---- Order list (compact) ---- */
+.adm-order-list { display:flex; flex-direction:column; gap:8px; }
+.adm-order-row {
+  display:flex; align-items:center; gap:10px;
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px; padding:12px;
+  transition:border-color .15s;
+}
+.adm-order-row:hover { border-color:rgba(229,9,20,0.3); }
+.adm-order-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot-completed { background:#2ecc71; box-shadow:0 0 6px rgba(46,204,113,0.5); }
+.dot-processing { background:#f5c518; box-shadow:0 0 6px rgba(245,197,24,0.5); }
+.dot-cancelled { background:#e50914; box-shadow:0 0 6px rgba(229,9,20,0.5); }
+.adm-order-info { flex:1; min-width:0; }
+.adm-order-name { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.adm-order-meta { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.adm-order-right { text-align:right; flex-shrink:0; }
+.adm-order-total { font-size:13px; font-weight:700; color:var(--success); }
+.adm-order-date { font-size:10px; color:var(--text-dim); margin-top:1px; }
+.adm-order-arrow { font-size:20px; color:var(--text-dim); padding:0 4px; flex-shrink:0; line-height:1; }
+
+/* ---- Admin review list (dashboard) ---- */
+.adm-review-list { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+.adm-review-card {
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px; padding:12px;
+}
+.adm-review-top { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.adm-review-avatar {
+  width:32px; height:32px; border-radius:50%; background:rgba(229,9,20,0.15);
+  border:1px solid rgba(229,9,20,0.3); display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:13px; color:var(--cyan); flex-shrink:0;
+}
+.adm-review-meta { flex:1; min-width:0; }
+.adm-review-user { font-size:13px; font-weight:700; }
+.adm-review-product { font-size:10px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.adm-review-stars { display:flex; gap:1px; }
+.star-on { color:#f5c518; font-size:13px; }
+.star-off { color:var(--border-glow); font-size:13px; }
+.adm-del-btn {
+  background:transparent; border:1px solid rgba(229,9,20,0.3); color:#ff6b6b;
+  border-radius:6px; padding:4px 8px; font-size:11px; cursor:pointer; flex-shrink:0;
+  transition:background .15s;
+}
+.adm-del-btn:hover { background:rgba(229,9,20,0.15); }
+.adm-review-comment { font-size:12px; color:var(--text-main); line-height:1.5; font-style:italic; padding:6px 0; }
+.adm-review-date { font-size:10px; color:var(--text-dim); }
+
+/* ---- Product detail — review section ---- */
+.reviews-section { margin-top:24px; padding-top:20px; border-top:1px solid var(--border-glow); }
+.reviews-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.reviews-count { font-size:12px; color:var(--text-dim); }
+
+.review-form-card {
+  background:var(--bg-panel); border:1.5px solid var(--border-glow); border-radius:12px;
+  padding:16px; margin-bottom:16px;
+}
+.review-form-title { font-size:13px; font-weight:700; margin-bottom:10px; }
+.review-stars-input { display:flex; gap:6px; margin-bottom:6px; }
+.rev-star-btn {
+  font-size:28px; color:var(--border-glow); cursor:pointer;
+  transition:color .1s, transform .1s;
+}
+.rev-star-btn.hov { color:#f5c518; transform:scale(1.15); }
+.rev-star-btn.sel { color:#f5c518; }
+.rev-star-hint { font-size:11px; color:var(--text-dim); margin:0 0 10px; }
+.review-textarea {
+  width:100%; background:var(--bg-panel-2); border:1.5px solid var(--border-glow);
+  border-radius:8px; color:var(--text-main); padding:10px 12px; font-size:13px;
+  font-family:var(--font-body); resize:none; margin-bottom:10px;
+  transition:border-color .15s;
+}
+.review-textarea:focus { outline:none; border-color:rgba(229,9,20,0.5); }
+.review-submit-btn { width:100%; }
+.review-submit-btn:disabled { opacity:.45; cursor:not-allowed; }
+.review-already { font-size:12px; color:var(--success); padding:10px 14px; background:rgba(46,204,113,0.07); border:1px solid rgba(46,204,113,0.25); border-radius:8px; margin-bottom:14px; }
+.review-login-prompt { font-size:12px; color:var(--text-dim); padding:10px 0; margin-bottom:10px; }
+.reviews-empty { font-size:13px; color:var(--text-dim); padding:16px; text-align:center; background:var(--bg-panel); border-radius:10px; border:1px dashed var(--border-glow); }
+
+.review-list { display:flex; flex-direction:column; gap:12px; }
+.review-card {
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px; padding:12px;
+  transition:border-color .15s;
+}
+.review-card:hover { border-color:rgba(245,197,24,0.25); }
+.review-card-top { display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+.review-avatar {
+  width:34px; height:34px; border-radius:50%; background:rgba(52,152,219,0.15);
+  border:1px solid rgba(52,152,219,0.3); display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:13px; color:#3498db; flex-shrink:0;
+}
+.review-card-meta { flex:1; }
+.review-username { font-size:13px; font-weight:700; }
+.review-date { font-size:10px; color:var(--text-dim); margin-top:1px; }
+.review-stars-display { display:flex; gap:2px; flex-shrink:0; }
+.rstar-on { color:#f5c518; font-size:13px; }
+.rstar-off { color:var(--border-glow); font-size:13px; }
+.review-comment { font-size:13px; color:var(--text-main); line-height:1.6; padding-left:44px; }
