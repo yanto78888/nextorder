@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
 import {
-  findUserById, updateUser, setPassword, verifyPassword, deductSaldo,
+  findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct } from '../lib/products.js';
@@ -16,6 +16,8 @@ import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
+import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
+import { genId } from '../lib/db.js';
 
 const router = express.Router();
 
@@ -39,6 +41,72 @@ function formatTargetText(product, data) {
     .filter(f => data[f.key])
     .map(f => `${f.label}: ${data[f.key]}`)
     .join(' | ');
+}
+
+// Kirim produk ke user: stok manual dari sistem, atau auto top up game lewat Digiflazz.
+// Dipanggil setelah saldo user dipotong, jadi kalau Digiflazz gagal, saldo yang sudah dipotong di-refund di sini.
+async function fulfillOrder(product, qty, targetData, targetText) {
+  if (product.provider === 'digiflazz' && isDigiflazzEnabled()) {
+    const customerNo = buildCustomerNo(product, targetData);
+    if (!customerNo) {
+      return {
+        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Gagal top up: ID tujuan tidak lengkap',
+        provider: 'digiflazz', providerRefId: '', providerCustomerNo: '', refund: true
+      };
+    }
+
+    const refId = genId('DGFLZ');
+    try {
+      const result = await createTransaction({
+        buyerSkuCode: product.digiflazzSku,
+        customerNo,
+        refId
+      });
+      const status = String(result.status || '').toLowerCase();
+
+      if (status === 'sukses') {
+        return {
+          status: 'completed', deliveryMode: 'auto', manualRequired: false,
+          detail: result.sn || result.message || 'Top up berhasil',
+          note: 'Top up otomatis via Digiflazz',
+          provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
+        };
+      }
+      if (status === 'gagal') {
+        return {
+          status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
+          detail: '', note: 'Top up gagal: ' + (result.message || 'ditolak Digiflazz'),
+          provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
+        };
+      }
+      // Pending: masih diproses Digiflazz, dicek ulang otomatis oleh background job
+      return {
+        status: 'processing', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Sedang diproses Digiflazz, tunggu beberapa saat',
+        provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
+      };
+    } catch (err) {
+      return {
+        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Gagal hubungi Digiflazz: ' + err.message,
+        provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
+      };
+    }
+  }
+
+  // Fallback: stok manual dari sistem (perilaku lama)
+  const stockAvailable = countStock(product);
+  const takenStock = stockAvailable >= qty ? takeProductStock(product.id, qty) : null;
+  const isAutoDelivered = Array.isArray(takenStock) && takenStock.length === qty;
+  return {
+    status: isAutoDelivered ? 'completed' : 'processing',
+    deliveryMode: isAutoDelivered ? 'auto' : 'manual',
+    manualRequired: !isAutoDelivered,
+    detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
+    note: isAutoDelivered ? 'Dikirim otomatis dari stok sistem' : 'Stok otomatis habis, menunggu admin kirim manual',
+    provider: 'manual', providerRefId: '', providerCustomerNo: '', refund: false
+  };
 }
 
 // ---------- UPLOAD FOTO PROFIL ----------
@@ -196,9 +264,8 @@ router.post('/order', requireLogin, async (req, res) => {
 
   deductSaldo(user.id, total);
 
-  const stockAvailable = countStock(product);
-  const takenStock = stockAvailable >= qty ? takeProductStock(product.id, qty) : null;
-  const isAutoDelivered = Array.isArray(takenStock) && takenStock.length === qty;
+  const delivery = await fulfillOrder(product, qty, targetData, targetText);
+  if (delivery.refund) addSaldo(user.id, total); // refund saldo kalau Digiflazz gagal
 
   const order = createOrder({
     userId: user.id,
@@ -208,12 +275,15 @@ router.post('/order', requireLogin, async (req, res) => {
     price: unitPrice,
     qty,
     source: 'user',
-    status: isAutoDelivered ? 'completed' : 'processing',
-    deliveryMode: isAutoDelivered ? 'auto' : 'manual',
-    manualRequired: !isAutoDelivered,
+    status: delivery.status,
+    deliveryMode: delivery.deliveryMode,
+    manualRequired: delivery.manualRequired,
     targetText,
-    detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
-    note: isAutoDelivered ? 'Dikirim otomatis dari stok sistem' : 'Stok otomatis habis, menunggu admin kirim manual'
+    detail: delivery.detail,
+    note: delivery.note,
+    provider: delivery.provider,
+    providerRefId: delivery.providerRefId,
+    providerCustomerNo: delivery.providerCustomerNo
   });
 
   notifyOrder({
@@ -221,17 +291,25 @@ router.post('/order', requireLogin, async (req, res) => {
     productName: product.name,
     total: order.total,
     orderId: order.id,
-    source: isAutoDelivered ? 'auto' : 'user',
-    needsManual: !isAutoDelivered,
+    source: delivery.status === 'completed' ? 'auto' : 'user',
+    needsManual: delivery.manualRequired,
     targetText
   }).catch(() => {});
 
-  // Update total terjual di produk
-  updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+  // Update total terjual di produk (tidak dihitung kalau transaksi Digiflazz gagal & saldo di-refund)
+  if (!delivery.refund) {
+    updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+  }
 
-  const msg = isAutoDelivered
-    ? 'Order berhasil, stok otomatis sudah dikirim. Cek detail pesanan di riwayat.'
-    : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
+  if (delivery.refund) {
+    return res.redirect('/produk?error=' + encodeURIComponent(delivery.note + ', saldo sudah dikembalikan'));
+  }
+
+  const msg = delivery.status === 'completed'
+    ? 'Order berhasil, produk sudah dikirim. Cek detail pesanan di riwayat.'
+    : delivery.status === 'processing' && delivery.provider === 'digiflazz'
+      ? 'Order berhasil, top up sedang diproses otomatis. Cek status di riwayat.'
+      : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
   res.redirect('/riwayat?success=' + encodeURIComponent(msg));
 });
 
@@ -337,9 +415,8 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
 
     deductSaldo(user.id, total);
 
-    const stockAvailable = countStock(product);
-    const takenStock = stockAvailable >= qty ? takeProductStock(product.id, qty) : null;
-    const isAutoDelivered = Array.isArray(takenStock) && takenStock.length === qty;
+    const delivery = await fulfillOrder(product, qty, pending.targetData || {}, pending.targetText || '');
+    if (delivery.refund) addSaldo(user.id, total); // refund saldo kalau Digiflazz gagal
 
     const order = createOrder({
       userId: user.id,
@@ -349,22 +426,33 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       price: unitPrice,
       qty,
       source: 'user',
-      status: isAutoDelivered ? 'completed' : 'processing',
-      deliveryMode: isAutoDelivered ? 'auto' : 'manual',
-      manualRequired: !isAutoDelivered,
+      status: delivery.status,
+      deliveryMode: delivery.deliveryMode,
+      manualRequired: delivery.manualRequired,
       targetText: pending.targetText || '',
-      detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
-      note: 'Dibayar via QRIS'
+      detail: delivery.detail,
+      note: delivery.refund ? delivery.note : 'Dibayar via QRIS',
+      provider: delivery.provider,
+      providerRefId: delivery.providerRefId,
+      providerCustomerNo: delivery.providerCustomerNo
     });
 
-    updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
-    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: !isAutoDelivered, targetText: pending.targetText || '' }).catch(() => {});
+    if (!delivery.refund) {
+      updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+    }
+    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: delivery.manualRequired, targetText: pending.targetText || '' }).catch(() => {});
 
     delete req.session.pendingQrisOrder;
 
-    const msg = isAutoDelivered
-      ? 'Pembayaran QRIS berhasil! Stok otomatis sudah dikirim.'
-      : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
+    if (delivery.refund) {
+      return res.redirect('/produk?error=' + encodeURIComponent(delivery.note + ', saldo sudah dikembalikan'));
+    }
+
+    const msg = delivery.status === 'completed'
+      ? 'Pembayaran QRIS berhasil! Produk sudah dikirim.'
+      : delivery.status === 'processing' && delivery.provider === 'digiflazz'
+        ? 'Pembayaran QRIS berhasil! Top up sedang diproses otomatis.'
+        : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
     res.redirect('/riwayat?success=' + encodeURIComponent(msg));
   } catch (err) {
     res.redirect('/produk?error=' + encodeURIComponent(err.message));
@@ -447,6 +535,7 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
       productId: product.id,
       qty,
       targetText,
+      targetData,
       depositTrxid: deposit.trxid
     };
 

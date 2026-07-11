@@ -15,6 +15,7 @@ import { notifyOrder } from '../lib/telegram.js';
 import { runBackupNow } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
+import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList } from '../lib/digiflazz.js';
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -164,19 +165,29 @@ function parseCustomTargetFields(body) {
 }
 
 router.post('/produk', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, stockItems, gamePreset } = req.body;
+  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate } = req.body;
   const thumbnail = req.file ? '/uploads/products/' + req.file.filename : '';
-  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, customTargetFields: parseCustomTargetFields(req.body) });
+  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, customTargetFields: parseCustomTargetFields(req.body) });
   res.redirect('/admin/produk');
 });
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, status, stockItems, gamePreset } = req.body;
-  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, customTargetFields: parseCustomTargetFields(req.body) };
+  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate } = req.body;
+  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, customTargetFields: parseCustomTargetFields(req.body) };
   // Foto hanya diganti kalau admin upload file baru, kalau tidak foto lama tetap dipakai
   if (req.file) partial.thumbnail = '/uploads/products/' + req.file.filename;
   updateProduct(req.params.id, partial);
   res.redirect('/admin/produk');
+});
+
+// Cari produk dari price list Digiflazz (dipakai admin buat pilih SKU pas bikin/edit produk)
+router.get('/produk/digiflazz/search', async (req, res) => {
+  try {
+    const results = await searchDigiflazzPriceList(req.query.q || '', 'prepaid');
+    res.json({ ok: true, results });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 router.post('/produk/:id/stock', (req, res) => {
@@ -283,11 +294,22 @@ router.get('/settings', (req, res) => {
   renderSettings(req, res);
 });
 
+// Cek saldo Digiflazz via AJAX, ditampilkan di halaman settings
+router.get('/settings/digiflazz/saldo', async (req, res) => {
+  try {
+    const deposit = await checkDigiflazzBalance();
+    res.json({ ok: true, deposit });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
     catalogCategories,
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
+    digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
@@ -315,6 +337,7 @@ router.post('/settings', (req, res) => {
     siteName, siteTagline, ownerWhatsapp,
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
+    digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
