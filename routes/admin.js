@@ -15,7 +15,28 @@ import { notifyOrder } from '../lib/telegram.js';
 import { runBackupNow } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
-import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList } from '../lib/digiflazz.js';
+import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, computeSellPrice } from '../lib/digiflazz.js';
+
+// Tebak gamePreset yang cocok dari nama/brand produk Digiflazz, biar field ID Tujuan
+// (termasuk dropdown Server buat game kayak Genshin Impact/Wuthering Waves) otomatis
+// kepasang benar pas import, gak perlu diatur manual satu-satu di halaman produk.
+//
+// Kalau nama game gak dikenali sistem, fallback ke preset "id_only" (1 field User ID
+// generik) — BUKAN dikosongkan. Auto top up Digiflazz butuh minimal 1 ID buat dikirim
+// sebagai customer_no, jadi produk tanpa field ID Tujuan sama sekali bakal gagal saat
+// dibeli. Admin tetap bisa ganti manual ke preset lain / custom di halaman Kelola Produk
+// kalau ternyata game itu butuh 2 field (ID + Server) yang belum ada presetnya.
+function guessGamePreset(text) {
+  const t = String(text || '').toLowerCase();
+  if (t.includes('mobile legends') || t.includes('ml ')) return 'mobile_legends';
+  if (t.includes('free fire') || t.includes('ff ')) return 'free_fire';
+  if (t.includes('genshin')) return 'genshin_impact';
+  if (t.includes('wuthering')) return 'wuthering_waves';
+  if (t.includes('honkai') || t.includes('star rail') || t.includes('hsr')) return 'honkai_star_rail';
+  if (t.includes('pubg')) return 'pubg_mobile';
+  if (t.includes('valorant')) return 'valorant';
+  return 'id_only';
+}
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -165,15 +186,15 @@ function parseCustomTargetFields(body) {
 }
 
 router.post('/produk', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate } = req.body;
+  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup } = req.body;
   const thumbnail = req.file ? '/uploads/products/' + req.file.filename : '';
-  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, customTargetFields: parseCustomTargetFields(req.body) });
+  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, customTargetFields: parseCustomTargetFields(req.body) });
   res.redirect('/admin/produk');
 });
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate } = req.body;
-  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, customTargetFields: parseCustomTargetFields(req.body) };
+  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup } = req.body;
+  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, customTargetFields: parseCustomTargetFields(req.body) };
   // Foto hanya diganti kalau admin upload file baru, kalau tidak foto lama tetap dipakai
   if (req.file) partial.thumbnail = '/uploads/products/' + req.file.filename;
   updateProduct(req.params.id, partial);
@@ -203,6 +224,163 @@ router.post('/produk/:id/stock/:stockId/hapus', (req, res) => {
 router.post('/produk/:id/hapus', (req, res) => {
   deleteProduct(req.params.id);
   res.redirect('/admin/produk');
+});
+
+// ---------- DIGIFLAZZ PRODUCTS (nav khusus, kelola produk auto topup + margin) ----------
+
+function renderDigiflazzPage(req, res, extra = {}) {
+  const digiflazzProducts = getAllProducts().filter(p => p.provider === 'digiflazz');
+  res.render('admin/digiflazz', {
+    config: getConfig(),
+    digiflazzProducts,
+    searchResults: [],
+    searchQuery: '',
+    error: null,
+    success: null,
+    ...extra
+  });
+}
+
+router.get('/digiflazz', (req, res) => {
+  renderDigiflazzPage(req, res);
+});
+
+// Cari produk Digiflazz + preview harga jual (base + margin default) buat halaman kelola khusus ini
+router.get('/digiflazz/search', async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const raw = await searchDigiflazzPriceList(q, 'prepaid');
+    const linkedSkus = new Set(getAllProducts().filter(p => p.provider === 'digiflazz').map(p => p.digiflazzSku));
+    const results = raw.map(item => ({
+      ...item,
+      sellPricePreview: computeSellPrice(item.price, null, null),
+      alreadyImported: linkedSkus.has(item.buyer_sku_code)
+    }));
+    res.json({ ok: true, results });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Simpan margin default global (dipakai semua produk digiflazz yang tidak punya override sendiri)
+router.post('/digiflazz/margin', (req, res) => {
+  const marginType = req.body.marginType === 'fixed' ? 'fixed' : 'percent';
+  const marginValue = Number(req.body.marginValue) || 0;
+  updateConfig({ digiflazz: { marginType, marginValue } });
+  renderDigiflazzPage(req, res, { success: 'Margin default berhasil disimpan' });
+});
+
+// Import 1 produk dari price list Digiflazz jadi produk lokal
+router.post('/digiflazz/import', (req, res) => {
+  try {
+    const {
+      buyerSkuCode, productName, category, brand, basePrice,
+      gamePreset, marginType, marginValue
+    } = req.body;
+
+    if (!buyerSkuCode || !productName) {
+      return renderDigiflazzPage(req, res, { error: 'SKU dan nama produk wajib diisi' });
+    }
+
+    // Cegah double-import SKU yang sama
+    const existing = getAllProducts().find(p => p.provider === 'digiflazz' && p.digiflazzSku === buyerSkuCode);
+    const base = Number(basePrice) || 0;
+    const sellPrice = computeSellPrice(base, marginType || null, marginValue !== '' ? marginValue : null);
+    const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`);
+
+    if (existing) {
+      updateProduct(existing.id, {
+        name: productName,
+        price: sellPrice,
+        digiflazzBasePrice: base,
+        marginType: marginType || '',
+        marginValue: marginValue !== '' ? marginValue : null
+      });
+      return renderDigiflazzPage(req, res, { success: `SKU ${buyerSkuCode} sudah pernah diimport, harga & data produk diperbarui.` });
+    }
+
+    createProduct({
+      name: productName,
+      category: category || 'Games',
+      description: `Auto top up ${productName} via Digiflazz`,
+      price: sellPrice,
+      provider: 'digiflazz',
+      digiflazzSku: buyerSkuCode,
+      digiflazzBasePrice: base,
+      variantGroup: brand || '',
+      gamePreset: detectedPreset,
+      marginType: marginType || '',
+      marginValue: marginValue !== '' ? marginValue : null
+    });
+
+    renderDigiflazzPage(req, res, { success: `Produk "${productName}" berhasil diimport dari Digiflazz.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Set margin override khusus 1 produk (kosongkan buat pakai margin default global lagi) + hitung ulang harga jual
+router.post('/digiflazz/:id/margin', (req, res) => {
+  try {
+    const product = findProductById(req.params.id);
+    if (!product || product.provider !== 'digiflazz') {
+      return renderDigiflazzPage(req, res, { error: 'Produk Digiflazz tidak ditemukan' });
+    }
+    const marginType = req.body.marginType || '';
+    const marginValue = req.body.marginValue !== '' ? req.body.marginValue : null;
+    const sellPrice = computeSellPrice(product.digiflazzBasePrice, marginType || null, marginValue);
+    updateProduct(product.id, { marginType, marginValue, price: sellPrice });
+    renderDigiflazzPage(req, res, { success: `Margin "${product.name}" diperbarui, harga jual: Rp ${sellPrice.toLocaleString('id-ID')}` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Sinkron ulang 1 produk: ambil harga modal terbaru dari Digiflazz, hitung ulang harga jual pakai margin yang ada
+router.post('/digiflazz/:id/resync', async (req, res) => {
+  try {
+    const product = findProductById(req.params.id);
+    if (!product || product.provider !== 'digiflazz') {
+      return renderDigiflazzPage(req, res, { error: 'Produk Digiflazz tidak ditemukan' });
+    }
+    const list = await getDigiflazzPriceList('prepaid');
+    const match = list.find(item => item.buyer_sku_code === product.digiflazzSku);
+    if (!match) {
+      return renderDigiflazzPage(req, res, { error: `SKU ${product.digiflazzSku} tidak ditemukan di price list Digiflazz` });
+    }
+    const sellPrice = computeSellPrice(match.price, product.marginType || null, product.marginValue);
+    updateProduct(product.id, { digiflazzBasePrice: match.price, price: sellPrice });
+    renderDigiflazzPage(req, res, { success: `Harga "${product.name}" disinkron: modal Rp ${match.price.toLocaleString('id-ID')} -> jual Rp ${sellPrice.toLocaleString('id-ID')}` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Sinkron ulang SEMUA produk digiflazz sekaligus (1x fetch price list, dicocokkan per SKU)
+router.post('/digiflazz/sync-all', async (req, res) => {
+  try {
+    const list = await getDigiflazzPriceList('prepaid');
+    const priceMap = new Map(list.map(item => [item.buyer_sku_code, item.price]));
+    const products = getAllProducts().filter(p => p.provider === 'digiflazz');
+    let updated = 0;
+    let notFound = 0;
+    products.forEach(p => {
+      const basePrice = priceMap.get(p.digiflazzSku);
+      if (basePrice === undefined) { notFound++; return; }
+      const sellPrice = computeSellPrice(basePrice, p.marginType || null, p.marginValue);
+      updateProduct(p.id, { digiflazzBasePrice: basePrice, price: sellPrice });
+      updated++;
+    });
+    renderDigiflazzPage(req, res, { success: `${updated} produk berhasil disinkron.${notFound > 0 ? ` ${notFound} SKU tidak ditemukan di price list (mungkin sudah tidak aktif).` : ''}` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Lepas produk dari Digiflazz (jadi produk manual biasa, stok manual kosong)
+router.post('/digiflazz/:id/unlink', (req, res) => {
+  updateProduct(req.params.id, { provider: 'manual' });
+  renderDigiflazzPage(req, res, { success: 'Produk dilepas dari Digiflazz, sekarang jadi produk stok manual.' });
 });
 
 // ---------- ORDER ----------

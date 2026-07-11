@@ -39,7 +39,14 @@ function formatTargetText(product, data) {
   const fields = product.targetFields || [];
   return fields
     .filter(f => data[f.key])
-    .map(f => `${f.label}: ${data[f.key]}`)
+    .map(f => {
+      let val = data[f.key];
+      if (f.type === 'select' && Array.isArray(f.options)) {
+        const opt = f.options.find(o => o.value === val);
+        if (opt) val = opt.label;
+      }
+      return `${f.label}: ${val}`;
+    })
     .join(' | ');
 }
 
@@ -306,17 +313,29 @@ router.post('/order', requireLogin, async (req, res) => {
   }
 
   const msg = delivery.status === 'completed'
-    ? 'Order berhasil, produk sudah dikirim. Cek detail pesanan di riwayat.'
+    ? 'Order berhasil, produk sudah dikirim.'
     : delivery.status === 'processing' && delivery.provider === 'digiflazz'
-      ? 'Order berhasil, top up sedang diproses otomatis. Cek status di riwayat.'
+      ? 'Order berhasil, top up sedang diproses otomatis.'
       : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
-  res.redirect('/riwayat?success=' + encodeURIComponent(msg));
+  res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
 });
 
 router.get('/riwayat', requireLogin, (req, res) => {
   const orders = getOrdersByUser(req.session.user.id);
   res.render('riwayat', {
     orders,
+    config: getConfig(),
+    user: findUserById(req.session.user.id),
+    success: req.query.success || null
+  });
+});
+
+// Invoice/struk 1 order, dipakai buat halaman detail setelah order berhasil maupun dilihat dari riwayat
+router.get('/riwayat/:id', requireLogin, (req, res) => {
+  const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+  if (!order) return res.redirect('/riwayat?error=' + encodeURIComponent('Order tidak ditemukan'));
+  res.render('invoice', {
+    order,
     config: getConfig(),
     user: findUserById(req.session.user.id),
     success: req.query.success || null
@@ -453,7 +472,7 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       : delivery.status === 'processing' && delivery.provider === 'digiflazz'
         ? 'Pembayaran QRIS berhasil! Top up sedang diproses otomatis.'
         : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
-    res.redirect('/riwayat?success=' + encodeURIComponent(msg));
+    res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
   } catch (err) {
     res.redirect('/produk?error=' + encodeURIComponent(err.message));
   }
@@ -470,9 +489,28 @@ router.get('/produk/:id', (req, res) => {
   const reviews = getReviewsByProduct(product.id);
   const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
 
+  // Kalau produk ini punya variantGroup (mis. "Mobile Legends"), tampilkan juga produk lain
+  // di grup yang sama sebagai pilihan nominal yang bisa diklik di halaman yang sama (tanpa reload).
+  const variants = product.variantGroup
+    ? getActiveProducts()
+        .filter(p => p.variantGroup === product.variantGroup)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price,
+          thumbnail: p.thumbnail,
+          targetFields: p.targetFields || [],
+          stockCount: countStock(p),
+          provider: p.provider
+        }))
+        .sort((a, b) => a.price - b.price)
+    : [];
+
   res.render('produk-detail', {
     product,
     finalPrice,
+    variants,
     reviews,
     hasReviewed,
     user,
