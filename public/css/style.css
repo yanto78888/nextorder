@@ -707,13 +707,43 @@ input[type="file"]::file-selector-button {
 }
 /* bottom-nav HD override removed */
 
-/* ---- Topbar layout: hamburger left / brand center / avatar right ---- */
+/* ---- Topbar layout: hamburger + search left / brand center / avatar right ---- */
 .phone-topbar {
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 38px 38px 1fr 44px;
   display: grid;
   align-items: center;
+  gap: 6px;
 }
 .brand-center { justify-self: center; align-items: center; text-align: center; }
+
+.search-bar-row {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  max-height: 0;
+  overflow: hidden;
+  background: #050505;
+  border-bottom: 1px solid var(--border-glow);
+}
+.search-bar-row.open {
+  display: flex;
+  max-height: 54px;
+  padding: 10px 18px;
+}
+.search-bar-icon { color: var(--text-dim); font-size: 14px; }
+.search-bar-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: inherit;
+}
+.search-bar-input::placeholder { color: var(--text-dim); }
+.search-bar-clear { color: var(--text-dim); font-size: 14px; display: flex; }
+.search-bar-clear:hover { color: var(--cyan); }
 
 .hamburger-btn { position: relative; }
 .hamburger-lines {
