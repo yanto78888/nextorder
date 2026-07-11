@@ -10,11 +10,11 @@
 
     <% const waitingManual = orders.filter(o => o.manualRequired && o.status === 'processing'); %>
     <% if (waitingManual.length > 0) { %>
-      <div class="alert error">⚠️ <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
+      <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
     <% } %>
 
     <div class="card">
-      <h3>🛠 Kirim Pesanan Manual</h3>
+      <h3><i class="fa-solid fa-screwdriver-wrench"></i> Kirim Pesanan Manual</h3>
       <p class="helper-text">Buat order langsung untuk user tertentu (misalnya pembayaran di luar sistem, bonus, atau pengiriman produk manual).</p>
       <form method="POST" action="/admin/order/manual">
         <div class="grid grid-2">
@@ -51,7 +51,7 @@
         <input type="text" name="note" placeholder="Catatan internal (opsional)">
         <label>Detail / Isi Produk yang Dikirim ke User</label>
         <textarea name="detail" placeholder="Contoh: Email: xxx@gmail.com | Password: xxxx"></textarea>
-        <button class="btn magenta mt-24" type="submit">🚀 Kirim Pesanan</button>
+        <button class="btn magenta mt-24" type="submit"><i class="fa-solid fa-paper-plane"></i> Kirim Pesanan</button>
       </form>
     </div>
 

@@ -21,14 +21,14 @@
     <!-- Alert warnings -->
     <% if (manualOrders && manualOrders.length > 0) { %>
       <div class="adm-alert-banner adm-alert-red">
-        <span class="adm-alert-icon">⚠️</span>
+        <span class="adm-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
         <span><b><%= manualOrders.length %> order</b> menunggu kirim manual</span>
         <a href="/admin/order" class="adm-alert-cta">Proses →</a>
       </div>
     <% } %>
     <% if (emptyStockProducts && emptyStockProducts.length > 0) { %>
       <div class="adm-alert-banner adm-alert-yellow">
-        <span class="adm-alert-icon">📦</span>
+        <span class="adm-alert-icon"><i class="fa-solid fa-box"></i></span>
         <span>Stok kosong: <b><%= emptyStockProducts.map(p => p.name).join(', ') %></b></span>
         <a href="/admin/produk" class="adm-alert-cta">Isi Stok →</a>
       </div>
@@ -38,7 +38,7 @@
     <div class="adm-kpi-grid">
       <div class="adm-kpi-card kpi-blue">
         <div class="kpi-top">
-          <div class="kpi-icon">👥</div>
+          <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
           <div class="kpi-trend">+<%= totalUsers %></div>
         </div>
         <div class="kpi-val"><%= totalUsers %></div>
@@ -48,7 +48,7 @@
 
       <div class="adm-kpi-card kpi-red">
         <div class="kpi-top">
-          <div class="kpi-icon">🛒</div>
+          <div class="kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
           <div class="kpi-trend"><%= stats.totalOrders %></div>
         </div>
         <div class="kpi-val"><%= stats.totalOrders %></div>
@@ -58,7 +58,7 @@
 
       <div class="adm-kpi-card kpi-green">
         <div class="kpi-top">
-          <div class="kpi-icon">✅</div>
+          <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
           <div class="kpi-trend"><%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%</div>
         </div>
         <div class="kpi-val"><%= statusCompleted %></div>
@@ -159,7 +159,7 @@
               <% for(let i=1;i<=5;i++){%><span class="<%= i<=r.rating?'star-on':'star-off' %>">★</span><%}%>
             </div>
             <form method="POST" action="/admin/review/delete/<%= r.id %>" style="margin:0;">
-              <button type="submit" class="adm-del-btn" title="Hapus ulasan" onclick="return confirm('Hapus ulasan ini?')">✕</button>
+              <button type="submit" class="adm-del-btn" title="Hapus ulasan" onclick="return confirm('Hapus ulasan ini?')"><i class="fa-solid fa-trash"></i></button>
             </form>
           </div>
           <% if (r.comment) { %>

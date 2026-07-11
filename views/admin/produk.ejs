@@ -27,7 +27,7 @@
           <% const currentPreset = editProduct ? (editProduct.gamePreset || 'none') : 'none'; %>
           <select name="gamePreset" id="gamePresetSelect">
             <% gamePresetList.forEach(gp => { %>
-              <option value="<%= gp.key %>" <%= currentPreset === gp.key ? 'selected' : '' %>><%= gp.icon %> <%= gp.label %></option>
+              <option value="<%= gp.key %>" <%= currentPreset === gp.key ? 'selected' : '' %>><%= gp.label %></option>
             <% }) %>
           </select>
           <div class="helper-text">Pilih game yang sesuai supaya user diminta isi ID/Zone ID/UID yang pas (mis. Mobile Legends = User ID + Zone ID, Genshin = UID + Server). Pilih "Custom" kalau mau atur field sendiri, atau "Tanpa ID Tujuan" untuk produk yang tidak butuh ID (voucher/akun).</div>
@@ -92,7 +92,7 @@
           <tbody>
             <% products.forEach(p => { %>
             <tr>
-              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || '' %> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %></span></td>
+              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %></span></td>
               <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
               <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
               <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
