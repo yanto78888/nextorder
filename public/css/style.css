@@ -188,6 +188,30 @@ h1, h2, h3, h4 {
   gap: 12px;
 }
 
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 999px;
+  padding: 10px 16px;
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+}
+.topbar-search i { color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
+.topbar-search input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 13px;
+  width: 100%;
+  font-family: inherit;
+}
+.topbar-search input::placeholder { color: var(--text-dim); }
+
 .user-chip {
   display: flex;
   align-items: center;
@@ -707,43 +731,13 @@ input[type="file"]::file-selector-button {
 }
 /* bottom-nav HD override removed */
 
-/* ---- Topbar layout: hamburger + search left / brand center / avatar right ---- */
+/* ---- Topbar layout: hamburger left / brand center / avatar right ---- */
 .phone-topbar {
-  grid-template-columns: 38px 38px 1fr 44px;
+  grid-template-columns: 44px 1fr 44px;
   display: grid;
   align-items: center;
-  gap: 6px;
 }
 .brand-center { justify-self: center; align-items: center; text-align: center; }
-
-.search-bar-row {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 0 18px;
-  max-height: 0;
-  overflow: hidden;
-  background: #050505;
-  border-bottom: 1px solid var(--border-glow);
-}
-.search-bar-row.open {
-  display: flex;
-  max-height: 54px;
-  padding: 10px 18px;
-}
-.search-bar-icon { color: var(--text-dim); font-size: 14px; }
-.search-bar-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-main);
-  font-size: 14px;
-  font-family: inherit;
-}
-.search-bar-input::placeholder { color: var(--text-dim); }
-.search-bar-clear { color: var(--text-dim); font-size: 14px; display: flex; }
-.search-bar-clear:hover { color: var(--cyan); }
 
 .hamburger-btn { position: relative; }
 .hamburger-lines {
@@ -1349,6 +1343,9 @@ input[type="file"]::file-selector-button {
   padding-left: 100%;
   animation: marqueeScroll 28s linear infinite;
 }
+/* Sengaja TIDAK ada pause-on-hover/tap di sini — di HP, tap dianggap "hover" yang nyantol terus
+   (gak ada event buat lepas hover-nya kayak di desktop), jadi teks berjalan bakal macet permanen
+   kalau di-tap sekali. Biarin animasinya jalan terus tanpa terganggu sentuhan user. */
 @keyframes marqueeScroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
