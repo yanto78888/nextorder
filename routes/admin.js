@@ -321,18 +321,6 @@ router.post('/settings', (req, res) => {
     .map(c => c.trim())
     .filter(Boolean);
 
-  // Proses banner dari bannerLink[] array
-  const existing = (getConfig().banners || []);
-  const linkArr = [].concat(req.body['bannerLink[]'] || req.body.bannerLink || []);
-  const titleArr = [].concat(req.body['bannerTitle[]'] || req.body.bannerTitle || []);
-  const keepArr = [].concat(req.body['bannerId[]'] || req.body.bannerId || []);
-  const banners = existing
-    .filter(b => keepArr.includes(b.id))
-    .map(b => {
-      const idx = keepArr.indexOf(b.id);
-      return { ...b, link: linkArr[idx] || b.link, title: titleArr[idx] || b.title };
-    });
-
   updateConfig({
     siteName, siteTagline, ownerWhatsapp,
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
@@ -340,8 +328,10 @@ router.post('/settings', (req, res) => {
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
-    marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
-    banners
+    marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' }
+    // NOTE: "banners" sengaja tidak disentuh di sini. Banner dikelola sepenuhnya lewat
+    // /admin/settings/banner/add dan /admin/settings/banner/delete/:id (form terpisah di halaman
+    // settings), supaya klik "Simpan Pengaturan" tidak pernah menimpa/menghapus banner yang sudah ada.
   });
 
   renderSettings(req, res, { success: 'Pengaturan berhasil disimpan' });
