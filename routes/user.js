@@ -14,9 +14,32 @@ import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
+import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 
 const router = express.Router();
+
+// Ambil isian ID Game / Zone ID / UID dll dari form checkout sesuai targetFields produk (ML, FF, Genshin, dst)
+function extractTargetData(product, body) {
+  const fields = product.targetFields || [];
+  const data = {};
+  const missing = [];
+  fields.forEach(f => {
+    const val = (body['target_' + f.key] || '').toString().trim();
+    if (f.required && !val) missing.push(f.label);
+    if (val) data[f.key] = val;
+  });
+  return { data, missing };
+}
+
+// Format isian target jadi teks rapi buat disimpan di order & dikirim ke laporan Telegram
+function formatTargetText(product, data) {
+  const fields = product.targetFields || [];
+  return fields
+    .filter(f => data[f.key])
+    .map(f => `${f.label}: ${data[f.key]}`)
+    .join(' | ');
+}
 
 // ---------- UPLOAD FOTO PROFIL ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -106,7 +129,7 @@ router.post('/membership/upgrade', requireLogin, (req, res) => {
     const updated = upgradeMembership(user.id, tierKey);
     req.session.user.membership = updated.membership;
     const tier = getMembershipTier(updated.membership);
-    res.redirect('/profile?success=' + encodeURIComponent(`Berhasil upgrade ke member ${tier.label}! Diskon Rp ${tier.discount.toLocaleString('id-ID')} berlaku di setiap pembelian.`));
+    res.redirect('/profile?success=' + encodeURIComponent(`Berhasil upgrade ke member ${tier.label}! Diskon ${tier.discountPercent}% berlaku di setiap pembelian.`));
   } catch (err) {
     res.redirect('/profile?error=' + encodeURIComponent(err.message));
   }
@@ -115,11 +138,21 @@ router.post('/membership/upgrade', requireLogin, (req, res) => {
 router.get('/produk', (req, res) => {
   // Beranda bisa dibuka tanpa login (mode tamu). Kalau sudah login, tampilkan saldo & diskon member.
   const user = req.session.user ? findUserById(req.session.user.id) : null;
-  const discount = user ? getMembershipDiscount(user) : 0;
-  const products = getActiveProducts().map(p => ({
-    ...p,
-    finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price
-  }));
+  const discountPercent = user ? getMembershipDiscount(user) : 0;
+  const cfg = getConfig();
+
+  // Katalog cuma menampilkan kategori yang diizinkan (default: Games saja). Atur di Admin > Pengaturan.
+  const allowedCategories = (cfg.catalog?.categories && cfg.catalog.categories.length > 0)
+    ? cfg.catalog.categories.map(c => c.toLowerCase().trim())
+    : ['games'];
+
+  const products = getActiveProducts()
+    .filter(p => allowedCategories.includes((p.category || '').toLowerCase().trim()))
+    .map(p => ({
+      ...p,
+      finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price,
+      icon: getGameIcon(p.gamePreset)
+    }));
 
   // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
   const categoryOrder = [];
@@ -137,11 +170,11 @@ router.get('/produk', (req, res) => {
   res.render('produk', {
     products,
     rows,
-    memberDiscount: discount,
+    memberDiscount: discountPercent,
     user,
-    config: getConfig(),
-    banners: (getConfig().banners || []).filter(b => b.image),
-    marquee: getConfig().marquee || {},
+    config: cfg,
+    banners: (cfg.banners || []).filter(b => b.image),
+    marquee: cfg.marquee || {},
     error: req.query.error || null
   });
 });
@@ -154,6 +187,13 @@ router.post('/order', requireLogin, async (req, res) => {
   if (!product || product.status !== 'active') {
     return res.redirect('/produk?error=Produk tidak tersedia');
   }
+
+  const { data: targetData, missing } = extractTargetData(product, req.body);
+  if (missing.length > 0) {
+    return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(`Lengkapi dulu: ${missing.join(', ')}`));
+  }
+  const targetText = formatTargetText(product, targetData);
+
   const unitPrice = applyMemberDiscount(product.price, user.membership);
   const total = unitPrice * qty;
   if (user.saldo < total) {
@@ -177,6 +217,7 @@ router.post('/order', requireLogin, async (req, res) => {
     status: isAutoDelivered ? 'completed' : 'processing',
     deliveryMode: isAutoDelivered ? 'auto' : 'manual',
     manualRequired: !isAutoDelivered,
+    targetText,
     detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
     note: isAutoDelivered ? 'Dikirim otomatis dari stok sistem' : 'Stok otomatis habis, menunggu admin kirim manual'
   });
@@ -187,7 +228,8 @@ router.post('/order', requireLogin, async (req, res) => {
     total: order.total,
     orderId: order.id,
     source: isAutoDelivered ? 'auto' : 'user',
-    needsManual: !isAutoDelivered
+    needsManual: !isAutoDelivered,
+    targetText
   }).catch(() => {});
 
   // Update total terjual di produk
@@ -316,12 +358,13 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       status: isAutoDelivered ? 'completed' : 'processing',
       deliveryMode: isAutoDelivered ? 'auto' : 'manual',
       manualRequired: !isAutoDelivered,
+      targetText: pending.targetText || '',
       detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
       note: 'Dibayar via QRIS'
     });
 
     updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
-    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: !isAutoDelivered }).catch(() => {});
+    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: !isAutoDelivered, targetText: pending.targetText || '' }).catch(() => {});
 
     delete req.session.pendingQrisOrder;
 
@@ -393,6 +436,13 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     if (!product || product.status !== 'active') {
       return res.redirect('/produk?error=Produk tidak tersedia');
     }
+
+    const { data: targetData, missing } = extractTargetData(product, req.body);
+    if (missing.length > 0) {
+      return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(`Lengkapi dulu: ${missing.join(', ')}`));
+    }
+    const targetText = formatTargetText(product, targetData);
+
     const unitPrice = applyMemberDiscount(product.price, user.membership);
     const total = unitPrice * qty;
 
@@ -402,6 +452,7 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     req.session.pendingQrisOrder = {
       productId: product.id,
       qty,
+      targetText,
       depositTrxid: deposit.trxid
     };
 
@@ -410,6 +461,7 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
       product,
       qty,
       total,
+      targetText,
       user,
       config: getConfig()
     });

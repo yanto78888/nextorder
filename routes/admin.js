@@ -12,6 +12,8 @@ import {
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats } from '../lib/orders.js';
 import { notifyOrder } from '../lib/telegram.js';
+import { runBackupNow } from '../lib/backup.js';
+import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 
 const router = express.Router();
@@ -140,24 +142,37 @@ router.post('/review/delete/:id', (req, res) => {
 
 // ---------- PRODUK ----------
 router.get('/produk', (req, res) => {
-  res.render('admin/produk', { products: getAllProducts(), config: getConfig(), editProduct: null, error: req.query.error || null });
+  res.render('admin/produk', { products: getAllProducts(), config: getConfig(), editProduct: null, gamePresetList: getGamePresetList(), error: req.query.error || null });
 });
 
 router.get('/produk/:id/edit', (req, res) => {
   const product = findProductById(req.params.id);
-  res.render('admin/produk', { products: getAllProducts(), config: getConfig(), editProduct: product, error: req.query.error || null });
+  res.render('admin/produk', { products: getAllProducts(), config: getConfig(), editProduct: product, gamePresetList: getGamePresetList(), error: req.query.error || null });
 });
 
+function parseCustomTargetFields(body) {
+  const keys = [].concat(body['customFieldKey[]'] || []);
+  const labels = [].concat(body['customFieldLabel[]'] || []);
+  const placeholders = [].concat(body['customFieldPlaceholder[]'] || []);
+  const requireds = [].concat(body['customFieldRequired[]'] || []);
+  return keys.map((key, i) => ({
+    key,
+    label: labels[i] || '',
+    placeholder: placeholders[i] || '',
+    required: requireds.includes(key)
+  })).filter(f => f.key && f.label);
+}
+
 router.post('/produk', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, stockItems } = req.body;
+  const { name, category, description, price, stockNote, stockItems, gamePreset } = req.body;
   const thumbnail = req.file ? '/uploads/products/' + req.file.filename : '';
-  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems });
+  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, customTargetFields: parseCustomTargetFields(req.body) });
   res.redirect('/admin/produk');
 });
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, status, stockItems } = req.body;
-  const partial = { name, category, description, price, stockNote, status, stockItems };
+  const { name, category, description, price, stockNote, status, stockItems, gamePreset } = req.body;
+  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, customTargetFields: parseCustomTargetFields(req.body) };
   // Foto hanya diganti kalau admin upload file baru, kalau tidak foto lama tetap dipakai
   if (req.file) partial.thumbnail = '/uploads/products/' + req.file.filename;
   updateProduct(req.params.id, partial);
@@ -271,12 +286,18 @@ router.get('/settings', (req, res) => {
 router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
+    catalogCategories,
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
     marqueeEnabled, marqueeText
   } = req.body;
+
+  const categories = (catalogCategories || 'Games')
+    .split(',')
+    .map(c => c.trim())
+    .filter(Boolean);
 
   // Proses banner dari bannerLink[] array
   const existing = (getConfig().banners || []);
@@ -292,6 +313,7 @@ router.post('/settings', (req, res) => {
 
   updateConfig({
     siteName, siteTagline, ownerWhatsapp,
+    catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
@@ -300,6 +322,18 @@ router.post('/settings', (req, res) => {
   });
 
   renderSettings(req, res, { success: 'Pengaturan berhasil disimpan' });
+});
+
+// Trigger backup data manual dari tombol di halaman settings (di luar jadwal otomatis 5 jam)
+router.post('/settings/backup/now', async (req, res) => {
+  const result = await runBackupNow();
+  if (result.ok) {
+    renderSettings(req, res, { success: '✅ Backup berhasil dikirim ke Telegram' });
+  } else if (result.reason === 'no-telegram-config') {
+    renderSettings(req, res, { accountError: 'Isi dulu Bot Token & Chat ID Telegram sebelum backup manual' });
+  } else {
+    renderSettings(req, res, { accountError: 'Backup gagal: ' + (result.reason || 'unknown error') });
+  }
 });
 
 // Upload banner baru
