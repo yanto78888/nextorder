@@ -89,50 +89,7 @@
           <label class="check-row mt-16"><input type="checkbox" name="marqueeEnabled" <%= (config.marquee && config.marquee.enabled !== false) ? 'checked' : '' %>> Aktifkan teks berjalan (notifikasi / promo)</label>
           <label>Teks Berjalan</label>
           <textarea name="marqueeText" rows="2" placeholder="🔥 Promo Flash Sale! | ⚡ Stok terbaru sudah masuk"><%= (config.marquee && config.marquee.text) ? config.marquee.text : '' %></textarea>
-          <div class="helper-text mt-16">Gunakan | (pipe) untuk memisah segmen teks.</div>
-
-          <%# BANNER LIST %>
-          <div class="section-title" style="margin-top:20px;"><h4>Daftar Banner</h4></div>
-          <% const banners = config.banners || []; %>
-          <% if (banners.length === 0) { %>
-            <p style="color:var(--text-dim); font-size:13px;">Belum ada banner. Tambah banner di bawah.</p>
-          <% } else { %>
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;">
-              <% banners.forEach((b, i) => { %>
-                <div class="card" style="display:flex; align-items:center; gap:12px; padding:12px;">
-                  <% if (b.image) { %>
-                    <img src="<%= b.image %>" style="width:80px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border-glow);">
-                  <% } else { %>
-                    <div style="width:80px; height:44px; background:var(--bg-panel-2); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:11px;">No img</div>
-                  <% } %>
-                  <div style="flex:1; min-width:0;">
-                    <div style="font-size:12px; font-weight:700;"><%= b.title || '(tanpa judul)' %></div>
-                    <div style="font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= b.link || '(tanpa link)' %></div>
-                  </div>
-                  <form method="POST" action="/admin/settings/banner/delete/<%= b.id %>">
-                    <button type="submit" class="btn small danger" onclick="return confirm('Hapus banner ini?')">Hapus</button>
-                  </form>
-                  <input type="hidden" name="bannerId[]" value="<%= b.id %>">
-                  <input type="hidden" name="bannerLink[]" value="<%= b.link %>">
-                  <input type="hidden" name="bannerTitle[]" value="<%= b.title %>">
-                </div>
-              <% }) %>
-            </div>
-          <% } %>
-
-          <%# TAMBAH BANNER BARU %>
-          <div class="card" style="padding:14px; margin-bottom:10px;">
-            <div style="font-size:12px; font-weight:700; margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim);">+ Tambah Banner Baru</div>
-            <form method="POST" action="/admin/settings/banner/add" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:8px;">
-              <label>Gambar Banner <span style="color:var(--text-dim); font-weight:400;">(JPG/PNG, max 3MB, rasio 2:1 direkomendasikan)</span></label>
-              <input type="file" name="bannerImage" accept="image/*" required>
-              <label>Link (URL tujuan saat banner diklik)</label>
-              <input type="text" name="bannerLinkNew" placeholder="https://... atau /produk/id-produk">
-              <label>Judul Banner</label>
-              <input type="text" name="bannerTitleNew" placeholder="Promo Spesial">
-              <button type="submit" class="btn small solid">Upload Banner</button>
-            </form>
-          </div>
+          <div class="helper-text mt-16">Gunakan | (pipe) untuk memisah segmen teks. Pengaturan banner gambar ada di bagian "Banner Iklan" di bawah form ini (form terpisah karena upload gambar).</div>
 
           <div class="section-title"><h3>Popup Notifikasi Grup</h3><div class="line"></div></div>
           <div class="helper-text mt-16" style="margin-top:0;">Popup ini muncul sekali saat pengunjung pertama kali membuka aplikasi, mengajak mereka join grup. Pengguna bisa mencentang "Jangan tampilkan lagi" supaya tidak muncul terus.</div>
@@ -168,6 +125,48 @@
 
           <button class="btn solid mt-24" type="submit" style="width:100%;">Simpan Pengaturan</button>
         </form>
+
+        <div class="section-title" style="margin-top:24px;"><h3>Banner Iklan</h3><div class="line"></div></div>
+        <div class="helper-text" style="margin-top:0;">Form upload/hapus banner dipisah dari form pengaturan di atas supaya upload gambar jalan dengan benar.</div>
+
+        <%# BANNER LIST %>
+        <% const banners = config.banners || []; %>
+        <% if (banners.length === 0) { %>
+          <p style="color:var(--text-dim); font-size:13px;">Belum ada banner. Tambah banner di bawah.</p>
+        <% } else { %>
+          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;">
+            <% banners.forEach((b, i) => { %>
+              <div class="card" style="display:flex; align-items:center; gap:12px; padding:12px;">
+                <% if (b.image) { %>
+                  <img src="<%= b.image %>" style="width:80px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border-glow);">
+                <% } else { %>
+                  <div style="width:80px; height:44px; background:var(--bg-panel-2); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-size:11px;">No img</div>
+                <% } %>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:12px; font-weight:700;"><%= b.title || '(tanpa judul)' %></div>
+                  <div style="font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= b.link || '(tanpa link)' %></div>
+                </div>
+                <form method="POST" action="/admin/settings/banner/delete/<%= b.id %>">
+                  <button type="submit" class="btn small danger" onclick="return confirm('Hapus banner ini?')">Hapus</button>
+                </form>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <%# TAMBAH BANNER BARU %>
+        <div class="card" style="padding:14px; margin-bottom:10px;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim);">+ Tambah Banner Baru</div>
+          <form method="POST" action="/admin/settings/banner/add" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:8px;">
+            <label>Gambar Banner <span style="color:var(--text-dim); font-weight:400;">(JPG/PNG, max 3MB, rasio 2:1 direkomendasikan)</span></label>
+            <input type="file" name="bannerImage" accept="image/*" required>
+            <label>Link (URL tujuan saat banner diklik)</label>
+            <input type="text" name="bannerLinkNew" placeholder="https://... atau /produk/id-produk">
+            <label>Judul Banner</label>
+            <input type="text" name="bannerTitleNew" placeholder="Promo Spesial">
+            <button type="submit" class="btn small solid">Upload Banner</button>
+          </form>
+        </div>
 
         <div class="section-title" style="margin-top:24px;"><h3>Backup Otomatis</h3><div class="line"></div></div>
         <div class="helper-text" style="margin-top:0;">Data (produk, order, user, config, dll) di-zip dan dikirim ke chat Telegram di atas setiap <b>5 jam sekali</b>. File zip di server otomatis dihapus setelah terkirim supaya tidak menumpuk.</div>
