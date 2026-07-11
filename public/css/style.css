@@ -624,6 +624,54 @@ input[type="file"]::file-selector-button {
   .nf-card-thumb { height: 96px; }
 }
 
+/* ===== GAME CATALOG: badge ikon game + efek neon di card ===== */
+.game-card { position: relative; }
+.game-card:hover {
+  box-shadow: 0 0 0 1px var(--cyan), 0 12px 26px rgba(229,9,20,0.28);
+}
+.game-icon-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 16px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+/* ===== Target ID field (User ID / Zone ID / UID / Server dll) di halaman checkout ===== */
+.target-fields-box {
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+}
+.target-fields-box .detail-method-title { margin-top: 0; }
+.target-fields-box label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin: 10px 0 4px;
+}
+.target-fields-box label:first-of-type { margin-top: 0; }
+.target-field-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition: border-color .15s ease;
+}
+.target-field-input:focus { outline: none; border-color: var(--cyan); }
+
 /* =====================================================================
    REDESIGN: HAMBURGER, DRAWER, ROUND AVATAR, GROUP MODAL, QUICK ACTIONS
    ===================================================================== */
