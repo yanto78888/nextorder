@@ -240,10 +240,19 @@ router.get('/produk', (req, res) => {
     catalogProducts.push(cheapest);
   });
 
+  // Pencarian produk (dari search bar di topbar): filter by nama produk / kategori
+  const searchQuery = (req.query.q || '').toString().trim();
+  const filteredCatalog = searchQuery
+    ? catalogProducts.filter(p => {
+        const haystack = (p.name + ' ' + (p.category || '')).toLowerCase();
+        return haystack.includes(searchQuery.toLowerCase());
+      })
+    : catalogProducts;
+
   // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
   const categoryOrder = [];
   const grouped = {};
-  catalogProducts.forEach(p => {
+  filteredCatalog.forEach(p => {
     const cat = p.category || 'Umum';
     if (!grouped[cat]) {
       grouped[cat] = [];
@@ -254,7 +263,8 @@ router.get('/produk', (req, res) => {
   const rows = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
 
   res.render('produk', {
-    products: catalogProducts,
+    products: filteredCatalog,
+    searchQuery,
     rows,
     memberDiscount: discountPercent,
     user,
