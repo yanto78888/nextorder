@@ -58,34 +58,27 @@
           </div>
 
           <div class="section-title"><h4>Sumber Pengiriman Produk</h4></div>
-          <% const currentProvider = editProduct ? (editProduct.provider || 'manual') : 'manual'; %>
-          <select name="provider" id="providerSelect">
-            <option value="manual" <%= currentProvider === 'manual' ? 'selected' : '' %>>Stok Manual (isi stok sendiri)</option>
-            <option value="digiflazz" <%= currentProvider === 'digiflazz' ? 'selected' : '' %>>Auto Top Up via Digiflazz</option>
-          </select>
-          <div class="helper-text">Pilih "Auto Top Up via Digiflazz" untuk produk game yang langsung diproses ke Digiflazz begitu user checkout (butuh Username & API Key Digiflazz sudah diisi di Pengaturan).</div>
-
-          <div id="digiflazzBox" style="<%= currentProvider === 'digiflazz' ? '' : 'display:none;' %> margin-top:10px;">
-            <label>Cari Produk Digiflazz</label>
-            <div class="flex" style="gap:8px;">
-              <input type="text" id="digiflazzSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends 86 Diamond">
-              <button type="button" class="btn small ghost" id="digiflazzSearchBtn">Cari</button>
+          <% const isEditingDigiflazz = !!(editProduct && editProduct.provider === 'digiflazz'); %>
+          <% if (isEditingDigiflazz) { %>
+            <input type="hidden" name="provider" value="digiflazz">
+            <div class="alert" style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); color:var(--success);">
+              <i class="fa-solid fa-bolt"></i> Produk ini auto top up via <b>Digiflazz</b> (SKU: <code><%= editProduct.digiflazzSku %></code>). Margin, sinkron harga, dan lepas-tautan dikelola khusus di halaman <a href="/admin/digiflazz" style="color:#fff; text-decoration:underline;">Produk Digiflazz</a> — form ini cuma buat data pendukung (nama, kategori, ID tujuan, foto).
             </div>
-            <div id="digiflazzResults" class="helper-text" style="max-height:220px; overflow:auto; margin-top:8px;"></div>
+            <label class="mt-16">Template Customer No (opsional)</label>
+            <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct.digiflazzCustomerNoTemplate %>">
+            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default (gabungan value dipisah titik).</div>
+          <% } else { %>
+            <input type="hidden" name="provider" value="manual">
+            <div class="helper-text">Produk yang dibuat di sini otomatis jadi <b>Stok Manual</b>. Untuk produk auto top up Digiflazz (mis. Mobile Legends, Free Fire), cari &amp; import langsung dari halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dan tetap rapi per grup/folder.</div>
+          <% } %>
 
-            <label class="mt-16">SKU Digiflazz (buyer_sku_code)</label>
-            <input type="text" name="digiflazzSku" id="digiflazzSkuInput" placeholder="mis. ml86" value="<%= editProduct ? editProduct.digiflazzSku : '' %>">
-
-            <label>Template Customer No (opsional)</label>
-            <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct ? editProduct.digiflazzCustomerNoTemplate : '' %>">
-            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default (gabungan value dipisah titik). Cek dulu format customer_no yang benar di deskripsi SKU Digiflazz sebelum dipakai live.</div>
-          </div>
-
+          <% if (!isEditingDigiflazz) { %>
           <label class="mt-16">Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
           <label>Tambah Stok Otomatis</label>
           <textarea name="stockItems" placeholder="Boleh banyak baris (misal data akun lengkap: email, password, PIN, dll). Semua isian ini akan dihitung sebagai 1 stok."></textarea>
           <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. 1x tambah = 1 stok (isi boleh banyak baris). Jika stok habis, order masuk notifikasi manual admin.</div>
+          <% } %>
           <label>Foto Produk</label>
           <% if (editProduct && editProduct.thumbnail) { %>
           <div class="thumb-preview">
@@ -110,36 +103,52 @@
       </div>
 
       <div class="card">
-        <h3>Daftar Produk (<%= products.length %>)</h3>
-        <% if (products.length === 0) { %>
-          <div class="empty-state">Belum ada produk.</div>
+        <% /* Halaman ini cuma buat produk Stok Manual. Produk Digiflazz punya halaman &amp; tabel */
+           /* sendiri di /admin/digiflazz — dipisah biar gak kegabung dan gak ada kolom Stok yang */
+           /* misleading (Digiflazz emang gak ada stok manual, dikirim otomatis oleh sistem). */ %>
+        <% const manualProducts = products.filter(p => p.provider !== 'digiflazz'); %>
+        <% const digiflazzCount = products.length - manualProducts.length; %>
+
+        <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <h3 style="margin:0;">Daftar Produk Manual (<%= manualProducts.length %>)</h3>
+          <a href="/admin/digiflazz" class="btn small ghost"><i class="fa-solid fa-bolt"></i> Produk Digiflazz (<%= digiflazzCount %>)</a>
+        </div>
+        <div class="helper-text">Produk auto top up Digiflazz dikelola terpisah di halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dengan stok manual di bawah ini.</div>
+
+        <% if (manualProducts.length === 0) { %>
+          <div class="empty-state mt-16">Belum ada produk stok manual.</div>
         <% } else { %>
-        <table>
-          <thead><tr><th>Nama</th><th>Harga</th><th>Stok Auto</th><th>Status</th><th>Aksi</th></tr></thead>
-          <tbody>
-            <% products.forEach(p => { %>
-            <tr>
-              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %> <% if (p.provider === 'digiflazz') { %>· <span class="badge completed">Digiflazz</span><% } %></span></td>
-              <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
-              <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
-              <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
-              <td>
-                <div class="flex">
-                  <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
-                  <form method="POST" action="/admin/produk/<%= p.id %>/hapus" onsubmit="return confirm('Hapus produk ini?')">
-                    <button class="btn small danger" type="submit">Hapus</button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
+          <% const catOrder = []; const catGroups = {}; %>
+          <% manualProducts.forEach(p => { const cat = p.category || 'Umum'; if (!catGroups[cat]) { catGroups[cat] = []; catOrder.push(cat); } catGroups[cat].push(p); }) %>
+          <% catOrder.forEach(cat => { %>
+            <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catGroups[cat].length %> produk</span><div class="line"></div></div>
+            <table>
+              <thead><tr><th>Nama</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody>
+                <% catGroups[cat].forEach(p => { %>
+                <tr>
+                  <td><%= p.name %><br><span class="helper-text"><% if (p.gamePreset && p.gamePreset !== 'none') { %><i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } else { %>&nbsp;<% } %></span></td>
+                  <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                  <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
+                  <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
+                  <td>
+                    <div class="flex">
+                      <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                      <form method="POST" action="/admin/produk/<%= p.id %>/hapus" onsubmit="return confirm('Hapus produk ini?')">
+                        <button class="btn small danger" type="submit">Hapus</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% }) %>
         <% } %>
       </div>
     </div>
 
-      <% if (editProduct) { %>
+      <% if (editProduct && editProduct.provider !== 'digiflazz') { %>
       <div class="card mt-24">
         <h3>Stok Otomatis: <%= editProduct.name %></h3>
         <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>
@@ -181,54 +190,6 @@
     if (!select || !box) return;
     select.addEventListener('change', function () {
       box.style.display = select.value === 'custom' ? '' : 'none';
-    });
-  })();
-
-  (function () {
-    var providerSelect = document.getElementById('providerSelect');
-    var digiflazzBox = document.getElementById('digiflazzBox');
-    if (!providerSelect || !digiflazzBox) return;
-    providerSelect.addEventListener('change', function () {
-      digiflazzBox.style.display = providerSelect.value === 'digiflazz' ? '' : 'none';
-    });
-
-    var searchBtn = document.getElementById('digiflazzSearchBtn');
-    var searchInput = document.getElementById('digiflazzSearchInput');
-    var resultsBox = document.getElementById('digiflazzResults');
-    var skuInput = document.getElementById('digiflazzSkuInput');
-    if (!searchBtn) return;
-
-    function doSearch() {
-      var q = searchInput.value.trim();
-      resultsBox.innerHTML = 'Mencari...';
-      fetch('/admin/produk/digiflazz/search?q=' + encodeURIComponent(q))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (!data.ok) { resultsBox.innerHTML = 'Gagal: ' + data.error; return; }
-          if (!data.results.length) { resultsBox.innerHTML = 'Tidak ada hasil.'; return; }
-          resultsBox.innerHTML = '';
-          data.results.forEach(function (item) {
-            var row = document.createElement('div');
-            row.className = 'digiflazz-result-row';
-            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08);';
-            row.innerHTML = '<span>' + item.product_name + ' <span class="mono">(' + item.buyer_sku_code + ')</span> — Rp' + Number(item.price || 0).toLocaleString('id-ID') + '</span>';
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn small ghost';
-            btn.textContent = 'Pilih';
-            btn.addEventListener('click', function () {
-              skuInput.value = item.buyer_sku_code;
-            });
-            row.appendChild(btn);
-            resultsBox.appendChild(row);
-          });
-        })
-        .catch(function (err) { resultsBox.innerHTML = 'Gagal: ' + err.message; });
-    }
-
-    searchBtn.addEventListener('click', doSearch);
-    searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
     });
   })();
 </script>

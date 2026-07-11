@@ -73,45 +73,130 @@
     </div>
 
     <div class="card mt-24">
-      <h3>Produk Digiflazz Terhubung (<%= digiflazzProducts.length %>)</h3>
+      <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0;">Produk Digiflazz Terhubung (<%= digiflazzProducts.length %>)</h3>
+        <a href="/admin/produk" class="btn small ghost"><i class="fa-solid fa-screwdriver-wrench"></i> Produk Stok Manual</a>
+      </div>
+      <div class="helper-text">Produk dengan Grup Varian yang sama (mis. "Mobile Legends") dikumpulkan jadi 1 folder — klik buat buka/tutup isi nominalnya. Upload 1 foto per folder, otomatis kepakai juga sebagai foto grup itu di katalog customer. Produk tanpa Grup Varian tampil langsung di tabel biasa di bawahnya.</div>
       <% if (digiflazzProducts.length === 0) { %>
-        <div class="empty-state">Belum ada produk yang diimport dari Digiflazz.</div>
+        <div class="empty-state mt-16">Belum ada produk yang diimport dari Digiflazz.</div>
       <% } else { %>
-      <table>
-        <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% digiflazzProducts.forEach(p => { %>
-          <tr>
-            <td><%= p.name %><br><span class="helper-text"><%= p.category %><% if (p.variantGroup) { %> · grup: <%= p.variantGroup %><% } %></span></td>
-            <td class="mono"><%= p.digiflazzSku %></td>
-            <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
-            <td>
-              <form method="POST" action="/admin/digiflazz/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
-                <select name="marginType" style="width:90px; font-size:12px;">
-                  <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
-                  <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
-                  <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
-                </select>
-                <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
-                <button type="submit" class="btn small ghost">Set</button>
-              </form>
-            </td>
-            <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
-            <td>
-              <div class="flex" style="gap:6px; flex-wrap:wrap;">
-                <form method="POST" action="/admin/digiflazz/<%= p.id %>/resync">
-                  <button class="btn small ghost" type="submit" title="Ambil ulang harga modal terbaru"><i class="fa-solid fa-rotate"></i></button>
-                </form>
-                <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
-                <form method="POST" action="/admin/digiflazz/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari Digiflazz? Produk akan jadi stok manual biasa.')">
-                  <button class="btn small danger" type="submit">Lepas</button>
-                </form>
+        <% const dfCatOrder = []; const dfCatGroups = {}; %>
+        <% digiflazzProducts.forEach(p => { const cat = p.category || 'Umum'; if (!dfCatGroups[cat]) { dfCatGroups[cat] = []; dfCatOrder.push(cat); } dfCatGroups[cat].push(p); }) %>
+        <% dfCatOrder.sort().forEach(cat => { %>
+          <% const catProducts = dfCatGroups[cat]; %>
+          <% const folderOrder = []; const folders = {}; const singles = []; %>
+          <% catProducts.forEach(p => {
+               if (p.variantGroup) {
+                 if (!folders[p.variantGroup]) { folders[p.variantGroup] = []; folderOrder.push(p.variantGroup); }
+                 folders[p.variantGroup].push(p);
+               } else {
+                 singles.push(p);
+               }
+             }); %>
+
+          <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catProducts.length %> produk</span><div class="line"></div></div>
+
+          <% folderOrder.forEach(groupName => { %>
+            <% const groupProducts = folders[groupName]; %>
+            <% const thumb = groupThumbnails[groupName] || ''; %>
+            <div class="df-group-card" data-df-group>
+              <div class="df-group-header" data-df-group-toggle>
+                <% if (thumb) { %>
+                  <img class="df-group-thumb" src="<%= thumb %>" alt="<%= groupName %>">
+                <% } else { %>
+                  <span class="df-group-thumb-placeholder"><%= groupName.charAt(0).toUpperCase() %></span>
+                <% } %>
+                <div class="df-group-info">
+                  <div class="df-group-name"><%= groupName %></div>
+                  <div class="df-group-count"><%= groupProducts.length %> pilihan nominal</div>
+                </div>
+                <i class="fa-solid fa-chevron-down df-group-caret"></i>
               </div>
-            </td>
-          </tr>
+
+              <form method="POST" action="/admin/digiflazz/group/<%= encodeURIComponent(groupName) %>/thumbnail" enctype="multipart/form-data" class="df-group-upload" onclick="event.stopPropagation()">
+                <input type="file" name="groupThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
+                <button type="submit" class="btn small ghost"><i class="fa-solid fa-image"></i> <%= thumb ? 'Ganti' : 'Upload' %> Foto Folder</button>
+              </form>
+
+              <div class="df-group-body">
+                <table>
+                  <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+                  <tbody>
+                    <% groupProducts.forEach(p => { %>
+                    <tr>
+                      <td><%= p.name %></td>
+                      <td class="mono"><%= p.digiflazzSku %></td>
+                      <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
+                      <td>
+                        <form method="POST" action="/admin/digiflazz/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
+                          <select name="marginType" style="width:90px; font-size:12px;">
+                            <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
+                            <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                            <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                          </select>
+                          <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
+                          <button type="submit" class="btn small ghost">Set</button>
+                        </form>
+                      </td>
+                      <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                      <td>
+                        <div class="flex" style="gap:6px; flex-wrap:wrap;">
+                          <form method="POST" action="/admin/digiflazz/<%= p.id %>/resync">
+                            <button class="btn small ghost" type="submit" title="Ambil ulang harga modal terbaru"><i class="fa-solid fa-rotate"></i></button>
+                          </form>
+                          <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                          <form method="POST" action="/admin/digiflazz/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari Digiflazz? Produk akan jadi stok manual biasa.')">
+                            <button class="btn small danger" type="submit">Lepas</button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           <% }) %>
-        </tbody>
-      </table>
+
+          <% if (singles.length > 0) { %>
+            <table>
+              <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+              <tbody>
+                <% singles.forEach(p => { %>
+                <tr>
+                  <td><%= p.name %></td>
+                  <td class="mono"><%= p.digiflazzSku %></td>
+                  <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
+                  <td>
+                    <form method="POST" action="/admin/digiflazz/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
+                      <select name="marginType" style="width:90px; font-size:12px;">
+                        <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
+                        <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                        <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                      </select>
+                      <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
+                      <button type="submit" class="btn small ghost">Set</button>
+                    </form>
+                  </td>
+                  <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                  <td>
+                    <div class="flex" style="gap:6px; flex-wrap:wrap;">
+                      <form method="POST" action="/admin/digiflazz/<%= p.id %>/resync">
+                        <button class="btn small ghost" type="submit" title="Ambil ulang harga modal terbaru"><i class="fa-solid fa-rotate"></i></button>
+                      </form>
+                      <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                      <form method="POST" action="/admin/digiflazz/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari Digiflazz? Produk akan jadi stok manual biasa.')">
+                        <button class="btn small danger" type="submit">Lepas</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        <% }) %>
       <% } %>
     </div>
   </div>
@@ -252,6 +337,16 @@
       form.submit();
     });
   }
+})();
+
+// ===== FOLDER GRUP DIGIFLAZZ: klik header buat buka/tutup isi nominal =====
+(function () {
+  document.querySelectorAll('[data-df-group-toggle]').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var card = header.closest('[data-df-group]');
+      if (card) card.classList.toggle('open');
+    });
+  });
 })();
 </script>
 </body>
