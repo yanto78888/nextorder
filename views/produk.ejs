@@ -9,8 +9,7 @@
 
     <!-- Topbar info baris atas -->
     <div class="topbar">
-      <h2>Katalog Produk</h2>
-      <div class="flex" style="gap:8px;">
+      <div class="flex" style="gap:8px; margin-left:auto;">
         <% if (user && (user.membership || 'reguler') !== 'reguler') { %>
           <span class="badge member-<%= user.membership %>"><%- user.membership === 'platinum' ? '<i class="fa-solid fa-gem"></i> Platinum' : '<i class="fa-solid fa-medal"></i> Gold' %></span>
         <% } %>
@@ -42,12 +41,10 @@
           <% if (b.link) { %>
             <a href="<%= b.link %>" class="banner-slide" target="<%= b.link.startsWith('http') ? '_blank' : '_self' %>" rel="noopener">
               <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
-              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
             </a>
           <% } else { %>
             <div class="banner-slide">
               <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
-              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
             </div>
           <% } %>
         <% }) %>
