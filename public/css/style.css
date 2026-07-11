@@ -418,6 +418,48 @@ input[type="file"] {
   padding: 9px 12px;
   cursor: pointer;
 }
+
+/* ---------- DIGIFLAZZ GROUP FOLDER CARDS ---------- */
+.df-group-card {
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  background: var(--bg-panel-2);
+}
+.df-group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.df-group-header:hover { background: rgba(255,255,255,0.03); }
+.df-group-thumb {
+  width: 48px; height: 48px; border-radius: var(--radius);
+  object-fit: cover; border: 1px solid var(--border-glow); flex-shrink: 0;
+  background: var(--bg-panel);
+}
+.df-group-thumb-placeholder {
+  width: 48px; height: 48px; border-radius: var(--radius);
+  border: 1px solid var(--border-glow); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-panel); color: var(--text-dim); font-size: 18px; font-weight: 800;
+}
+.df-group-info { flex: 1; min-width: 0; }
+.df-group-name { font-weight: 700; font-size: 14px; }
+.df-group-count { font-size: 11px; color: var(--text-dim); }
+.df-group-caret { transition: transform .15s ease; color: var(--text-dim); }
+.df-group-card.open .df-group-caret { transform: rotate(180deg); }
+.df-group-upload {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--border-glow);
+  background: rgba(255,255,255,0.015);
+}
+.df-group-upload input[type="file"] { flex: 1; min-width: 140px; font-size: 12px; padding: 6px 8px; }
+.df-group-body { display: none; padding: 0 14px 14px; }
+.df-group-card.open .df-group-body { display: block; }
 input[type="file"]::file-selector-button {
   padding: 7px 14px;
   margin-right: 12px;
