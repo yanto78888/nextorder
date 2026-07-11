@@ -223,10 +223,27 @@ router.get('/produk', (req, res) => {
       icon: getGameIcon(p.gamePreset)
     }));
 
+  // Produk dengan variantGroup yang sama (mis. semua nominal Mobile Legends) adalah
+  // satu game/produk yang sama, cuma beda nominal. Di katalog cukup tampil 1 kartu per
+  // grup (dulu semua nominal ikut muncul jadi kartu terpisah-pisah); nominal lainnya
+  // tetap muncul digabung sebagai pilihan begitu kartu itu dibuka di halaman detail.
+  const seenVariantGroups = new Set();
+  const catalogProducts = [];
+  products.forEach(p => {
+    if (!p.variantGroup) { catalogProducts.push(p); return; }
+    if (seenVariantGroups.has(p.variantGroup)) return; // sudah terwakili, skip
+    seenVariantGroups.add(p.variantGroup);
+    // wakili grup dengan varian termurah supaya kartu menampilkan harga "mulai dari"
+    const cheapest = products
+      .filter(x => x.variantGroup === p.variantGroup)
+      .reduce((min, x) => (x.price < min.price ? x : min), p);
+    catalogProducts.push(cheapest);
+  });
+
   // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
   const categoryOrder = [];
   const grouped = {};
-  products.forEach(p => {
+  catalogProducts.forEach(p => {
     const cat = p.category || 'Umum';
     if (!grouped[cat]) {
       grouped[cat] = [];
@@ -237,7 +254,7 @@ router.get('/produk', (req, res) => {
   const rows = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
 
   res.render('produk', {
-    products,
+    products: catalogProducts,
     rows,
     memberDiscount: discountPercent,
     user,
