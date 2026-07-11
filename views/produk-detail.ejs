@@ -63,8 +63,40 @@
         </div>
       </div>
 
-      <!-- Deskripsi -->
-      <% if (product.description) { %>
+      <!-- Deskripsi / Panduan cara membeli -->
+      <% if (isAuto) { %>
+        <% /* Produk auto top up (Digiflazz) gak pakai deskripsi manual, tapi panduan langkah beli yang sama buat semua produk auto. */ %>
+        <% let guideStep = 1; %>
+        <div class="detail-section">
+          <div class="detail-section-title">Cara Membeli</div>
+          <ol class="buy-guide-list">
+            <% if (variants && variants.length > 1) { %>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Pilih <b>nominal</b> yang kamu butuhkan di daftar pilihan.</span>
+            </li>
+            <% } %>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Atur <b>jumlah (qty)</b> yang mau dibeli, lalu cek total harganya.</span>
+            </li>
+            <% if (product.targetFields && product.targetFields.length > 0) { %>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Isi <b><%= product.targetFields.map(f => f.label).join(' & ') %></b> dengan benar. Data yang salah bisa bikin pesanan gagal terkirim.</span>
+            </li>
+            <% } %>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Pilih <b>metode pembayaran</b>: Saldo akun atau QRIS.</span>
+            </li>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Klik <b>Beli Sekarang</b>. Setelah pembayaran berhasil, produk terkirim <b>otomatis & instan</b>.</span>
+            </li>
+          </ol>
+        </div>
+      <% } else if (product.description) { %>
         <div class="detail-section">
           <div class="detail-section-title">Deskripsi Produk</div>
           <div class="detail-desc"><%= product.description %></div>
