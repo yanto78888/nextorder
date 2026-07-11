@@ -5,7 +5,7 @@
 <div class="app-shell">
   <%- include('../partials/admin-sidebar', { active: 'settings' }) %>
 
-  <div class="main">
+  <div class="main no-bottom-nav">
     <div class="topbar">
       <h2>Pengaturan</h2>
       <div class="user-chip"><span class="dot"></span> Admin: <%= (typeof adminUser !== 'undefined' && adminUser) ? adminUser.username : 'admin' %></div>

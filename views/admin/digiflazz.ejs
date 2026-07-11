@@ -5,7 +5,7 @@
 <div class="app-shell">
   <%- include('../partials/admin-sidebar', { active: 'digiflazz' }) %>
 
-  <div class="main">
+  <div class="main no-bottom-nav">
     <div class="topbar"><h2>Produk Digiflazz</h2></div>
 
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
@@ -58,9 +58,16 @@
 
     <div class="card mt-24">
       <h3>Cari &amp; Import Produk dari Digiflazz</h3>
-      <div class="flex" style="gap:8px;">
-        <input type="text" id="dfSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends, Free Fire, PUBG..." style="flex:1;">
+      <div class="helper-text">Kategori dipisah biar hasil pencarian fokus — pilih kategori dulu (mis. "Games") baru cari, atau langsung ketik nama produk. Pakai "Import Semua Hasil" buat isi katalog cepat tanpa klik satu-satu.</div>
+      <div class="flex" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <select id="dfCategorySelect" style="min-width:140px;">
+          <option value="">Semua Kategori</option>
+        </select>
+        <input type="text" id="dfSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends, Free Fire, PUBG..." style="flex:1; min-width:180px;">
         <button type="button" class="btn solid" id="dfSearchBtn">Cari</button>
+      </div>
+      <div id="dfImportAllWrap" style="display:none; margin-top:10px;">
+        <button type="button" class="btn ghost" id="dfImportAllBtn"><i class="fa-solid fa-download"></i> Import Semua Hasil (<span id="dfResultCount">0</span>)</button>
       </div>
       <div id="dfSearchResults" style="margin-top:14px;"></div>
     </div>
@@ -114,7 +121,11 @@
 (function () {
   var searchBtn = document.getElementById('dfSearchBtn');
   var searchInput = document.getElementById('dfSearchInput');
+  var categorySelect = document.getElementById('dfCategorySelect');
   var resultsBox = document.getElementById('dfSearchResults');
+  var importAllWrap = document.getElementById('dfImportAllWrap');
+  var importAllBtn = document.getElementById('dfImportAllBtn');
+  var resultCountEl = document.getElementById('dfResultCount');
   if (!searchBtn) return;
 
   function esc(s) {
@@ -123,17 +134,42 @@
     });
   }
 
+  // Isi dropdown kategori dari Digiflazz sekali di awal (Games, Pulsa, Data, PLN, dst — dipisah,
+  // gak digabung jadi 1 list random) biar admin bisa fokus cari per kategori.
+  fetch('/admin/digiflazz/categories')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.ok || !categorySelect) return;
+      data.categories.forEach(function (cat) {
+        var opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    })
+    .catch(function () {});
+
   function doSearch() {
     var q = searchInput.value.trim();
+    var category = categorySelect ? categorySelect.value : '';
     resultsBox.innerHTML = '<div class="helper-text">Mencari...</div>';
-    fetch('/admin/digiflazz/search?q=' + encodeURIComponent(q))
+    if (importAllWrap) importAllWrap.style.display = 'none';
+
+    fetch('/admin/digiflazz/search?q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(category))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(data.error) + '</div>'; return; }
         if (!data.results.length) { resultsBox.innerHTML = '<div class="helper-text">Tidak ada hasil.</div>'; return; }
 
+        if (importAllWrap && resultCountEl) {
+          var belum = data.results.filter(function (r) { return !r.alreadyImported; }).length;
+          if (belum > 0) {
+            resultCountEl.textContent = belum;
+            importAllWrap.style.display = '';
+          }
+        }
+
         var table = document.createElement('table');
-        table.innerHTML = '<thead><tr><th>Produk</th><th>SKU</th><th>Modal</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
+        table.innerHTML = '<thead><tr><th>Produk</th><th>Kategori</th><th>SKU</th><th>Modal</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
         var tbody = document.createElement('tbody');
 
         data.results.forEach(function (item) {
@@ -141,7 +177,8 @@
           var priceStr = 'Rp ' + Number(item.price || 0).toLocaleString('id-ID');
           var sellStr = 'Rp ' + Number(item.sellPricePreview || 0).toLocaleString('id-ID');
           tr.innerHTML =
-            '<td>' + esc(item.product_name) + '<br><span class="helper-text">' + esc(item.brand || item.category || '') + '</span></td>' +
+            '<td>' + esc(item.product_name) + '<br><span class="helper-text">' + esc(item.brand || '') + '</span></td>' +
+            '<td><span class="helper-text">' + esc(item.category || '-') + '</span></td>' +
             '<td class="mono">' + esc(item.buyer_sku_code) + '</td>' +
             '<td class="mono">' + priceStr + '</td>' +
             '<td class="mono" style="color:var(--cyan);">' + sellStr + '</td>' +
@@ -192,6 +229,29 @@
   searchInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
   });
+  if (categorySelect) categorySelect.addEventListener('change', doSearch);
+
+  if (importAllBtn) {
+    importAllBtn.addEventListener('click', function () {
+      var count = resultCountEl ? resultCountEl.textContent : '';
+      if (!confirm('Import ' + count + ' produk sekaligus dengan margin default? Bisa disesuaikan lagi per-produk setelahnya.')) return;
+
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/admin/digiflazz/import-all';
+
+      var qInp = document.createElement('input');
+      qInp.type = 'hidden'; qInp.name = 'q'; qInp.value = searchInput.value.trim();
+      form.appendChild(qInp);
+
+      var catInp = document.createElement('input');
+      catInp.type = 'hidden'; catInp.name = 'category'; catInp.value = categorySelect ? categorySelect.value : '';
+      form.appendChild(catInp);
+
+      document.body.appendChild(form);
+      form.submit();
+    });
+  }
 })();
 </script>
 </body>
