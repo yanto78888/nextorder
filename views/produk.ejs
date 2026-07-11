@@ -98,7 +98,7 @@
 
     <% if (memberDiscount > 0) { %>
       <div class="alert member-alert">
-        <%= user.membership === 'platinum' ? '💎' : '🥇' %> Kamu member <b><%= user.membership %></b>, potongan <b>Rp <%= memberDiscount.toLocaleString('id-ID') %></b> per produk
+        <%= user.membership === 'platinum' ? '💎' : '🥇' %> Kamu member <b><%= user.membership %></b>, potongan <b><%= memberDiscount %>%</b> di setiap pembelian
       </div>
     <% } %>
 
@@ -110,14 +110,15 @@
     <% } else { %>
       <% rows.forEach(row => { %>
         <div class="nf-row">
-          <div class="nf-row-title"><%= row.category %></div>
+          <div class="nf-row-title">🎮 <%= row.category %></div>
           <div class="nf-row-track">
             <% row.products.forEach(p => { %>
-              <a href="/produk/<%= p.id %>" class="nf-card nf-card-link">
+              <a href="/produk/<%= p.id %>" class="nf-card nf-card-link game-card">
                 <div class="nf-card-thumb">
                   <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %><span class="nf-noimg"><%= p.name.slice(0,1) %></span><% } %>
                   <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
                   <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%= stockCount > 0 ? '⚡' : '🛠' %></span>
+                  <% if (p.gamePreset && p.gamePreset !== 'none') { %><span class="game-icon-badge"><%= p.icon %></span><% } %>
                 </div>
                 <div class="nf-card-body">
                   <div class="nf-card-name"><%= p.name %></div>

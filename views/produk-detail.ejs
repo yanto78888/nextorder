@@ -82,6 +82,17 @@
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
           </div>
 
+          <% if (product.targetFields && product.targetFields.length > 0) { %>
+          <div class="target-fields-box">
+            <div class="detail-method-title">Isi Data Tujuan</div>
+            <% product.targetFields.forEach(f => { %>
+              <label><%= f.label %><% if (f.required) { %> <span style="color:var(--cyan);">*</span><% } %></label>
+              <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
+            <% }) %>
+            <div class="helper-text">Pastikan data di atas benar. Kesalahan ID/Zone bisa membuat pesanan gagal terkirim.</div>
+          </div>
+          <% } %>
+
           <div class="detail-method-title">Metode Pembayaran</div>
           <div class="payment-method-tabs">
             <label class="method-tab">
@@ -213,10 +224,30 @@
 
   // Buy button
   var buyBtn=document.getElementById('buyMainBtn');
+  function injectTargetFields(form){
+    if(!form) return true;
+    // Bersihkan hidden input target_ lama biar gak dobel kalau user submit lebih dari sekali
+    form.querySelectorAll('input[data-target-hidden]').forEach(function(el){el.remove();});
+    var inputs=document.querySelectorAll('.target-field-input');
+    var ok=true;
+    inputs.forEach(function(el){
+      var val=el.value.trim();
+      if(el.hasAttribute('required') && !val){ el.style.borderColor='var(--cyan)'; ok=false; }
+      else { el.style.borderColor=''; }
+      var hidden=document.createElement('input');
+      hidden.type='hidden';
+      hidden.name='target_'+el.dataset.key;
+      hidden.value=val;
+      hidden.setAttribute('data-target-hidden','1');
+      form.appendChild(hidden);
+    });
+    return ok;
+  }
   if(buyBtn)buyBtn.addEventListener('click',function(){
     var m='saldo';radios.forEach(function(r){if(r.checked)m=r.value;});
-    if(m==='qris'){var f=document.getElementById('buyFormQris');if(f)f.submit();}
-    else{var f=document.getElementById('buyFormSaldo');if(f)f.submit();}
+    var f=m==='qris'?document.getElementById('buyFormQris'):document.getElementById('buyFormSaldo');
+    if(!injectTargetFields(f)){ alert('Lengkapi dulu data tujuan yang wajib diisi (tanda *)'); return; }
+    if(f)f.submit();
   });
 
   // Review star input

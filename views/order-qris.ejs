@@ -32,6 +32,9 @@
         <div class="qris-product-info">
           <div class="pname"><%= product.name %></div>
           <div class="pqty">Jumlah: <%= qty %> item</div>
+          <% if (typeof targetText !== 'undefined' && targetText) { %>
+            <div class="pqty" style="margin-top:6px; color:var(--cyan);">🎯 <%= targetText %></div>
+          <% } %>
         </div>
 
         <img class="qris-img" src="<%= deposit.imageBase64 %>" alt="QRIS">

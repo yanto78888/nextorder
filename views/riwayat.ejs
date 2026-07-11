@@ -15,12 +15,13 @@
         <div class="empty-state">Belum ada riwayat order.</div>
       <% } else { %>
       <table>
-        <thead><tr><th>ID</th><th>Produk</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th></tr></thead>
+        <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th></tr></thead>
         <tbody>
           <% orders.forEach(o => { %>
           <tr>
             <td class="mono"><%= o.id %></td>
             <td><%= o.productName %></td>
+            <td style="font-size:12px; color:var(--text-dim);"><%= o.targetText || '-' %></td>
             <td><%= o.qty %></td>
             <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
             <td><span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : 'admin' %>"><%= o.deliveryMode || o.source %></span></td>

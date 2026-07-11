@@ -105,7 +105,7 @@
           <div class="member-card-icon"><%= t.icon %></div>
           <div class="member-card-title"><%= t.label %></div>
           <div class="member-card-price">Rp <%= t.price.toLocaleString('id-ID') %></div>
-          <div class="member-card-benefit">Potongan Rp <%= t.discount.toLocaleString('id-ID') %> di setiap pembelian produk</div>
+          <div class="member-card-benefit">Potongan <%= t.discountPercent %>% di setiap pembelian produk</div>
 
           <% if (currentTier.key === t.key) { %>
             <button class="btn small solid mt-16" type="button" disabled style="width:100%;">Member Aktif</button>
