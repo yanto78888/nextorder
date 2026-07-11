@@ -7,6 +7,7 @@ import { attachUser } from './middleware/auth.js';
 import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
+import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
 import { scheduleAutoBackup } from './lib/backup.js';
 
 import authRoutes from './routes/auth.js';
@@ -79,6 +80,11 @@ if (process.env.VERCEL !== '1') {
   setInterval(() => {
     checkPendingDeposits().catch(err => console.error('[job] checkPendingDeposits error:', err.message));
   }, pollMs);
+
+  // Cek ulang status order Digiflazz yang masih "Pending" tiap 20 detik
+  setInterval(() => {
+    checkPendingDigiflazzOrders().catch(err => console.error('[job] checkPendingDigiflazzOrders error:', err.message));
+  }, 20000);
 
   // Backup data (config/produk/order/user, dll) tiap 5 jam, dikirim ke Telegram lalu file zip-nya dihapus
   scheduleAutoBackup(5);
