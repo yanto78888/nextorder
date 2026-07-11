@@ -17,6 +17,7 @@
     <%
       const qris = config.qris || {};
       const telegram = config.telegram || {};
+      const digiflazz = config.digiflazz || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
 
@@ -64,6 +65,22 @@
               <label>Expired (menit)</label>
               <input type="number" name="expiredMinutes" value="<%= qris.expiredMinutes || 10 %>">
             </div>
+          </div>
+
+          <div class="section-title"><h3>Digiflazz (Auto Top Up Game)</h3><div class="line"></div></div>
+
+          <label class="check-row"><input type="checkbox" name="digiflazzEnabled" <%= digiflazz.enabled ? 'checked' : '' %>> Aktifkan Auto Top Up via Digiflazz</label>
+
+          <label>Username Digiflazz</label>
+          <input type="text" name="digiflazzUsername" value="<%= digiflazz.username || '' %>">
+
+          <label>API Key / Production Key</label>
+          <input type="password" name="digiflazzApiKey" value="<%= digiflazz.apiKey || '' %>" autocomplete="new-password">
+          <div class="helper-text">Ambil di dashboard Digiflazz (member.digiflazz.com) &rarr; menu Akun. Setelah diisi dan disimpan, atur produk game ke sumber "Auto Top Up via Digiflazz" di halaman Kelola Produk.</div>
+
+          <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
+            <button type="button" class="btn small ghost" id="cekSaldoDigiflazzBtn">Cek Saldo Digiflazz</button>
+            <span id="saldoDigiflazzResult" class="helper-text"></span>
           </div>
 
           <div class="section-title"><h3>Banner Iklan & Teks Berjalan</h3><div class="line"></div></div>
@@ -190,5 +207,22 @@
     </div>
   </div>
 </div>
+<script>
+  (function () {
+    var btn = document.getElementById('cekSaldoDigiflazzBtn');
+    var result = document.getElementById('saldoDigiflazzResult');
+    if (!btn || !result) return;
+    btn.addEventListener('click', function () {
+      result.textContent = 'Mengecek...';
+      fetch('/admin/settings/digiflazz/saldo')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }
+          result.textContent = 'Saldo: Rp ' + Number(data.deposit || 0).toLocaleString('id-ID');
+        })
+        .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
+    });
+  })();
+</script>
 </body>
 </html>

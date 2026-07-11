@@ -54,11 +54,35 @@
             <% } %>
           </div>
 
-          <label>Catatan Stok (internal, opsional)</label>
+          <div class="section-title"><h4>Sumber Pengiriman Produk</h4></div>
+          <% const currentProvider = editProduct ? (editProduct.provider || 'manual') : 'manual'; %>
+          <select name="provider" id="providerSelect">
+            <option value="manual" <%= currentProvider === 'manual' ? 'selected' : '' %>>Stok Manual (isi stok sendiri)</option>
+            <option value="digiflazz" <%= currentProvider === 'digiflazz' ? 'selected' : '' %>>Auto Top Up via Digiflazz</option>
+          </select>
+          <div class="helper-text">Pilih "Auto Top Up via Digiflazz" untuk produk game yang langsung diproses ke Digiflazz begitu user checkout (butuh Username & API Key Digiflazz sudah diisi di Pengaturan).</div>
+
+          <div id="digiflazzBox" style="<%= currentProvider === 'digiflazz' ? '' : 'display:none;' %> margin-top:10px;">
+            <label>Cari Produk Digiflazz</label>
+            <div class="flex" style="gap:8px;">
+              <input type="text" id="digiflazzSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends 86 Diamond">
+              <button type="button" class="btn small ghost" id="digiflazzSearchBtn">Cari</button>
+            </div>
+            <div id="digiflazzResults" class="helper-text" style="max-height:220px; overflow:auto; margin-top:8px;"></div>
+
+            <label class="mt-16">SKU Digiflazz (buyer_sku_code)</label>
+            <input type="text" name="digiflazzSku" id="digiflazzSkuInput" placeholder="mis. ml86" value="<%= editProduct ? editProduct.digiflazzSku : '' %>">
+
+            <label>Template Customer No (opsional)</label>
+            <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct ? editProduct.digiflazzCustomerNoTemplate : '' %>">
+            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default (gabungan value dipisah titik). Cek dulu format customer_no yang benar di deskripsi SKU Digiflazz sebelum dipakai live.</div>
+          </div>
+
+          <label class="mt-16">Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
           <label>Tambah Stok Otomatis</label>
           <textarea name="stockItems" placeholder="Boleh banyak baris (misal data akun lengkap: email, password, PIN, dll). Semua isian ini akan dihitung sebagai 1 stok."></textarea>
-          <div class="helper-text">Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. 1x tambah = 1 stok (isi boleh banyak baris). Jika stok habis, order masuk notifikasi manual admin.</div>
+          <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. 1x tambah = 1 stok (isi boleh banyak baris). Jika stok habis, order masuk notifikasi manual admin.</div>
           <label>Foto Produk</label>
           <% if (editProduct && editProduct.thumbnail) { %>
           <div class="thumb-preview">
@@ -92,7 +116,7 @@
           <tbody>
             <% products.forEach(p => { %>
             <tr>
-              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %></span></td>
+              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %> <% if (p.provider === 'digiflazz') { %>· <span class="badge completed">Digiflazz</span><% } %></span></td>
               <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
               <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
               <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
@@ -154,6 +178,54 @@
     if (!select || !box) return;
     select.addEventListener('change', function () {
       box.style.display = select.value === 'custom' ? '' : 'none';
+    });
+  })();
+
+  (function () {
+    var providerSelect = document.getElementById('providerSelect');
+    var digiflazzBox = document.getElementById('digiflazzBox');
+    if (!providerSelect || !digiflazzBox) return;
+    providerSelect.addEventListener('change', function () {
+      digiflazzBox.style.display = providerSelect.value === 'digiflazz' ? '' : 'none';
+    });
+
+    var searchBtn = document.getElementById('digiflazzSearchBtn');
+    var searchInput = document.getElementById('digiflazzSearchInput');
+    var resultsBox = document.getElementById('digiflazzResults');
+    var skuInput = document.getElementById('digiflazzSkuInput');
+    if (!searchBtn) return;
+
+    function doSearch() {
+      var q = searchInput.value.trim();
+      resultsBox.innerHTML = 'Mencari...';
+      fetch('/admin/produk/digiflazz/search?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) { resultsBox.innerHTML = 'Gagal: ' + data.error; return; }
+          if (!data.results.length) { resultsBox.innerHTML = 'Tidak ada hasil.'; return; }
+          resultsBox.innerHTML = '';
+          data.results.forEach(function (item) {
+            var row = document.createElement('div');
+            row.className = 'digiflazz-result-row';
+            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08);';
+            row.innerHTML = '<span>' + item.product_name + ' <span class="mono">(' + item.buyer_sku_code + ')</span> — Rp' + Number(item.price || 0).toLocaleString('id-ID') + '</span>';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn small ghost';
+            btn.textContent = 'Pilih';
+            btn.addEventListener('click', function () {
+              skuInput.value = item.buyer_sku_code;
+            });
+            row.appendChild(btn);
+            resultsBox.appendChild(row);
+          });
+        })
+        .catch(function (err) { resultsBox.innerHTML = 'Gagal: ' + err.message; });
+    }
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
     });
   })();
 </script>
