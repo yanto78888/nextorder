@@ -1230,6 +1230,37 @@ input[type="file"]::file-selector-button {
   white-space: pre-line;
 }
 
+/* Panduan cara membeli (produk auto top up Digiflazz) */
+.buy-guide-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.buy-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.buy-guide-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cyan);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.buy-guide-text { font-size: 13px; color: var(--text-main); line-height: 1.6; }
+.buy-guide-text b { color: var(--text-main); }
+
 /* Buy box */
 .detail-buy-box {
   background: var(--bg-panel);
