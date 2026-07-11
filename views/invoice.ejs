@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %>
+<style>
+.inv-wrap { max-width: 460px; margin: 0 auto; padding: 20px 16px 100px; }
+.inv-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; overflow: hidden; }
+.inv-status-band { padding: 20px; text-align: center; }
+.inv-status-band.completed { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(46,204,113,0.05)); }
+.inv-status-band.processing { background: linear-gradient(135deg, rgba(245,197,24,0.18), rgba(245,197,24,0.05)); }
+.inv-status-band.cancelled { background: linear-gradient(135deg, rgba(229,9,20,0.18), rgba(229,9,20,0.05)); }
+.inv-status-icon { font-size: 46px; margin-bottom: 8px; }
+.inv-status-icon.completed { color: #2ecc71; }
+.inv-status-icon.processing { color: #f5c518; }
+.inv-status-icon.cancelled { color: var(--danger); }
+.inv-status-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+.inv-status-sub { font-size: 12px; color: var(--text-dim); }
+.inv-body { padding: 20px; }
+.inv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-glow); font-size: 13px; gap: 12px; }
+.inv-row:last-child { border-bottom: none; }
+.inv-row .inv-label { color: var(--text-dim); flex-shrink: 0; }
+.inv-row .inv-value { text-align: right; font-weight: 600; word-break: break-word; }
+.inv-row .inv-value.mono { font-family: 'Courier New', monospace; }
+.inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--bg-panel-2); }
+.inv-total-label { font-size: 13px; color: var(--text-dim); font-weight: 700; }
+.inv-total-value { font-size: 20px; font-weight: 800; color: var(--cyan); }
+.inv-detail-box { margin: 0 20px 20px; padding: 14px; background: var(--bg-panel-2); border-radius: 10px; border: 1px solid var(--border-glow); }
+.inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
+.inv-detail-content { font-size: 13px; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
+.inv-actions { display: flex; gap: 8px; padding: 0 20px 20px; }
+.inv-barcode { text-align: center; padding: 0 20px 20px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'riwayat', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="inv-wrap">
+
+      <% if (success) { %><div class="alert success" style="margin-bottom:14px;"><%= success %></div><% } %>
+
+      <div class="inv-card">
+        <% const statusClass = order.status === 'completed' ? 'completed' : (order.status === 'cancelled' ? 'cancelled' : 'processing'); %>
+        <div class="inv-status-band <%= statusClass %>">
+          <div class="inv-status-icon <%= statusClass %>">
+            <% if (statusClass === 'completed') { %><i class="fa-solid fa-circle-check"></i>
+            <% } else if (statusClass === 'cancelled') { %><i class="fa-solid fa-circle-xmark"></i>
+            <% } else { %><i class="fa-solid fa-hourglass-half"></i><% } %>
+          </div>
+          <div class="inv-status-title">
+            <% if (statusClass === 'completed') { %>Pesanan Selesai
+            <% } else if (statusClass === 'cancelled') { %>Pesanan Dibatalkan
+            <% } else { %>Sedang Diproses<% } %>
+          </div>
+          <div class="inv-status-sub">
+            <% if (statusClass === 'completed') { %>Produk sudah dikirim ke akunmu
+            <% } else if (statusClass === 'cancelled') { %><%= order.note || 'Pesanan dibatalkan, saldo dikembalikan jika ada pemotongan' %>
+            <% } else if (order.provider === 'digiflazz') { %>Top up sedang diproses otomatis oleh Digiflazz, halaman ini akan update otomatis
+            <% } else { %>Stok otomatis sedang habis, admin akan kirim manual secepatnya<% } %>
+          </div>
+        </div>
+
+        <div class="inv-body">
+          <div class="inv-row">
+            <span class="inv-label">No. Invoice</span>
+            <span class="inv-value mono"><%= order.id %></span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Produk</span>
+            <span class="inv-value"><%= order.productName %></span>
+          </div>
+          <% if (order.targetText) { %>
+          <div class="inv-row">
+            <span class="inv-label">Tujuan</span>
+            <span class="inv-value"><%= order.targetText %></span>
+          </div>
+          <% } %>
+          <div class="inv-row">
+            <span class="inv-label">Jumlah</span>
+            <span class="inv-value"><%= order.qty %>x</span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Metode</span>
+            <span class="inv-value"><%= order.source === 'qris' ? 'QRIS' : 'Saldo' %></span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Tanggal</span>
+            <span class="inv-value"><%= new Date(order.createdAt).toLocaleString('id-ID') %></span>
+          </div>
+        </div>
+
+        <div class="inv-total-row">
+          <span class="inv-total-label">Total Bayar</span>
+          <span class="inv-total-value">Rp <%= order.total.toLocaleString('id-ID') %></span>
+        </div>
+
+        <% if (order.status === 'completed' && order.detail) { %>
+          <div class="inv-detail-box">
+            <div class="inv-detail-title"><i class="fa-solid fa-key"></i> Detail Produk / Kode</div>
+            <div class="inv-detail-content"><%= order.detail %></div>
+          </div>
+        <% } %>
+
+        <div class="inv-barcode">* * * * * <%= order.id %> * * * * *</div>
+
+        <div class="inv-actions">
+          <a href="/riwayat" class="btn ghost" style="flex:1;">Riwayat Lain</a>
+          <a href="/produk" class="btn solid" style="flex:1;"><i class="fa-solid fa-cart-shopping"></i> Beli Lagi</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<% if (order.status === 'processing') { %>
+<script>
+(function () {
+  // Auto-refresh tiap 8 detik selama order masih diproses, biar user lihat update status tanpa refresh manual
+  setTimeout(function () { window.location.reload(); }, 8000);
+})();
+</script>
+<% } %>
+</body>
+</html>

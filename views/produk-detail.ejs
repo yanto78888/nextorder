@@ -65,15 +65,29 @@
       <!-- Buy Box -->
       <% if (user) { %>
         <div class="detail-buy-box">
+
+          <% if (variants && variants.length > 1) { %>
+          <div class="detail-method-title" style="margin-top:0;">1. Pilih Nominal</div>
+          <div class="variant-grid" id="variantGrid">
+            <% variants.forEach(v => { %>
+              <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %>" data-variant-id="<%= v.id %>">
+                <span class="variant-card-name"><%= v.name %></span>
+                <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
+                <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
+              </button>
+            <% }) %>
+          </div>
+          <% } %>
+
           <div class="detail-price-main">
             <% if (finalPrice < product.price) { %>
-              <span class="detail-price-old">Rp <%= product.price.toLocaleString('id-ID') %></span>
+              <span class="detail-price-old" id="priceOld">Rp <%= product.price.toLocaleString('id-ID') %></span>
             <% } %>
-            <span class="detail-price-now">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
+            <span class="detail-price-now" id="priceNow">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
           </div>
 
           <div class="detail-qty-row">
-            <label>Jumlah:</label>
+            <label><%= variants && variants.length > 1 ? '2. ' : '' %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
               <input type="number" id="qtyInput" value="1" min="1" max="<%= stockCount > 0 ? stockCount : 99 %>">
@@ -82,16 +96,27 @@
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
           </div>
 
+          <div id="targetFieldsWrap">
           <% if (product.targetFields && product.targetFields.length > 0) { %>
           <div class="target-fields-box">
-            <div class="detail-method-title">Isi Data Tujuan</div>
+            <div class="detail-method-title"><%= variants && variants.length > 1 ? '3. ' : '' %>Isi Data Tujuan</div>
             <% product.targetFields.forEach(f => { %>
               <label><%= f.label %><% if (f.required) { %> <span style="color:var(--cyan);">*</span><% } %></label>
-              <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
+              <% if (f.type === 'select') { %>
+                <select class="target-field-input" data-key="<%= f.key %>" <%= f.required ? 'required' : '' %>>
+                  <option value="">Pilih <%= f.label %></option>
+                  <% (f.options || []).forEach(opt => { %>
+                    <option value="<%= opt.value %>"><%= opt.label %></option>
+                  <% }) %>
+                </select>
+              <% } else { %>
+                <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
+              <% } %>
             <% }) %>
             <div class="helper-text">Pastikan data di atas benar. Kesalahan ID/Zone bisa membuat pesanan gagal terkirim.</div>
           </div>
           <% } %>
+          </div>
 
           <div class="detail-method-title">Metode Pembayaran</div>
           <div class="payment-method-tabs">
@@ -120,18 +145,16 @@
           </div>
 
           <form method="POST" action="/order" id="buyFormSaldo">
-            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="productId" id="productIdSaldo" value="<%= product.id %>">
             <input type="hidden" name="qty" id="buyQtySaldo" value="1">
           </form>
           <form method="POST" action="/order/qris-init" id="buyFormQris">
-            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="productId" id="productIdQris" value="<%= product.id %>">
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
           </form>
 
           <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
-          <% if (user.saldo < finalPrice) { %>
-            <div class="alert error" style="margin-top:8px; font-size:12px;">Saldo tidak cukup — gunakan QRIS.</div>
-          <% } %>
+          <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>">Saldo tidak cukup — gunakan QRIS.</div>
         </div>
       <% } else { %>
         <div class="detail-buy-box guest-buy-box">
@@ -200,6 +223,10 @@
 
 <script>
 (function(){
+  var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
+  var userSaldo = <%= user.saldo %>;
+  var currentProductId = '<%= product.id %>';
+
   // Qty stepper
   var unitPrice=<%= finalPrice %>;
   var qEl=document.getElementById('qtyInput');
@@ -207,11 +234,83 @@
   function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
   function upd(){var q=Math.max(1,parseInt(qEl.value)||1);qEl.value=q;
     var qs=document.getElementById('buyQtySaldo');var qq=document.getElementById('buyQtyQris');
-    if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);}
+    if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);
+    updSaldoWarning(q);}
+  function updSaldoWarning(q){
+    var warn=document.getElementById('saldoWarning');
+    if(!warn) return;
+    warn.style.display = (userSaldo < unitPrice*q) ? '' : 'none';
+  }
   if(qEl){qEl.addEventListener('input',upd);
     var m=document.getElementById('qtyMinus');var p=document.getElementById('qtyPlus');
     if(m)m.addEventListener('click',function(){qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1);upd();});
     if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
+
+  // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
+  function renderTargetFields(fields){
+    var wrap=document.getElementById('targetFieldsWrap');
+    if(!wrap) return;
+    if(!fields || fields.length===0){ wrap.innerHTML=''; return; }
+    var html='<div class="target-fields-box"><div class="detail-method-title">Isi Data Tujuan</div>';
+    fields.forEach(function(f){
+      html+='<label>'+f.label+(f.required?' <span style="color:var(--cyan);">*</span>':'')+'</label>';
+      if(f.type==='select'){
+        html+='<select class="target-field-input" data-key="'+f.key+'" '+(f.required?'required':'')+'>';
+        html+='<option value="">Pilih '+f.label+'</option>';
+        (f.options||[]).forEach(function(opt){
+          html+='<option value="'+opt.value+'">'+opt.label+'</option>';
+        });
+        html+='</select>';
+      } else {
+        html+='<input type="text" class="target-field-input" data-key="'+f.key+'" placeholder="'+(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
+      }
+    });
+    html+='<div class="helper-text">Pastikan data di atas benar. Kesalahan ID/Zone bisa membuat pesanan gagal terkirim.</div></div>';
+    wrap.innerHTML=html;
+  }
+
+  var variantGrid=document.getElementById('variantGrid');
+  if(variantGrid){
+    variantGrid.addEventListener('click',function(e){
+      var card=e.target.closest('.variant-card');
+      if(!card) return;
+      var vid=card.dataset.variantId;
+      var v=VARIANTS[vid];
+      if(!v) return;
+
+      currentProductId=vid;
+      unitPrice=v.finalPrice;
+
+      variantGrid.querySelectorAll('.variant-card').forEach(function(c){c.classList.remove('selected');});
+      card.classList.add('selected');
+
+      var priceOld=document.getElementById('priceOld');
+      var priceNow=document.getElementById('priceNow');
+      if(v.finalPrice < v.price){
+        if(!priceOld){
+          priceOld=document.createElement('span');
+          priceOld.className='detail-price-old';
+          priceOld.id='priceOld';
+          priceNow.parentNode.insertBefore(priceOld, priceNow);
+        }
+        priceOld.textContent=fmt(v.price);
+        priceOld.style.display='';
+      } else if(priceOld){
+        priceOld.style.display='none';
+      }
+      if(priceNow) priceNow.textContent=fmt(v.finalPrice);
+
+      var idSaldo=document.getElementById('productIdSaldo');
+      var idQris=document.getElementById('productIdQris');
+      if(idSaldo)idSaldo.value=vid;
+      if(idQris)idQris.value=vid;
+
+      if(qEl){ qEl.value=1; qEl.max = v.stockCount>0 ? v.stockCount : 99; }
+      upd();
+
+      renderTargetFields(v.targetFields);
+    });
+  }
 
   // Method tabs
   var radios=document.querySelectorAll('input[name="payMethod"]');

@@ -15,7 +15,7 @@
         <div class="empty-state">Belum ada riwayat order.</div>
       <% } else { %>
       <table>
-        <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th></tr></thead>
+        <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th><th>Aksi</th></tr></thead>
         <tbody>
           <% orders.forEach(o => { %>
           <tr>
@@ -34,6 +34,7 @@
               <% } %>
             </td>
             <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+            <td><a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a></td>
           </tr>
           <% }) %>
         </tbody>
