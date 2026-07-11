@@ -1,17 +1,17 @@
 <div class="phone-topbar">
   <div class="brand">
-    ⚡ <%= config.siteName %>
+    <i class="fa-solid fa-bolt"></i> <%= config.siteName %>
     <small>ADMIN CONTROL</small>
   </div>
   <form action="/logout" method="POST">
-    <button type="submit" class="icon-btn" title="Keluar">🚪</button>
+    <button type="submit" class="icon-btn" title="Keluar"><i class="fa-solid fa-right-from-bracket"></i></button>
   </form>
 </div>
 
 <nav class="bottom-nav">
-  <a href="/admin" class="nav-item <%= active === 'dashboard' ? 'active' : '' %>"><span class="nav-icon">🖥</span><span>Overview</span></a>
-  <a href="/admin/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">📦</span><span>Produk</span></a>
-  <a href="/admin/order" class="nav-item <%= active === 'order' ? 'active' : '' %>"><span class="nav-icon">🧾</span><span>Order</span></a>
-  <a href="/admin/users" class="nav-item <%= active === 'users' ? 'active' : '' %>"><span class="nav-icon">👥</span><span>User</span></a>
-  <a href="/admin/settings" class="nav-item <%= active === 'settings' ? 'active' : '' %>"><span class="nav-icon">⚙️</span><span>Setting</span></a>
+  <a href="/admin" class="nav-item <%= active === 'dashboard' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gauge"></i></span><span>Overview</span></a>
+  <a href="/admin/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-box"></i></span><span>Produk</span></a>
+  <a href="/admin/order" class="nav-item <%= active === 'order' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span><span>Order</span></a>
+  <a href="/admin/users" class="nav-item <%= active === 'users' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-users"></i></span><span>User</span></a>
+  <a href="/admin/settings" class="nav-item <%= active === 'settings' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gear"></i></span><span>Setting</span></a>
 </nav>

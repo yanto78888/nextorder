@@ -7,17 +7,17 @@
 
 <div class="phone-topbar">
   <button type="button" class="icon-btn hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
-    <span class="hamburger-lines"><span></span><span></span><span></span></span>
+    <i class="fa-solid fa-bars"></i>
   </button>
 
   <div class="brand brand-center">
-    ⚡ <%= config.siteName %>
+    <i class="fa-solid fa-bolt"></i> <%= config.siteName %>
     <small><%= config.siteTagline %></small>
   </div>
 
   <% if (isGuest) { %>
     <a href="/login" class="avatar-btn avatar-guest" title="Masuk / Daftar">
-      <span class="avatar-initial">?</span>
+      <i class="fa-solid fa-user"></i>
     </a>
   <% } else { %>
     <a href="/profile" class="avatar-btn" title="Profil Saya">
@@ -51,37 +51,32 @@
         <% } %>
       </div>
     </div>
-    <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">✕</button>
+    <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
   </div>
 
   <nav class="drawer-nav">
-    <a href="/produk" class="drawer-link <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">🏠</span> Beranda</a>
+    <a href="/produk" class="drawer-link <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-house"></i></span> Beranda</a>
     <% if (!isGuest) { %>
-      <a href="/topup" class="drawer-link <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon">💳</span> Deposit / Top Up</a>
-      <a href="/riwayat" class="drawer-link <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon">📜</span> Riwayat Order</a>
-      <a href="/profile" class="drawer-link <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon">👤</span> Profil Saya</a>
+      <a href="/topup" class="drawer-link <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-credit-card"></i></span> Deposit / Top Up</a>
+      <a href="/riwayat" class="drawer-link <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Riwayat Order</a>
+      <a href="/profile" class="drawer-link <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-user"></i></span> Profil Saya</a>
     <% } else { %>
-      <a href="/login" class="drawer-link"><span class="nav-icon">🔑</span> Masuk</a>
-      <a href="/register" class="drawer-link"><span class="nav-icon">📝</span> Daftar Akun</a>
+      <a href="/login" class="drawer-link"><span class="nav-icon"><i class="fa-solid fa-key"></i></span> Masuk</a>
+      <a href="/register" class="drawer-link"><span class="nav-icon"><i class="fa-solid fa-user-plus"></i></span> Daftar Akun</a>
     <% } %>
     <% if (community.groupLink) { %>
-      <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="drawer-link drawer-link-group"><span class="nav-icon">👥</span> Gabung Grup Komunitas</a>
+      <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="drawer-link drawer-link-group"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> Gabung Grup Komunitas</a>
     <% } %>
   </nav>
 
   <% if (!isGuest) { %>
     <form action="/logout" method="POST" class="drawer-logout">
-      <button type="submit" class="btn danger" style="width:100%;">🚪 Keluar</button>
+      <button type="submit" class="btn danger" style="width:100%;"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
     </form>
   <% } %>
 </aside>
-
-<nav class="bottom-nav">
-  <a href="/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon">🏠</span><span>Home</span></a>
-  <a href="/topup" class="nav-item <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon">💳</span><span>Top Up</span></a>
-  <a href="/riwayat" class="nav-item <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon">📜</span><span>Riwayat</span></a>
-  <a href="/profile" class="nav-item <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon">👤</span><span>Profil</span></a>
-</nav>
 
 <script>
 (function () {
@@ -110,7 +105,7 @@
 <% if (community.groupEnabled !== false && community.groupLink) { %>
 <div class="group-modal-overlay" id="groupModalOverlay">
   <div class="group-modal">
-    <div class="group-modal-icon">👥</div>
+    <div class="group-modal-icon"><i class="fa-solid fa-users"></i></div>
     <h3 class="group-modal-title"><%= community.groupTitle || 'Gabung Komunitas Kita!' %></h3>
     <p class="group-modal-msg"><%= community.groupMessage || 'Dapatkan info promo, update stok, dan bantuan tercepat lewat grup resmi kami.' %></p>
     <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="btn solid group-modal-cta" id="groupModalJoinBtn" style="width:100%;">
