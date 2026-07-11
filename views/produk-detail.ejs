@@ -36,7 +36,8 @@
         <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
       </div>
 
-      <!-- Stats -->
+      <!-- Stats (disembunyikan untuk produk digiflazz) -->
+      <% if (product.provider !== 'digiflazz') { %>
       <div class="detail-stats-row">
         <div class="detail-stat">
           <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
@@ -53,6 +54,7 @@
           <div class="detail-stat-label">Harga</div>
         </div>
       </div>
+      <% } %>
 
       <!-- Deskripsi -->
       <% if (product.description) { %>
@@ -224,7 +226,7 @@
 <script>
 (function(){
   var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
-  var userSaldo = <%= user.saldo %>;
+  var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
 
   // Qty stepper

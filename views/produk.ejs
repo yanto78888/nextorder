@@ -3,7 +3,7 @@
 <head><%- include('partials/head') %></head>
 <body>
 <div class="app-shell">
-  <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
+  <%- include('partials/user-sidebar', { active: 'produk', user, config, searchQuery }) %>
 
   <div class="main produk-main no-bottom-nav">
 
@@ -103,7 +103,13 @@
 
     <!-- Katalog produk per kategori -->
     <% if (products.length === 0) { %>
-      <div class="card empty-state">Belum ada produk tersedia saat ini.</div>
+      <div class="card empty-state">
+        <% if (typeof searchQuery !== 'undefined' && searchQuery) { %>
+          Tidak ada produk yang cocok dengan pencarian "<%= searchQuery %>".
+        <% } else { %>
+          Belum ada produk tersedia saat ini.
+        <% } %>
+      </div>
     <% } else { %>
       <% rows.forEach(row => { %>
         <div class="nf-row">
