@@ -323,7 +323,7 @@ router.post('/digiflazz/import-all', async (req, res) => {
       createProduct({
         name: item.product_name,
         category: item.category || 'Games',
-        description: `Auto top up ${item.product_name} via Digiflazz`,
+        description: '',
         price: sellPrice,
         provider: 'digiflazz',
         digiflazzSku: item.buyer_sku_code,
@@ -385,7 +385,7 @@ router.post('/digiflazz/import', (req, res) => {
     createProduct({
       name: productName,
       category: category || 'Games',
-      description: `Auto top up ${productName} via Digiflazz`,
+      description: '',
       price: sellPrice,
       provider: 'digiflazz',
       digiflazzSku: buyerSkuCode,
