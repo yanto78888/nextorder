@@ -36,8 +36,7 @@
         <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
       </div>
 
-      <!-- Stats (disembunyikan untuk produk digiflazz) -->
-      <% if (product.provider !== 'digiflazz') { %>
+      <!-- Stats -->
       <div class="detail-stats-row">
         <div class="detail-stat">
           <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
@@ -54,7 +53,6 @@
           <div class="detail-stat-label">Harga</div>
         </div>
       </div>
-      <% } %>
 
       <!-- Deskripsi -->
       <% if (product.description) { %>
