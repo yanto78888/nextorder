@@ -7,6 +7,7 @@ import { attachUser } from './middleware/auth.js';
 import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
+import { scheduleAutoBackup } from './lib/backup.js';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
@@ -78,6 +79,9 @@ if (process.env.VERCEL !== '1') {
   setInterval(() => {
     checkPendingDeposits().catch(err => console.error('[job] checkPendingDeposits error:', err.message));
   }, pollMs);
+
+  // Backup data (config/produk/order/user, dll) tiap 5 jam, dikirim ke Telegram lalu file zip-nya dihapus
+  scheduleAutoBackup(5);
 
   app.listen(PORT, () => {
     console.log(`🚀 NEXORDER running at http://localhost:${PORT}`);
