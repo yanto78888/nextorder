@@ -13,15 +13,47 @@
     <div class="grid grid-2">
       <div class="card">
         <h3><%= editProduct ? 'Edit Produk' : 'Tambah Produk Baru' %></h3>
-        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>" enctype="multipart/form-data">
+        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>" enctype="multipart/form-data" id="produkForm">
           <label>Nama Produk</label>
           <input type="text" name="name" required value="<%= editProduct ? editProduct.name : '' %>">
           <label>Kategori</label>
-          <input type="text" name="category" placeholder="Streaming / Akun Game / dll" value="<%= editProduct ? editProduct.category : '' %>">
+          <input type="text" name="category" placeholder="Games / E-Money / dll" value="<%= editProduct ? editProduct.category : 'Games' %>">
           <label>Deskripsi</label>
           <textarea name="description"><%= editProduct ? editProduct.description : '' %></textarea>
           <label>Harga (Rp)</label>
           <input type="number" name="price" required value="<%= editProduct ? editProduct.price : '' %>">
+
+          <label>ID Tujuan yang Perlu Diisi User</label>
+          <% const currentPreset = editProduct ? (editProduct.gamePreset || 'none') : 'none'; %>
+          <select name="gamePreset" id="gamePresetSelect">
+            <% gamePresetList.forEach(gp => { %>
+              <option value="<%= gp.key %>" <%= currentPreset === gp.key ? 'selected' : '' %>><%= gp.icon %> <%= gp.label %></option>
+            <% }) %>
+          </select>
+          <div class="helper-text">Pilih game yang sesuai supaya user diminta isi ID/Zone ID/UID yang pas (mis. Mobile Legends = User ID + Zone ID, Genshin = UID + Server). Pilih "Custom" kalau mau atur field sendiri, atau "Tanpa ID Tujuan" untuk produk yang tidak butuh ID (voucher/akun).</div>
+
+          <div id="customFieldsBox" style="<%= currentPreset === 'custom' ? '' : 'display:none;' %> margin-top:10px;">
+            <div class="section-title"><h4>Field Custom (maks 2)</h4></div>
+            <% const existingCustom = (editProduct && editProduct.gamePreset === 'custom') ? (editProduct.targetFields || []) : []; %>
+            <% for (let i = 0; i < 2; i++) { const f = existingCustom[i] || {}; %>
+              <div class="grid grid-3 form-mini-grid" style="margin-bottom:8px;">
+                <div>
+                  <label>Key #<%= i+1 %> <span class="helper-text">(tanpa spasi)</span></label>
+                  <input type="text" name="customFieldKey[]" placeholder="mis. userId" value="<%= f.key || '' %>">
+                </div>
+                <div>
+                  <label>Label #<%= i+1 %></label>
+                  <input type="text" name="customFieldLabel[]" placeholder="mis. User ID" value="<%= f.label || '' %>">
+                </div>
+                <div>
+                  <label>Placeholder #<%= i+1 %></label>
+                  <input type="text" name="customFieldPlaceholder[]" placeholder="mis. Contoh: 12345" value="<%= f.placeholder || '' %>">
+                </div>
+              </div>
+              <label class="check-row" style="margin-bottom:14px;"><input type="checkbox" name="customFieldRequired[]" value="<%= f.key || ('field' + (i+1)) %>" <%= (f.required !== false && f.key) ? 'checked' : '' %>> Wajib diisi</label>
+            <% } %>
+          </div>
+
           <label>Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
           <label>Tambah Stok Otomatis</label>
@@ -60,7 +92,7 @@
           <tbody>
             <% products.forEach(p => { %>
             <tr>
-              <td><%= p.name %><br><span class="helper-text"><%= p.category %></span></td>
+              <td><%= p.name %><br><span class="helper-text"><%= p.category %> <% if (p.gamePreset && p.gamePreset !== 'none') { %>· <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || '' %> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } %></span></td>
               <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
               <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
               <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
@@ -115,5 +147,15 @@
       <% } %>
   </div>
 </div>
+<script>
+  (function () {
+    var select = document.getElementById('gamePresetSelect');
+    var box = document.getElementById('customFieldsBox');
+    if (!select || !box) return;
+    select.addEventListener('change', function () {
+      box.style.display = select.value === 'custom' ? '' : 'none';
+    });
+  })();
+</script>
 </body>
 </html>

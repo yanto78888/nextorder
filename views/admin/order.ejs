@@ -61,13 +61,14 @@
         <div class="empty-state">Belum ada order.</div>
       <% } else { %>
       <table>
-        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Update</th></tr></thead>
+        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Tujuan</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Update</th></tr></thead>
         <tbody>
           <% orders.forEach(o => { %>
           <tr>
             <td class="mono"><%= o.id %></td>
             <td><%= o.username %></td>
             <td><%= o.productName %></td>
+            <td style="max-width:160px; font-size:12px; color:var(--text-dim); white-space:pre-wrap;"><%= o.targetText || '-' %></td>
             <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
             <td>
               <span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : (o.manualRequired ? 'cancelled' : 'admin') %>"><%= o.deliveryMode || o.source %></span>
