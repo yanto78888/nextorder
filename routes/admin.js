@@ -16,6 +16,7 @@ import { runBackupNow } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, computeSellPrice } from '../lib/digiflazz.js';
+import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
 
 // Tebak gamePreset yang cocok dari nama/brand produk Digiflazz, biar field ID Tujuan
 // (termasuk dropdown Server buat game kayak Genshin Impact/Wuthering Waves) otomatis
@@ -99,6 +100,37 @@ const uploadBanner = multer({
     ok ? cb(null, true) : cb(new Error('Format harus gambar'));
   }
 });
+
+// ---------- UPLOAD FOTO GRUP DIGIFLAZZ (mis. foto folder "Mobile Legends") ----------
+const groupThumbDir = path.join(__dirname, '..', 'public', 'uploads', 'digiflazz-groups');
+fs.mkdirSync(groupThumbDir, { recursive: true });
+
+const groupThumbStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, groupThumbDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique = Date.now() + '_' + Math.round(Math.random() * 1e6);
+    cb(null, `grp_${unique}${ext}`);
+  }
+});
+const uploadGroupThumbRaw = multer({
+  storage: groupThumbStorage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedExt = /\.(jpe?g|png|webp|gif)$/i;
+    const allowedMime = /^image\/(jpeg|png|webp|gif)$/i;
+    if (!allowedExt.test(file.originalname) || !allowedMime.test(file.mimetype || '')) {
+      return cb(new Error('Format foto harus JPG, PNG, WEBP, atau GIF'));
+    }
+    cb(null, true);
+  }
+});
+function uploadGroupThumbnail(req, res, next) {
+  uploadGroupThumbRaw.single('groupThumbnailFile')(req, res, (err) => {
+    if (err) return res.redirect('/admin/digiflazz?error=' + encodeURIComponent(err.message));
+    next();
+  });
+}
 
 function renderSettings(req, res, extra = {}) {
   res.render('admin/settings', {
@@ -233,6 +265,7 @@ function renderDigiflazzPage(req, res, extra = {}) {
   res.render('admin/digiflazz', {
     config: getConfig(),
     digiflazzProducts,
+    groupThumbnails: getGroupThumbnails(),
     searchResults: [],
     searchQuery: '',
     error: null,
@@ -431,6 +464,19 @@ router.post('/digiflazz/sync-all', async (req, res) => {
 router.post('/digiflazz/:id/unlink', (req, res) => {
   updateProduct(req.params.id, { provider: 'manual' });
   renderDigiflazzPage(req, res, { success: 'Produk dilepas dari Digiflazz, sekarang jadi produk stok manual.' });
+});
+
+// Upload/ganti foto folder buat 1 Grup Varian Digiflazz (mis. "Mobile Legends"), dipakai di kartu
+// grup halaman admin ini dan otomatis jadi thumbnail kartu grup di katalog publik.
+router.post('/digiflazz/group/:group/thumbnail', uploadGroupThumbnail, (req, res) => {
+  try {
+    const groupName = decodeURIComponent(req.params.group);
+    if (!req.file) return renderDigiflazzPage(req, res, { error: 'Pilih file foto dulu' });
+    setGroupThumbnail(groupName, '/uploads/digiflazz-groups/' + req.file.filename);
+    renderDigiflazzPage(req, res, { success: `Foto grup "${groupName}" berhasil diperbarui.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
 });
 
 // ---------- ORDER ----------

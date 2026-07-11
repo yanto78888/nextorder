@@ -17,6 +17,7 @@ import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../li
 import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
+import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { genId } from '../lib/db.js';
 
 const router = express.Router();
@@ -242,7 +243,7 @@ router.get('/produk', (req, res) => {
           name: p.variantGroup,
           isVariantGroup: true,
           variantCount: 1,
-          thumbnail: p.thumbnail || ''
+          thumbnail: getGroupThumbnail(p.variantGroup) || p.thumbnail || ''
         });
       } else {
         const rep = hasil[groupIndex.get(p.variantGroup)];
@@ -251,7 +252,7 @@ router.get('/produk', (req, res) => {
           rep.finalPrice = p.finalPrice;
           rep.id = p.id; // link kartu ikut ke varian termurah biar konsisten sama harga yang ditampilkan
         }
-        if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail;
+        if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail; // fallback kalau grup belum ada foto folder sendiri
         if ((p.totalSold || 0) > (rep.totalSold || 0)) rep.totalSold = p.totalSold; // pamer angka terjual paling ramai di grup
       }
     });
@@ -523,6 +524,7 @@ router.get('/produk/:id', (req, res) => {
   const finalPrice = user ? applyMemberDiscount(product.price, user.membership) : product.price;
   const reviews = getReviewsByProduct(product.id);
   const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
+  const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
 
   // Kalau produk ini punya variantGroup (mis. "Mobile Legends"), tampilkan juga produk lain
   // di grup yang sama sebagai pilihan nominal yang bisa diklik di halaman yang sama (tanpa reload).
@@ -545,6 +547,7 @@ router.get('/produk/:id', (req, res) => {
   res.render('produk-detail', {
     product,
     finalPrice,
+    displayThumbnail,
     variants,
     reviews,
     hasReviewed,
