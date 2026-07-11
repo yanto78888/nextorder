@@ -223,36 +223,45 @@ router.get('/produk', (req, res) => {
       icon: getGameIcon(p.gamePreset)
     }));
 
-  // Produk dengan variantGroup yang sama (mis. semua nominal Mobile Legends) adalah
-  // satu game/produk yang sama, cuma beda nominal. Di katalog cukup tampil 1 kartu per
-  // grup (dulu semua nominal ikut muncul jadi kartu terpisah-pisah); nominal lainnya
-  // tetap muncul digabung sebagai pilihan begitu kartu itu dibuka di halaman detail.
-  const seenVariantGroups = new Set();
-  const catalogProducts = [];
-  products.forEach(p => {
-    if (!p.variantGroup) { catalogProducts.push(p); return; }
-    if (seenVariantGroups.has(p.variantGroup)) return; // sudah terwakili, skip
-    seenVariantGroups.add(p.variantGroup);
-    // wakili grup dengan varian termurah supaya kartu menampilkan harga "mulai dari"
-    const cheapest = products
-      .filter(x => x.variantGroup === p.variantGroup)
-      .reduce((min, x) => (x.price < min.price ? x : min), p);
-    catalogProducts.push(cheapest);
-  });
-
-  // Pencarian produk (dari search bar di topbar): filter by nama produk / kategori
-  const searchQuery = (req.query.q || '').toString().trim();
-  const filteredCatalog = searchQuery
-    ? catalogProducts.filter(p => {
-        const haystack = (p.name + ' ' + (p.category || '')).toLowerCase();
-        return haystack.includes(searchQuery.toLowerCase());
-      })
-    : catalogProducts;
+  // Produk yang punya variantGroup sama (mis. semua nominal "Mobile Legends") digabung jadi
+  // 1 kartu di katalog — biar gak numpuk satu-satu per nominal kayak sebelumnya. Kartu gabungan
+  // nunjukin harga termurah di grup itu ("mulai dari"), diklik langsung ke halaman produk yang
+  // otomatis nampilin semua pilihan nominal di grup itu (lihat GET /produk/:id).
+  function collapseVariantGroups(list) {
+    const groupIndex = new Map(); // variantGroup -> index di hasil[]
+    const hasil = [];
+    list.forEach(p => {
+      if (!p.variantGroup) {
+        hasil.push(p);
+        return;
+      }
+      if (!groupIndex.has(p.variantGroup)) {
+        groupIndex.set(p.variantGroup, hasil.length);
+        hasil.push({
+          ...p,
+          name: p.variantGroup,
+          isVariantGroup: true,
+          variantCount: 1,
+          thumbnail: p.thumbnail || ''
+        });
+      } else {
+        const rep = hasil[groupIndex.get(p.variantGroup)];
+        rep.variantCount += 1;
+        if (p.finalPrice < rep.finalPrice) {
+          rep.finalPrice = p.finalPrice;
+          rep.id = p.id; // link kartu ikut ke varian termurah biar konsisten sama harga yang ditampilkan
+        }
+        if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail;
+        if ((p.totalSold || 0) > (rep.totalSold || 0)) rep.totalSold = p.totalSold; // pamer angka terjual paling ramai di grup
+      }
+    });
+    return hasil;
+  }
 
   // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
   const categoryOrder = [];
   const grouped = {};
-  filteredCatalog.forEach(p => {
+  products.forEach(p => {
     const cat = p.category || 'Umum';
     if (!grouped[cat]) {
       grouped[cat] = [];
@@ -260,11 +269,10 @@ router.get('/produk', (req, res) => {
     }
     grouped[cat].push(p);
   });
-  const rows = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
+  const rows = categoryOrder.map(cat => ({ category: cat, products: collapseVariantGroups(grouped[cat]) }));
 
   res.render('produk', {
-    products: filteredCatalog,
-    searchQuery,
+    products,
     rows,
     memberDiscount: discountPercent,
     user,

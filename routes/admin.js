@@ -15,7 +15,7 @@ import { notifyOrder } from '../lib/telegram.js';
 import { runBackupNow } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
-import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, computeSellPrice } from '../lib/digiflazz.js';
+import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, computeSellPrice } from '../lib/digiflazz.js';
 
 // Tebak gamePreset yang cocok dari nama/brand produk Digiflazz, biar field ID Tujuan
 // (termasuk dropdown Server buat game kayak Genshin Impact/Wuthering Waves) otomatis
@@ -245,11 +245,23 @@ router.get('/digiflazz', (req, res) => {
   renderDigiflazzPage(req, res);
 });
 
-// Cari produk Digiflazz + preview harga jual (base + margin default) buat halaman kelola khusus ini
+// Daftar kategori Digiflazz (Games, Pulsa, Data, PLN, dst) buat dropdown filter di halaman kelola
+router.get('/digiflazz/categories', async (req, res) => {
+  try {
+    const categories = await getDigiflazzCategories('prepaid');
+    res.json({ ok: true, categories });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Cari produk Digiflazz + preview harga jual (base + margin default) buat halaman kelola khusus ini.
+// Kategori dipisah lewat query ?category=, gak dicampur — biar hasil pencarian fokus (mis. cuma "Games").
 router.get('/digiflazz/search', async (req, res) => {
   try {
     const q = req.query.q || '';
-    const raw = await searchDigiflazzPriceList(q, 'prepaid');
+    const category = req.query.category || '';
+    const raw = await searchDigiflazzPriceList(q, 'prepaid', category);
     const linkedSkus = new Set(getAllProducts().filter(p => p.provider === 'digiflazz').map(p => p.digiflazzSku));
     const results = raw.map(item => ({
       ...item,
@@ -259,6 +271,44 @@ router.get('/digiflazz/search', async (req, res) => {
     res.json({ ok: true, results });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Import SEMUA hasil pencarian/kategori sekaligus (skip yang udah pernah diimport), pakai margin
+// default global. Buat admin yang mau isi katalog cepat tanpa klik "Import" satu-satu.
+router.post('/digiflazz/import-all', async (req, res) => {
+  try {
+    const q = req.body.q || '';
+    const category = req.body.category || '';
+    const raw = await searchDigiflazzPriceList(q, 'prepaid', category);
+
+    const existingSkus = new Set(getAllProducts().filter(p => p.provider === 'digiflazz').map(p => p.digiflazzSku));
+    const toImport = raw.filter(item => !existingSkus.has(item.buyer_sku_code));
+
+    toImport.forEach(item => {
+      const sellPrice = computeSellPrice(item.price, null, null);
+      createProduct({
+        name: item.product_name,
+        category: item.category || 'Games',
+        description: `Auto top up ${item.product_name} via Digiflazz`,
+        price: sellPrice,
+        provider: 'digiflazz',
+        digiflazzSku: item.buyer_sku_code,
+        digiflazzBasePrice: item.price,
+        variantGroup: item.brand || '',
+        gamePreset: guessGamePreset(`${item.product_name} ${item.brand || ''}`),
+        marginType: '',
+        marginValue: null
+      });
+    });
+
+    renderDigiflazzPage(req, res, {
+      success: toImport.length > 0
+        ? `${toImport.length} produk berhasil diimport sekaligus.${raw.length - toImport.length > 0 ? ` ${raw.length - toImport.length} lainnya udah pernah diimport, dilewati.` : ''}`
+        : 'Tidak ada produk baru buat diimport (semua hasil pencarian ini udah pernah diimport).'
+    });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
   }
 });
 
