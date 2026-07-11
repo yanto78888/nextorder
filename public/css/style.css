@@ -1319,7 +1319,6 @@ input[type="file"]::file-selector-button {
   padding-left: 100%;
   animation: marqueeScroll 28s linear infinite;
 }
-.marquee-content:hover { animation-play-state: paused; }
 @keyframes marqueeScroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
