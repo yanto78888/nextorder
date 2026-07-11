@@ -8,8 +8,8 @@
 
     <!-- Hero Image -->
     <div class="detail-hero">
-      <% if (product.thumbnail) { %>
-        <img class="detail-thumb" src="<%= product.thumbnail %>" alt="<%= product.name %>">
+      <% if (displayThumbnail) { %>
+        <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= product.name %>">
       <% } else { %>
         <div class="detail-thumb detail-thumb-placeholder"><%= product.name.charAt(0).toUpperCase() %></div>
       <% } %>
@@ -20,8 +20,10 @@
     <div class="detail-body">
 
       <div class="detail-meta-row">
+        <% /* Digiflazz = auto top up sistem, jadi statusnya selalu "Auto" walau tidak ada stockItems manual. */ %>
+        <% const isAuto = product.provider === 'digiflazz'; %>
         <% const stockCount = product.stockItems ? product.stockItems.length : 0; %>
-        <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%- stockCount > 0 ? '<i class="fa-solid fa-bolt"></i> Auto' : '<i class="fa-solid fa-screwdriver-wrench"></i> Manual' %></span>
+        <span class="nf-stock-tag <%= (isAuto || stockCount > 0) ? 'ok' : 'warn' %>"><%- (isAuto || stockCount > 0) ? '<i class="fa-solid fa-bolt"></i> Auto' : '<i class="fa-solid fa-screwdriver-wrench"></i> Manual' %></span>
         <span class="detail-category"><%= product.category || 'Umum' %></span>
       </div>
 
@@ -43,10 +45,17 @@
           <div class="detail-stat-label">Terjual</div>
         </div>
         <div class="detail-stat-divider"></div>
+        <% if (isAuto) { %>
+        <div class="detail-stat">
+          <div class="detail-stat-val" style="color:var(--success);"><i class="fa-solid fa-bolt"></i> Instan</div>
+          <div class="detail-stat-label">Pengiriman</div>
+        </div>
+        <% } else { %>
         <div class="detail-stat">
           <div class="detail-stat-val"><%= stockCount %></div>
           <div class="detail-stat-label">Stok</div>
         </div>
+        <% } %>
         <div class="detail-stat-divider"></div>
         <div class="detail-stat">
           <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
@@ -90,7 +99,7 @@
             <label><%= variants && variants.length > 1 ? '2. ' : '' %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
-              <input type="number" id="qtyInput" value="1" min="1" max="<%= stockCount > 0 ? stockCount : 99 %>">
+              <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : 99 %>">
               <button type="button" class="qty-btn" id="qtyPlus">+</button>
             </div>
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
@@ -305,7 +314,7 @@
       if(idSaldo)idSaldo.value=vid;
       if(idQris)idQris.value=vid;
 
-      if(qEl){ qEl.value=1; qEl.max = v.stockCount>0 ? v.stockCount : 99; }
+      if(qEl){ qEl.value=1; qEl.max = (v.provider !== 'digiflazz' && v.stockCount>0) ? v.stockCount : 99; }
       upd();
 
       renderTargetFields(v.targetFields);

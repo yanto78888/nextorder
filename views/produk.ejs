@@ -124,8 +124,11 @@
                   <% if (p.isVariantGroup) { %>
                     <span class="nf-stock-tag ok"><%= p.variantCount %> pilihan</span>
                   <% } else { %>
+                    <% /* Produk Digiflazz dikirim otomatis oleh sistem, jadi selalu dianggap tersedia — gak ngandelin stockItems manual yang memang sengaja kosong. */ %>
+                    <% const isAuto = p.provider === 'digiflazz'; %>
                     <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
-                    <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%- stockCount > 0 ? '<i class="fa-solid fa-bolt"></i>' : '<i class="fa-solid fa-screwdriver-wrench"></i>' %></span>
+                    <% const available = isAuto || stockCount > 0; %>
+                    <span class="nf-stock-tag <%= available ? 'ok' : 'warn' %>"><%- available ? '<i class="fa-solid fa-bolt"></i>' : '<i class="fa-solid fa-screwdriver-wrench"></i>' %></span>
                   <% } %>
                   <% if (p.gamePreset && p.gamePreset !== 'none') { %><span class="game-icon-badge"><i class="fa-solid <%= p.icon %>"></i></span><% } %>
                 </div>
