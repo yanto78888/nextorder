@@ -141,13 +141,7 @@ router.get('/produk', (req, res) => {
   const discountPercent = user ? getMembershipDiscount(user) : 0;
   const cfg = getConfig();
 
-  // Katalog cuma menampilkan kategori yang diizinkan (default: Games saja). Atur di Admin > Pengaturan.
-  const allowedCategories = (cfg.catalog?.categories && cfg.catalog.categories.length > 0)
-    ? cfg.catalog.categories.map(c => c.toLowerCase().trim())
-    : ['games'];
-
   const products = getActiveProducts()
-    .filter(p => allowedCategories.includes((p.category || '').toLowerCase().trim()))
     .map(p => ({
       ...p,
       finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price,
