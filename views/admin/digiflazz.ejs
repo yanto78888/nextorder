@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'digiflazz' }) %>
+
+  <div class="main">
+    <div class="topbar"><h2>Produk Digiflazz</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% const df = config.digiflazz || {}; %>
+    <% if (!df.enabled || !df.username || !df.apiKey) { %>
+      <div class="alert error">
+        Digiflazz belum aktif/lengkap. Isi Username &amp; API Key lalu centang "Aktifkan" di
+        <a href="/admin/settings" style="color:#fff; text-decoration:underline;">Pengaturan</a> dulu sebelum import produk.
+      </div>
+    <% } %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Margin Default</h3>
+        <p class="helper-text">Margin ini otomatis dipakai untuk semua produk Digiflazz yang tidak punya margin sendiri (override). Rumus: Harga Jual = Harga Modal + Margin, dibulatkan ke atas kelipatan Rp100.</p>
+        <form method="POST" action="/admin/digiflazz/margin">
+          <div class="grid grid-2 form-mini-grid">
+            <div>
+              <label>Tipe Margin</label>
+              <select name="marginType">
+                <option value="percent" <%= (df.marginType || 'percent') === 'percent' ? 'selected' : '' %>>Persentase (%)</option>
+                <option value="fixed" <%= df.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp)</option>
+              </select>
+            </div>
+            <div>
+              <label>Nilai Margin</label>
+              <input type="number" step="0.01" name="marginValue" value="<%= (typeof df.marginValue !== 'undefined' && df.marginValue !== null) ? df.marginValue : 10 %>">
+            </div>
+          </div>
+          <button class="btn solid mt-16" type="submit">Simpan Margin Default</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Ringkasan</h3>
+        <div class="detail-stats-row" style="margin:0;">
+          <div class="detail-stat">
+            <div class="detail-stat-val"><%= digiflazzProducts.length %></div>
+            <div class="detail-stat-label">Produk Terhubung</div>
+          </div>
+        </div>
+        <form method="POST" action="/admin/digiflazz/sync-all" class="mt-16">
+          <button class="btn ghost" type="submit" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga dari Digiflazz</button>
+        </form>
+        <div class="helper-text mt-16">Sinkron akan ambil harga modal terbaru dari Digiflazz untuk semua produk yang sudah diimport, lalu hitung ulang harga jual pakai margin masing-masing (atau margin default kalau tidak ada override).</div>
+      </div>
+    </div>
+
+    <div class="card mt-24">
+      <h3>Cari &amp; Import Produk dari Digiflazz</h3>
+      <div class="flex" style="gap:8px;">
+        <input type="text" id="dfSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends, Free Fire, PUBG..." style="flex:1;">
+        <button type="button" class="btn solid" id="dfSearchBtn">Cari</button>
+      </div>
+      <div id="dfSearchResults" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card mt-24">
+      <h3>Produk Digiflazz Terhubung (<%= digiflazzProducts.length %>)</h3>
+      <% if (digiflazzProducts.length === 0) { %>
+        <div class="empty-state">Belum ada produk yang diimport dari Digiflazz.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% digiflazzProducts.forEach(p => { %>
+          <tr>
+            <td><%= p.name %><br><span class="helper-text"><%= p.category %><% if (p.variantGroup) { %> · grup: <%= p.variantGroup %><% } %></span></td>
+            <td class="mono"><%= p.digiflazzSku %></td>
+            <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
+            <td>
+              <form method="POST" action="/admin/digiflazz/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
+                <select name="marginType" style="width:90px; font-size:12px;">
+                  <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
+                  <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                  <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                </select>
+                <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
+                <button type="submit" class="btn small ghost">Set</button>
+              </form>
+            </td>
+            <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+            <td>
+              <div class="flex" style="gap:6px; flex-wrap:wrap;">
+                <form method="POST" action="/admin/digiflazz/<%= p.id %>/resync">
+                  <button class="btn small ghost" type="submit" title="Ambil ulang harga modal terbaru"><i class="fa-solid fa-rotate"></i></button>
+                </form>
+                <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                <form method="POST" action="/admin/digiflazz/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari Digiflazz? Produk akan jadi stok manual biasa.')">
+                  <button class="btn small danger" type="submit">Lepas</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var searchBtn = document.getElementById('dfSearchBtn');
+  var searchInput = document.getElementById('dfSearchInput');
+  var resultsBox = document.getElementById('dfSearchResults');
+  if (!searchBtn) return;
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function doSearch() {
+    var q = searchInput.value.trim();
+    resultsBox.innerHTML = '<div class="helper-text">Mencari...</div>';
+    fetch('/admin/digiflazz/search?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(data.error) + '</div>'; return; }
+        if (!data.results.length) { resultsBox.innerHTML = '<div class="helper-text">Tidak ada hasil.</div>'; return; }
+
+        var table = document.createElement('table');
+        table.innerHTML = '<thead><tr><th>Produk</th><th>SKU</th><th>Modal</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
+        var tbody = document.createElement('tbody');
+
+        data.results.forEach(function (item) {
+          var tr = document.createElement('tr');
+          var priceStr = 'Rp ' + Number(item.price || 0).toLocaleString('id-ID');
+          var sellStr = 'Rp ' + Number(item.sellPricePreview || 0).toLocaleString('id-ID');
+          tr.innerHTML =
+            '<td>' + esc(item.product_name) + '<br><span class="helper-text">' + esc(item.brand || item.category || '') + '</span></td>' +
+            '<td class="mono">' + esc(item.buyer_sku_code) + '</td>' +
+            '<td class="mono">' + priceStr + '</td>' +
+            '<td class="mono" style="color:var(--cyan);">' + sellStr + '</td>' +
+            '<td></td>';
+
+          var actionTd = tr.querySelector('td:last-child');
+          if (item.alreadyImported) {
+            var span = document.createElement('span');
+            span.className = 'badge completed';
+            span.textContent = 'Sudah diimport';
+            actionTd.appendChild(span);
+          } else {
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/admin/digiflazz/import';
+            form.style.display = 'flex';
+            form.style.gap = '4px';
+
+            function hidden(name, value) {
+              var inp = document.createElement('input');
+              inp.type = 'hidden'; inp.name = name; inp.value = value == null ? '' : value;
+              form.appendChild(inp);
+            }
+            hidden('buyerSkuCode', item.buyer_sku_code);
+            hidden('productName', item.product_name);
+            hidden('category', item.category || 'Games');
+            hidden('brand', item.brand || '');
+            hidden('basePrice', item.price);
+
+            var btn = document.createElement('button');
+            btn.type = 'submit';
+            btn.className = 'btn small solid';
+            btn.textContent = 'Import';
+            form.appendChild(btn);
+            actionTd.appendChild(form);
+          }
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        resultsBox.innerHTML = '';
+        resultsBox.appendChild(table);
+      })
+      .catch(function (err) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(err.message) + '</div>'; });
+  }
+
+  searchBtn.addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+})();
+</script>
+</body>
+</html>

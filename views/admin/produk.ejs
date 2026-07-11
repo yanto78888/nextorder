@@ -18,6 +18,9 @@
           <input type="text" name="name" required value="<%= editProduct ? editProduct.name : '' %>">
           <label>Kategori</label>
           <input type="text" name="category" placeholder="Games / E-Money / dll" value="<%= editProduct ? editProduct.category : 'Games' %>">
+          <label>Grup Varian (opsional)</label>
+          <input type="text" name="variantGroup" placeholder="mis. Mobile Legends" value="<%= editProduct ? editProduct.variantGroup : '' %>">
+          <div class="helper-text">Produk dengan Grup Varian yang sama (mis. semua nominal "Mobile Legends") akan tampil sebagai pilihan nominal yang bisa diklik di 1 halaman produk, kayak web topup lain. Kosongkan kalau produk ini berdiri sendiri.</div>
           <label>Deskripsi</label>
           <textarea name="description"><%= editProduct ? editProduct.description : '' %></textarea>
           <label>Harga (Rp)</label>
