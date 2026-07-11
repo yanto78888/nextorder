@@ -12,7 +12,7 @@
       <h2>Katalog Produk</h2>
       <div class="flex" style="gap:8px;">
         <% if (user && (user.membership || 'reguler') !== 'reguler') { %>
-          <span class="badge member-<%= user.membership %>"><%= user.membership === 'platinum' ? '💎 Platinum' : '🥇 Gold' %></span>
+          <span class="badge member-<%= user.membership %>"><%- user.membership === 'platinum' ? '<i class="fa-solid fa-gem"></i> Platinum' : '<i class="fa-solid fa-medal"></i> Gold' %></span>
         <% } %>
         <% if (user) { %>
           <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
@@ -25,7 +25,7 @@
     <!-- ====== TEKS BERJALAN (MARQUEE) ====== -->
     <% if (marquee && marquee.enabled !== false && marquee.text) { %>
     <div class="marquee-wrap">
-      <div class="marquee-label">📢</div>
+      <div class="marquee-label"><i class="fa-solid fa-bullhorn"></i></div>
       <div class="marquee-track">
         <div class="marquee-content" id="marqueeContent">
           <%= marquee.text %>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<%= marquee.text %>
@@ -68,37 +68,37 @@
     <div class="quick-actions">
       <% if (user) { %>
         <a href="/topup" class="quick-action-btn qa-deposit">
-          <span class="qa-icon">💳</span>
+          <span class="qa-icon"><i class="fa-solid fa-credit-card"></i></span>
           <span class="qa-label">Deposit</span>
         </a>
         <a href="/riwayat" class="quick-action-btn qa-riwayat">
-          <span class="qa-icon">📜</span>
+          <span class="qa-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
           <span class="qa-label">Riwayat</span>
         </a>
         <a href="/profile" class="quick-action-btn qa-profile">
-          <span class="qa-icon">👤</span>
+          <span class="qa-icon"><i class="fa-solid fa-user"></i></span>
           <span class="qa-label">Profil</span>
         </a>
       <% } else { %>
         <a href="/login" class="quick-action-btn qa-deposit">
-          <span class="qa-icon">💳</span><span class="qa-label">Deposit</span>
+          <span class="qa-icon"><i class="fa-solid fa-credit-card"></i></span><span class="qa-label">Deposit</span>
         </a>
         <a href="/login" class="quick-action-btn qa-riwayat">
-          <span class="qa-icon">📜</span><span class="qa-label">Riwayat</span>
+          <span class="qa-icon"><i class="fa-solid fa-clock-rotate-left"></i></span><span class="qa-label">Riwayat</span>
         </a>
         <a href="/login" class="quick-action-btn qa-profile">
-          <span class="qa-icon">🔑</span><span class="qa-label">Masuk</span>
+          <span class="qa-icon"><i class="fa-solid fa-key"></i></span><span class="qa-label">Masuk</span>
         </a>
       <% } %>
     </div>
 
     <% if (!user) { %>
-      <div class="alert guest-alert">👋 Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
+      <div class="alert guest-alert"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
     <% } %>
 
     <% if (memberDiscount > 0) { %>
       <div class="alert member-alert">
-        <%= user.membership === 'platinum' ? '💎' : '🥇' %> Kamu member <b><%= user.membership %></b>, potongan <b><%= memberDiscount %>%</b> di setiap pembelian
+        <i class="fa-solid <%= user.membership === 'platinum' ? 'fa-gem' : 'fa-medal' %>"></i> Kamu member <b><%= user.membership %></b>, potongan <b><%= memberDiscount %>%</b> di setiap pembelian
       </div>
     <% } %>
 
@@ -110,15 +110,15 @@
     <% } else { %>
       <% rows.forEach(row => { %>
         <div class="nf-row">
-          <div class="nf-row-title">🎮 <%= row.category %></div>
+          <div class="nf-row-title"><i class="fa-solid fa-gamepad"></i> <%= row.category %></div>
           <div class="nf-row-track">
             <% row.products.forEach(p => { %>
               <a href="/produk/<%= p.id %>" class="nf-card nf-card-link game-card">
                 <div class="nf-card-thumb">
                   <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %><span class="nf-noimg"><%= p.name.slice(0,1) %></span><% } %>
                   <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
-                  <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%= stockCount > 0 ? '⚡' : '🛠' %></span>
-                  <% if (p.gamePreset && p.gamePreset !== 'none') { %><span class="game-icon-badge"><%= p.icon %></span><% } %>
+                  <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%- stockCount > 0 ? '<i class="fa-solid fa-bolt"></i>' : '<i class="fa-solid fa-screwdriver-wrench"></i>' %></span>
+                  <% if (p.gamePreset && p.gamePreset !== 'none') { %><span class="game-icon-badge"><i class="fa-solid <%= p.icon %>"></i></span><% } %>
                 </div>
                 <div class="nf-card-body">
                   <div class="nf-card-name"><%= p.name %></div>

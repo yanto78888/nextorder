@@ -33,18 +33,18 @@
           <div class="pname"><%= product.name %></div>
           <div class="pqty">Jumlah: <%= qty %> item</div>
           <% if (typeof targetText !== 'undefined' && targetText) { %>
-            <div class="pqty" style="margin-top:6px; color:var(--cyan);">🎯 <%= targetText %></div>
+            <div class="pqty" style="margin-top:6px; color:var(--cyan);"><i class="fa-solid fa-crosshairs"></i> <%= targetText %></div>
           <% } %>
         </div>
 
         <img class="qris-img" src="<%= deposit.imageBase64 %>" alt="QRIS">
 
         <div class="qris-amount">Rp <%= total.toLocaleString('id-ID') %></div>
-        <div class="qris-note">⚠️ Bayar tepat nominal di atas (sudah termasuk kode unik & biaya layanan). Jangan lebih, jangan kurang.</div>
+        <div class="qris-note"><i class="fa-solid fa-triangle-exclamation"></i> Bayar tepat nominal di atas (sudah termasuk kode unik & biaya layanan). Jangan lebih, jangan kurang.</div>
 
         <div class="qris-timer" id="timerEl">--:--</div>
 
-        <div class="qris-status pending" id="statusEl">⏳ Menunggu pembayaran...</div>
+        <div class="qris-status pending" id="statusEl"><i class="fa-solid fa-hourglass-half"></i> Menunggu pembayaran...</div>
 
         <a href="/produk/<%= product.id %>" class="btn ghost" style="width:100%; margin-top:8px;">Batal / Kembali</a>
       </div>
@@ -68,7 +68,7 @@
     if (timerEl) timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
     if (diff <= 0 && !redirected) {
       redirected = true;
-      if (statusEl) { statusEl.textContent = '⌛ Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
+      if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
       clearInterval(timerInterval);
       clearInterval(pollInterval);
     }
@@ -84,7 +84,7 @@
           clearInterval(pollInterval);
           clearInterval(timerInterval);
           redirected = true;
-          if (statusEl) { statusEl.textContent = '✅ Pembayaran diterima! Memproses pesanan...'; statusEl.className = 'qris-status paid'; }
+          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pembayaran diterima! Memproses pesanan...'; statusEl.className = 'qris-status paid'; }
           // saldo sudah ditambah oleh deposit handler, sekarang buat order via redirect
           setTimeout(function () {
             window.location.href = '/order/qris-confirm?trxid=' + trxid;
@@ -92,7 +92,7 @@
         } else if (data.status === 'expired' || data.status === 'cancelled') {
           clearInterval(pollInterval);
           clearInterval(timerInterval);
-          if (statusEl) { statusEl.textContent = '⌛ Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
+          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
         }
       })
       .catch(function() {});

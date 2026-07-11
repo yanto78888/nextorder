@@ -14,14 +14,14 @@
         <div class="detail-thumb detail-thumb-placeholder"><%= product.name.charAt(0).toUpperCase() %></div>
       <% } %>
       <div class="detail-hero-overlay"></div>
-      <a href="/produk" class="detail-back-btn">← Kembali</a>
+      <a href="/produk" class="detail-back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </div>
 
     <div class="detail-body">
 
       <div class="detail-meta-row">
         <% const stockCount = product.stockItems ? product.stockItems.length : 0; %>
-        <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%= stockCount > 0 ? '⚡ Auto' : '🛠 Manual' %></span>
+        <span class="nf-stock-tag <%= stockCount > 0 ? 'ok' : 'warn' %>"><%- stockCount > 0 ? '<i class="fa-solid fa-bolt"></i> Auto' : '<i class="fa-solid fa-screwdriver-wrench"></i> Manual' %></span>
         <span class="detail-category"><%= product.category || 'Umum' %></span>
       </div>
 
@@ -98,23 +98,23 @@
             <label class="method-tab">
               <input type="radio" name="payMethod" value="saldo" checked>
               <div class="method-card">
-                <div class="method-icon">💳</div>
+                <div class="method-icon"><i class="fa-solid fa-credit-card"></i></div>
                 <div class="method-info">
                   <div class="method-name">Saldo</div>
                   <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
                 </div>
-                <div class="method-check">✓</div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
               </div>
             </label>
             <label class="method-tab">
               <input type="radio" name="payMethod" value="qris">
               <div class="method-card">
-                <div class="method-icon">📱</div>
+                <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
                 <div class="method-info">
                   <div class="method-name">QRIS</div>
                   <div class="method-sub">Bayar via scan QR</div>
                 </div>
-                <div class="method-check">✓</div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
               </div>
             </label>
           </div>
@@ -128,7 +128,7 @@
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
           </form>
 
-          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn">🛒 Beli Sekarang</button>
+          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
           <% if (user.saldo < finalPrice) { %>
             <div class="alert error" style="margin-top:8px; font-size:12px;">Saldo tidak cukup — gunakan QRIS.</div>
           <% } %>
@@ -136,7 +136,7 @@
       <% } else { %>
         <div class="detail-buy-box guest-buy-box">
           <div class="detail-price-now" style="margin-bottom:12px;">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
-          <a href="/login" class="btn solid" style="width:100%;">🔑 Login untuk Beli</a>
+          <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
           <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
         </div>
       <% } %>
@@ -163,14 +163,14 @@
             </form>
           </div>
         <% } else if (user && hasReviewed) { %>
-          <div class="review-already">✅ Kamu sudah memberikan ulasan untuk produk ini.</div>
+          <div class="review-already"><i class="fa-solid fa-circle-check"></i> Kamu sudah memberikan ulasan untuk produk ini.</div>
         <% } else { %>
           <div class="review-login-prompt"><a href="/login" style="color:var(--cyan);">Login</a> untuk menulis ulasan.</div>
         <% } %>
 
         <!-- Daftar ulasan -->
         <% if (reviews.length === 0) { %>
-          <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! ⭐</div>
+          <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star"></i></div>
         <% } else { %>
           <div class="review-list">
             <% reviews.forEach(r => { %>
