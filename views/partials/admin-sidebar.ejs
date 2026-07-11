@@ -1,18 +1,68 @@
 <div class="phone-topbar">
-  <div class="brand">
+  <button type="button" class="icon-btn hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+
+  <div class="brand brand-center">
     <i class="fa-solid fa-bolt"></i> <%= config.siteName %>
     <small>ADMIN CONTROL</small>
   </div>
+
   <form action="/logout" method="POST">
     <button type="submit" class="icon-btn" title="Keluar"><i class="fa-solid fa-right-from-bracket"></i></button>
   </form>
 </div>
 
-<nav class="bottom-nav">
-  <a href="/admin" class="nav-item <%= active === 'dashboard' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gauge"></i></span><span>Overview</span></a>
-  <a href="/admin/produk" class="nav-item <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-box"></i></span><span>Produk</span></a>
-  <a href="/admin/digiflazz" class="nav-item <%= active === 'digiflazz' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-bolt-lightning"></i></span><span>Digiflazz</span></a>
-  <a href="/admin/order" class="nav-item <%= active === 'order' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span><span>Order</span></a>
-  <a href="/admin/users" class="nav-item <%= active === 'users' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-users"></i></span><span>User</span></a>
-  <a href="/admin/settings" class="nav-item <%= active === 'settings' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gear"></i></span><span>Setting</span></a>
-</nav>
+<!-- ===== DRAWER MENU ADMIN (hamburger pojok kiri atas) ===== -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawerPanel">
+  <div class="drawer-head">
+    <div class="drawer-user">
+      <div class="drawer-avatar"><span class="avatar-initial"><i class="fa-solid fa-user-shield"></i></span></div>
+      <div class="drawer-user-info">
+        <div class="drawer-username">Admin Panel</div>
+        <div class="drawer-saldo"><%= config.siteName %></div>
+      </div>
+    </div>
+    <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <nav class="drawer-nav">
+    <a href="/admin" class="drawer-link <%= active === 'dashboard' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gauge"></i></span> Overview</a>
+    <a href="/admin/produk" class="drawer-link <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-box"></i></span> Kelola Produk</a>
+    <a href="/admin/digiflazz" class="drawer-link <%= active === 'digiflazz' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-bolt-lightning"></i></span> Digiflazz</a>
+    <a href="/admin/order" class="drawer-link <%= active === 'order' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span> Order</a>
+    <a href="/admin/users" class="drawer-link <%= active === 'users' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> Kelola User</a>
+    <a href="/admin/settings" class="drawer-link <%= active === 'settings' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gear"></i></span> Pengaturan</a>
+    <a href="/produk" class="drawer-link drawer-link-group"><span class="nav-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></span> Lihat Situs (Mode User)</a>
+  </nav>
+
+  <form action="/logout" method="POST" class="drawer-logout">
+    <button type="submit" class="btn danger" style="width:100%;"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+  </form>
+</aside>
+
+<script>
+(function () {
+  var openBtn = document.getElementById('drawerOpenBtn');
+  var closeBtn = document.getElementById('drawerCloseBtn');
+  var overlay = document.getElementById('drawerOverlay');
+  var panel = document.getElementById('drawerPanel');
+
+  function openDrawer() {
+    overlay.classList.add('show');
+    panel.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    overlay.classList.remove('show');
+    panel.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  if (openBtn) openBtn.addEventListener('click', openDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  if (overlay) overlay.addEventListener('click', closeDrawer);
+})();
+</script>
