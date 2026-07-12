@@ -354,7 +354,25 @@ router.post('/digiflazz/margin', (req, res) => {
   const marginType = req.body.marginType === 'fixed' ? 'fixed' : 'percent';
   const marginValue = Number(req.body.marginValue) || 0;
   updateConfig({ digiflazz: { marginType, marginValue } });
-  renderDigiflazzPage(req, res, { success: 'Margin default berhasil disimpan' });
+
+  // Margin default baru harus LANGSUNG kepakai ke harga jual produk yang belum punya margin
+  // sendiri -- sebelumnya cuma config-nya yang keupdate, harga produk yang udah keimport tetep
+  // pakai margin lama sampai admin klik "Sinkron Semua Harga" (padahal itu wajarnya cuma perlu
+  // buat ambil harga MODAL terbaru dari Digiflazz). Di sini kita hitung ulang harga JUAL pakai
+  // harga modal yang udah ke-cache lokal (digiflazzBasePrice), jadi gak perlu manggil API
+  // Digiflazz lagi -- cepat & gak kena rate limit. computeSellPrice otomatis pakai margin produk
+  // masing-masing kalau ada override, atau margin default (yang baru aja disimpan) kalau kosong.
+  const products = getAllProducts().filter(p => p.provider === 'digiflazz');
+  let updated = 0;
+  products.forEach(p => {
+    const sellPrice = computeSellPrice(p.digiflazzBasePrice, p.marginType || null, p.marginValue);
+    if (sellPrice !== p.price) {
+      updateProduct(p.id, { price: sellPrice });
+      updated++;
+    }
+  });
+
+  renderDigiflazzPage(req, res, { success: `Margin default berhasil disimpan. ${updated} produk (tanpa margin sendiri) langsung ikut diperbarui harganya.` });
 });
 
 // Import 1 produk dari price list Digiflazz jadi produk lokal
