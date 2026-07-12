@@ -7,13 +7,9 @@
 
   <div class="main produk-main no-bottom-nav">
 
-    <!-- Topbar info baris atas -->
-    <div class="topbar">
-      <div class="topbar-search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="produkSearchInput" placeholder="Cari produk atau game...">
-      </div>
-      <div class="flex" style="gap:8px;">
+    <!-- Topbar info baris atas: badge member + saldo/tamu -->
+    <div class="topbar" style="margin-bottom: 12px;">
+      <div class="flex" style="gap:8px; margin-left:auto;">
         <% if (user && (user.membership || 'reguler') !== 'reguler') { %>
           <span class="badge member-<%= user.membership %>"><%- user.membership === 'platinum' ? '<i class="fa-solid fa-gem"></i> Platinum' : '<i class="fa-solid fa-medal"></i> Gold' %></span>
         <% } %>
@@ -23,6 +19,20 @@
           <a href="/login" class="user-chip guest-chip"><span class="dot guest"></span> Masuk / Daftar</a>
         <% } %>
       </div>
+    </div>
+
+    <!-- ====== TAB KATEGORI (filter produk per kategori, tanpa reload) ====== -->
+    <div class="cat-tabs" id="catTabs">
+      <button type="button" class="cat-tab active" data-cat="all"><i class="fa-solid fa-table-cells-large"></i> Semua</button>
+      <% rows.forEach(row => { %>
+        <button type="button" class="cat-tab" data-cat="<%= row.category %>"><i class="fa-solid fa-gamepad"></i> <%= row.category %></button>
+      <% }) %>
+    </div>
+
+    <!-- ====== SEARCH PRODUK (pill + tombol bulat) ====== -->
+    <div class="catalog-search-bar">
+      <input type="text" id="produkSearchInput" placeholder="Cari produk atau game...">
+      <button type="button" class="catalog-search-btn" id="catalogSearchBtn" aria-label="Cari produk"><i class="fa-solid fa-magnifying-glass"></i></button>
     </div>
 
     <div id="produkSearchEmpty" class="card empty-state" style="display:none;">Produk "<span id="produkSearchEmptyTerm"></span>" tidak ditemukan.</div>
@@ -114,7 +124,7 @@
       <div class="card empty-state">Belum ada produk tersedia saat ini.</div>
     <% } else { %>
       <% rows.forEach(row => { %>
-        <div class="nf-row" data-row>
+        <div class="nf-row" data-row data-category="<%= row.category %>">
           <div class="nf-row-title"><i class="fa-solid fa-gamepad"></i> <%= row.category %></div>
           <div class="nf-row-track">
             <% row.products.forEach(p => { %>
@@ -207,6 +217,32 @@
   resetAuto();
 })();
 
+// ===== TAB KATEGORI (filter produk per kategori, tanpa reload) =====
+(function () {
+  var tabs = document.querySelectorAll('.cat-tab');
+  var rows = document.querySelectorAll('[data-row]');
+  var searchInput = document.getElementById('produkSearchInput');
+  if (!tabs.length) return;
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+
+      // Pindah tab = mulai dari tampilan bersih, biar gak ketimpa sisa filter search sebelumnya
+      if (searchInput) searchInput.value = '';
+      var emptyBox = document.getElementById('produkSearchEmpty');
+      if (emptyBox) emptyBox.style.display = 'none';
+
+      var cat = tab.dataset.cat;
+      rows.forEach(function (row) {
+        row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none';
+        row.querySelectorAll('.nf-card').forEach(function (card) { card.style.display = ''; });
+      });
+    });
+  });
+})();
+
 // ===== SEARCH PRODUK (live filter, tanpa reload) =====
 (function () {
   var input = document.getElementById('produkSearchInput');
@@ -214,10 +250,16 @@
   var rows = document.querySelectorAll('[data-row]');
   var emptyBox = document.getElementById('produkSearchEmpty');
   var emptyTerm = document.getElementById('produkSearchEmptyTerm');
+  var tabs = document.querySelectorAll('.cat-tab');
 
   input.addEventListener('input', function () {
     var q = input.value.trim().toLowerCase();
     var totalVisible = 0;
+
+    // Lagi ngetik cari = jelajah lintas kategori, jadi tab balik ke "Semua"
+    if (q && tabs.length) {
+      tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.cat === 'all'); });
+    }
 
     rows.forEach(function (row) {
       var cards = row.querySelectorAll('.nf-card');
