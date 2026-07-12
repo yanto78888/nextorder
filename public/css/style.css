@@ -188,29 +188,80 @@ h1, h2, h3, h4 {
   gap: 12px;
 }
 
-.topbar-search {
+/* ===== TAB KATEGORI (pill, scroll ke samping, gaya kayak referensi) ===== */
+.cat-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cat-tabs::-webkit-scrollbar { display: none; }
+.cat-tab {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+  white-space: nowrap;
+}
+.cat-tab i { font-size: 12px; }
+.cat-tab:hover { border-color: var(--cyan); }
+.cat-tab.active {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(229,9,20,0.35);
+}
+
+/* ===== SEARCH PRODUK: pill full-width + tombol bulat (gaya kayak referensi) ===== */
+.catalog-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   border-radius: 999px;
-  padding: 10px 16px;
-  flex: 1;
-  min-width: 180px;
-  max-width: 320px;
+  padding: 6px 6px 6px 20px;
+  margin-bottom: 22px;
 }
-.topbar-search i { color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
-.topbar-search input {
+.catalog-search-bar input {
+  flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   outline: none;
   color: var(--text-main);
-  font-size: 13px;
-  width: 100%;
+  font-size: 14px;
   font-family: inherit;
 }
-.topbar-search input::placeholder { color: var(--text-dim); }
+.catalog-search-bar input::placeholder { color: var(--text-dim); }
+.catalog-search-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cyan);
+  color: #fff;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(229,9,20,0.4);
+}
 
 .user-chip {
   display: flex;
