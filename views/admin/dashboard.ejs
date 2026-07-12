@@ -27,9 +27,12 @@
       </div>
     <% } %>
     <% if (emptyStockProducts && emptyStockProducts.length > 0) { %>
+      <% const stockAlertMax = 6; %>
+      <% const stockAlertShown = emptyStockProducts.slice(0, stockAlertMax).map(p => p.name); %>
+      <% const stockAlertMore = emptyStockProducts.length - stockAlertShown.length; %>
       <div class="adm-alert-banner adm-alert-yellow">
         <span class="adm-alert-icon"><i class="fa-solid fa-box"></i></span>
-        <span>Stok kosong: <b><%= emptyStockProducts.map(p => p.name).join(', ') %></b></span>
+        <span>Stok kosong (<%= emptyStockProducts.length %>): <b><%= stockAlertShown.join(', ') %><%= stockAlertMore > 0 ? ` +${stockAlertMore} lainnya` : '' %></b></span>
         <a href="/admin/produk" class="adm-alert-cta">Isi Stok →</a>
       </div>
     <% } %>
