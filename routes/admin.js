@@ -147,7 +147,11 @@ router.get('/', (req, res) => {
   const users = getAllUsers();
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const manualOrders = orders.filter(o => o.manualRequired && o.status === 'processing');
-  const emptyStockProducts = getAllProducts().filter(p => p.status === 'active' && (!p.stockItems || p.stockItems.length === 0));
+  // Cuma produk Stok Manual yang relevan buat peringatan ini — produk Digiflazz dikirim otomatis
+  // oleh sistem via API (gak pernah nyimpen stockItems), jadi "stockItems kosong" itu normal buat
+  // Digiflazz dan BUKAN berarti kehabisan stok. Tanpa filter ini semua produk Digiflazz bakal selalu
+  // nongol di sini padahal gak ada masalah — makanya dipisah sama seperti di /admin/produk & /admin/digiflazz.
+  const emptyStockProducts = getAllProducts().filter(p => p.status === 'active' && p.provider !== 'digiflazz' && (!p.stockItems || p.stockItems.length === 0));
 
   // Buat data grafik 7 hari terakhir
   const now = new Date();
