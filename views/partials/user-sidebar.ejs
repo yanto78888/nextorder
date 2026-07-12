@@ -3,16 +3,11 @@
   const avatarUrl = (!isGuest && user.avatar) ? user.avatar : '';
   const initial = isGuest ? '?' : (user.username || '?').charAt(0).toUpperCase();
   const community = (typeof config !== 'undefined' && config.community) ? config.community : {};
-  const searchQ = (typeof searchQuery !== 'undefined' && searchQuery) ? searchQuery : '';
 %>
 
 <div class="phone-topbar">
   <button type="button" class="icon-btn hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
     <i class="fa-solid fa-bars"></i>
-  </button>
-
-  <button type="button" class="icon-btn search-toggle-btn" id="searchToggleBtn" title="Cari produk" aria-label="Cari produk">
-    <i class="fa-solid fa-magnifying-glass"></i>
   </button>
 
   <div class="brand brand-center">
@@ -34,28 +29,6 @@
     </a>
   <% } %>
 </div>
-
-<form class="search-bar-row" id="searchBarRow" action="/produk" method="GET">
-  <i class="fa-solid fa-magnifying-glass search-bar-icon" aria-hidden="true"></i>
-  <input type="text" name="q" id="searchBarInput" class="search-bar-input" placeholder="Cari produk / game..." value="<%= searchQ %>" autocomplete="off">
-  <% if (searchQ) { %>
-    <a href="/produk" class="search-bar-clear" title="Hapus pencarian" aria-label="Hapus pencarian"><i class="fa-solid fa-xmark"></i></a>
-  <% } %>
-</form>
-
-<script>
-(function () {
-  var btn = document.getElementById('searchToggleBtn');
-  var bar = document.getElementById('searchBarRow');
-  var input = document.getElementById('searchBarInput');
-  if (!btn || !bar) return;
-  if (input && input.value) bar.classList.add('open');
-  btn.addEventListener('click', function () {
-    bar.classList.toggle('open');
-    if (bar.classList.contains('open') && input) input.focus();
-  });
-})();
-</script>
 
 <!-- ===== DRAWER (garis 3 pojok kiri atas) ===== -->
 <div class="drawer-overlay" id="drawerOverlay"></div>
