@@ -610,7 +610,9 @@ input[type="file"]::file-selector-button {
 .member-card.member-gold .member-card-title { color: var(--gold); }
 .member-card.member-platinum .member-card-title { color: var(--platinum); }
 
-/* ---------- NETFLIX-STYLE CATALOG ROWS ---------- */
+/* ---------- CATALOG ROWS: grid 2 kolom, isi ke pinggir & lanjut ke bawah ----------
+   (dulu horizontal-scroll ala Netflix; sekarang wrap ke grid supaya semua produk
+   kelihatan tanpa perlu geser ke samping, mirip gaya situs referensi) */
 .nf-row { margin-bottom: 26px; }
 .nf-row-title {
   font-family: var(--font-display);
@@ -621,20 +623,12 @@ input[type="file"]::file-selector-button {
   color: var(--text-main);
 }
 .nf-row-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
 }
-.nf-row-track::-webkit-scrollbar { height: 6px; }
-.nf-row-track::-webkit-scrollbar-thumb { background: var(--bg-panel-2); border-radius: 3px; }
 
 .nf-card {
-  flex: 0 0 auto;
-  width: 160px;
-  scroll-snap-align: start;
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   border-radius: var(--radius);
@@ -649,7 +643,7 @@ input[type="file"]::file-selector-button {
 }
 .nf-card-thumb {
   position: relative;
-  height: 110px;
+  height: 128px;
   background: linear-gradient(135deg, #1a1a1a, #000);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
@@ -690,10 +684,8 @@ input[type="file"]::file-selector-button {
 .nf-price-old { font-size: 11px; color: var(--text-dim); text-decoration: line-through; }
 .nf-price-now { font-family: var(--font-mono); color: var(--cyan); font-size: 14px; font-weight: 700; }
 
-@media (max-width: 520px) {
-  .nf-card { width: 140px; }
-  .nf-card-thumb { height: 96px; }
-}
+/* Kartu sekarang lebar mengikuti kolom grid (2 kolom, isi ke pinggir), jadi gak perlu lagi
+   override width tetap buat layar kecil kayak sebelumnya. */
 
 /* ===== GAME CATALOG: badge ikon game + efek neon di card ===== */
 .game-card { position: relative; }
@@ -773,15 +765,23 @@ input[type="file"]::file-selector-button {
 }
 /* bottom-nav HD override removed */
 
-/* ---- Topbar layout: hamburger left / brand center / avatar right ---- */
+/* ---- Topbar layout: avatar left / brand center / hamburger+search right ----
+   CATATAN: sebelumnya cuma 3 kolom didefinisikan (grid-template-columns) padahal
+   markup-nya ada 4 elemen (hamburger, tombol search, brand, avatar). Karena grid
+   auto-placement cuma nyediain 3 slot per baris, elemen ke-4 (avatar) otomatis
+   "meluber" ke baris baru — makanya avatar keliatan nyangkut di bawah kiri,
+   bukan sejajar di baris atas. Sekarang kolomnya 4, dan urutan visualnya diatur
+   pakai `order` (bukan ubah urutan HTML) biar avatar pindah ke pojok kiri atas
+   sesuai permintaan, tanpa perlu bongkar markup/JS drawer yang sudah jalan. */
 .phone-topbar {
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 44px 1fr 44px 44px;
   display: grid;
   align-items: center;
 }
-.brand-center { justify-self: center; align-items: center; text-align: center; }
+.brand-center { order: 2; justify-self: center; align-items: center; text-align: center; }
 
-.hamburger-btn { position: relative; }
+.hamburger-btn { order: 3; position: relative; }
+.search-toggle-btn { order: 4; }
 .hamburger-lines {
   display: flex;
   flex-direction: column;
@@ -799,9 +799,10 @@ input[type="file"]::file-selector-button {
 }
 .hamburger-btn:hover .hamburger-lines span { background: var(--cyan); }
 
-/* ---- Round profile avatar (top right) ---- */
+/* ---- Round profile avatar (top left) ---- */
 .avatar-btn {
-  justify-self: end;
+  order: 1;
+  justify-self: start;
   width: 40px;
   height: 40px;
   border-radius: 50%;
