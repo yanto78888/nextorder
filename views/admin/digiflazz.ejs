@@ -123,7 +123,7 @@
                 <table>
                   <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
                   <tbody>
-                    <% groupProducts.forEach(p => { %>
+                    <% groupProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
                     <tr>
                       <td><%= p.name %></td>
                       <td class="mono"><%= p.digiflazzSku %></td>
@@ -163,7 +163,7 @@
             <table>
               <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
               <tbody>
-                <% singles.forEach(p => { %>
+                <% singles.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
                 <tr>
                   <td><%= p.name %></td>
                   <td class="mono"><%= p.digiflazzSku %></td>
