@@ -6,12 +6,18 @@
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
   <div class="main detail-main no-bottom-nav">
 
+    <% /* Produk yang tergabung dalam Grup Varian (mis. semua nominal "Mobile Legends") harus tetap
+       menampilkan nama grupnya di sini, BUKAN nama SKU spesifik yang kebetulan jadi link (varian
+       termurah) dari kartu katalog. Kalau tidak, judul halaman "loncat" jadi nama nominal tertentu
+       (mis. "MOBILELEGEND - 3 Diamond") padahal di beranda kartunya cuma tertulis "Mobile Legends". */ %>
+    <% const displayName = product.variantGroup || product.name; %>
+
     <!-- Hero Image -->
     <div class="detail-hero">
       <% if (displayThumbnail) { %>
-        <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= product.name %>">
+        <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= displayName %>">
       <% } else { %>
-        <div class="detail-thumb detail-thumb-placeholder"><%= product.name.charAt(0).toUpperCase() %></div>
+        <div class="detail-thumb detail-thumb-placeholder"><%= displayName.charAt(0).toUpperCase() %></div>
       <% } %>
       <div class="detail-hero-overlay"></div>
       <a href="/produk" class="detail-back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
@@ -27,7 +33,7 @@
         <span class="detail-category"><%= product.category || 'Umum' %></span>
       </div>
 
-      <h1 class="detail-title"><%= product.name %></h1>
+      <h1 class="detail-title"><%= displayName %></h1>
 
       <!-- Rating display -->
       <div class="rating-row">
