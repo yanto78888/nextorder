@@ -1531,10 +1531,11 @@ input[type="file"]::file-selector-button {
 
 /* ---- Alert banners ---- */
 .adm-alert-banner {
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:flex-start; gap:10px;
   padding:10px 14px; border-radius:10px; margin-bottom:10px;
   font-size:13px; font-weight:600;
 }
+.adm-alert-banner > .adm-alert-icon { margin-top:1px; }
 .adm-alert-red { background:rgba(229,9,20,0.1); border:1px solid rgba(229,9,20,0.3); color:#ff6b6b; }
 .adm-alert-yellow { background:rgba(245,197,24,0.08); border:1px solid rgba(245,197,24,0.3); color:#f5c518; }
 .adm-alert-icon { font-size:16px; flex-shrink:0; }
