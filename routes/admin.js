@@ -557,8 +557,19 @@ router.post('/order/manual', async (req, res) => {
 });
 
 // ---------- USERS ----------
+function renderUsersPage(req, res, extra = {}) {
+  res.render('admin/users', {
+    users: getAllUsers(),
+    config: getConfig(),
+    membershipList: getMembershipList(),
+    error: null,
+    success: null,
+    ...extra
+  });
+}
+
 router.get('/users', (req, res) => {
-  res.render('admin/users', { users: getAllUsers(), config: getConfig(), membershipList: getMembershipList() });
+  renderUsersPage(req, res);
 });
 
 router.post('/users/:id/saldo', (req, res) => {
@@ -583,6 +594,22 @@ router.post('/users/:id/membership', (req, res) => {
     updateUser(req.params.id, { membership: tier });
   }
   res.redirect('/admin/users');
+});
+
+router.post('/users/:id/password', (req, res) => {
+  const target = findUserById(req.params.id);
+  if (!target) return renderUsersPage(req, res, { error: 'User tidak ditemukan' });
+
+  const { newPassword, newPassword2 } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return renderUsersPage(req, res, { error: `Password baru buat "${target.username}" minimal 6 karakter` });
+  }
+  if (newPassword !== newPassword2) {
+    return renderUsersPage(req, res, { error: `Konfirmasi password baru buat "${target.username}" tidak cocok` });
+  }
+
+  setPassword(target.id, newPassword);
+  renderUsersPage(req, res, { success: `Password "${target.username}" berhasil diganti.` });
 });
 
 // ---------- SETTINGS ----------
