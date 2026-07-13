@@ -126,8 +126,11 @@ h1, h2, h3, h4 {
   display: flex;
   align-items: center;
   background: rgba(10,10,10,0.88);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  /* Sama kayak phone-topbar, ini position:fixed jadi kena biaya render ulang tiap frame pas
+     discroll -- bedanya di sini background-nya emang transparan jadi blur-nya kepakai beneran.
+     Radiusnya diperkecil (dari 16px) biar tetep ada efek kaca buram tapi gak seberat sebelumnya. */
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
   border: 1.5px solid rgba(255,255,255,0.1);
   border-radius: 999px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset;
@@ -810,29 +813,31 @@ input[type="file"]::file-selector-button {
 }
 .btn.solid { box-shadow: 0 4px 18px rgba(229,9,20,0.35); }
 .btn.magenta { box-shadow: 0 4px 18px rgba(245,197,24,0.25); }
+/* Header sticky ini backgroundnya udah solid/opaque (gradient hitam pekat di atas, gak ada
+   transparansi sama sekali) -- jadi backdrop-filter di sini gak pernah kelihatan efeknya blur
+   apa pun, cuma numpang lewat doang. Padahal karena elemennya position:sticky, browser tetap
+   wajib ngitung ulang blur itu di SETIAP frame pas discroll (konten di baliknya kan terus
+   berubah) -- ini penyebab utama scroll berasa berat di halaman yang pakai header ini
+   (termasuk detail produk & dashboard admin, dua-duanya share partial yang sama). Dihapus
+   biar scroll jadi mulus, tampilannya gak berubah sama sekali karena memang gak pernah
+   kepakai efeknya. */
 .phone-topbar {
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  backdrop-filter: blur(10px);
 }
 /* bottom-nav HD override removed */
 
-/* ---- Topbar layout: avatar left / brand center / hamburger+search right ----
-   CATATAN: sebelumnya cuma 3 kolom didefinisikan (grid-template-columns) padahal
-   markup-nya ada 4 elemen (hamburger, tombol search, brand, avatar). Karena grid
-   auto-placement cuma nyediain 3 slot per baris, elemen ke-4 (avatar) otomatis
-   "meluber" ke baris baru — makanya avatar keliatan nyangkut di bawah kiri,
-   bukan sejajar di baris atas. Sekarang kolomnya 4, dan urutan visualnya diatur
-   pakai `order` (bukan ubah urutan HTML) biar avatar pindah ke pojok kiri atas
-   sesuai permintaan, tanpa perlu bongkar markup/JS drawer yang sudah jalan. */
+/* ---- Topbar layout: avatar left / brand center / hamburger right ----
+   Tombol search di header dihapus (form yang dia buka gak pernah beneran
+   nyari apa-apa -- server selalu abaikan query-nya, jadi cuma dekorasi mati).
+   Sekarang cuma 3 elemen: avatar, brand, hamburger -- jadi kolomnya 3 lagi. */
 .phone-topbar {
-  grid-template-columns: 44px 1fr 44px 44px;
+  grid-template-columns: 44px 1fr 44px;
   display: grid;
   align-items: center;
 }
 .brand-center { order: 2; justify-self: center; align-items: center; text-align: center; }
 
 .hamburger-btn { order: 3; position: relative; }
-.search-toggle-btn { order: 4; }
 .hamburger-lines {
   display: flex;
   flex-direction: column;
