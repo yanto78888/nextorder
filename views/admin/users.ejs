@@ -8,12 +8,22 @@
   <div class="main no-bottom-nav">
     <div class="topbar"><h2>Kelola User</h2></div>
 
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="alert" style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); color:var(--success);"><%= success %></div>
+    <% } %>
+
+    <div class="card" style="margin-bottom:14px;">
+      <input type="text" id="userSearchInput" placeholder="Cari username atau email..." style="width:100%;">
+    </div>
+    <div id="userSearchEmpty" class="card empty-state" style="display:none;">User "<span id="userSearchEmptyTerm"></span>" tidak ditemukan.</div>
+
     <div class="card">
       <table>
         <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Member</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody>
           <% users.forEach(u => { %>
-          <tr>
+          <tr data-user-row data-username="<%= u.username.toLowerCase() %>" data-email="<%= (u.email || '').toLowerCase() %>">
             <td><%= u.username %></td>
             <td><%= u.email || '-' %></td>
             <td class="mono">Rp <%= u.saldo.toLocaleString('id-ID') %></td>
@@ -46,6 +56,12 @@
                   </select>
                   <button class="btn small magenta" type="submit">Set Member</button>
                 </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/password" class="flex" style="gap:4px;"
+                      onsubmit="return confirm('Ganti password <%= u.username %>?');">
+                  <input type="password" name="newPassword" placeholder="Password baru" minlength="6" style="width:100px;" required>
+                  <input type="password" name="newPassword2" placeholder="Ulangi" minlength="6" style="width:90px;" required>
+                  <button class="btn small ghost" type="submit">Ganti Password</button>
+                </form>
               </div>
             </td>
           </tr>
@@ -55,5 +71,29 @@
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  var input = document.getElementById('userSearchInput');
+  if (!input) return;
+  var rows = document.querySelectorAll('[data-user-row]');
+  var emptyBox = document.getElementById('userSearchEmpty');
+  var emptyTerm = document.getElementById('userSearchEmptyTerm');
+
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var match = !q || row.dataset.username.includes(q) || row.dataset.email.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (emptyBox) {
+      emptyBox.style.display = (q && visible === 0) ? '' : 'none';
+      if (emptyTerm) emptyTerm.textContent = input.value.trim();
+    }
+  });
+})();
+</script>
 </body>
 </html>
