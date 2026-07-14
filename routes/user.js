@@ -284,6 +284,38 @@ router.get('/produk', (req, res) => {
   });
 });
 
+// Daftar Harga Layanan: transparansi harga semua produk aktif, dikelompokkan per kategori,
+// bisa dibuka tanpa login (sama kayak /produk, cuma format ringkas buat dipindai cepat).
+router.get('/daftar-harga', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  const discountPercent = user ? getMembershipDiscount(user) : 0;
+
+  const products = getActiveProducts().map(p => ({
+    ...p,
+    finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price
+  }));
+
+  const categoryOrder = [];
+  const grouped = {};
+  products.forEach(p => {
+    const cat = p.category || 'Umum';
+    if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
+    grouped[cat].push(p);
+  });
+  // Termurah ke termahal dalam tiap kategori biar enak dipindai matanya
+  categoryOrder.forEach(cat => grouped[cat].sort((a, b) => a.finalPrice - b.finalPrice));
+  const groups = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
+
+  res.render('daftar-harga', {
+    groups,
+    totalProducts: products.length,
+    memberDiscount: discountPercent,
+    user,
+    config: cfg
+  });
+});
+
 router.post('/order', requireLogin, async (req, res) => {
   const user = findUserById(req.session.user.id);
   const product = findProductById(req.body.productId);
