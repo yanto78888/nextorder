@@ -113,65 +113,6 @@ h1, h2, h3, h4 {
 }
 .icon-btn:hover { color: var(--danger); border-color: var(--danger); background: rgba(229,9,20,0.08); }
 
-/* Bottom tab bar */
-/* ====== BOTTOM NAV — compact pill style ====== */
-.bottom-nav {
-  position: fixed;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: 420px;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  background: rgba(10,10,10,0.88);
-  /* Sama kayak phone-topbar, ini position:fixed jadi kena biaya render ulang tiap frame pas
-     discroll -- bedanya di sini background-nya emang transparan jadi blur-nya kepakai beneran.
-     Radiusnya diperkecil (dari 16px) biar tetep ada efek kaca buram tapi gak seberat sebelumnya. */
-  backdrop-filter: blur(8px) saturate(1.4);
-  -webkit-backdrop-filter: blur(8px) saturate(1.4);
-  border: 1.5px solid rgba(255,255,255,0.1);
-  border-radius: 999px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset;
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-  gap: 4px;
-}
-
-.nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 6px 4px;
-  border-radius: 999px;
-  color: var(--text-dim);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-align: center;
-  border: none;
-  transition: all .18s ease;
-}
-.nav-item .nav-icon {
-  font-size: 18px;
-  line-height: 1;
-  transition: transform .18s ease;
-}
-.nav-item:hover { color: var(--text-main); }
-.nav-item:hover .nav-icon { transform: translateY(-2px); }
-.nav-item.active {
-  color: #fff;
-  background: var(--cyan);
-  box-shadow: 0 4px 14px rgba(229,9,20,0.5);
-  border-radius: 999px;
-  padding-left: 16px;
-  padding-right: 16px;
-}
-.nav-item.active .nav-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
-
 .main {
   padding: 20px 16px calc(88px + env(safe-area-inset-bottom));
   max-width: 100%;
@@ -607,9 +548,6 @@ input[type="file"]::file-selector-button {
   }
   .phone-topbar { padding: 12px 14px; }
   .brand { font-size: 16px; }
-  .bottom-nav { max-width: 100%; }
-  .nav-item { padding: 7px 1px; font-size: 9px; }
-  .nav-item .nav-icon { font-size: 18px; }
   .main { padding-left: 12px; padding-right: 12px; }
   .card { padding: 18px; }
   .grid-2, .grid-4, .settings-grid, .form-mini-grid { grid-template-columns: 1fr; }
@@ -632,8 +570,6 @@ input[type="file"]::file-selector-button {
 }
 
 @media (max-width: 360px) {
-  .nav-item { font-size: 8px; }
-  .nav-item .nav-icon { font-size: 16px; }
   .brand small { font-size: 8px; }
 }
 
@@ -678,8 +614,8 @@ input[type="file"]::file-selector-button {
 }
 .nf-row-track {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
 .nf-card {
@@ -697,7 +633,7 @@ input[type="file"]::file-selector-button {
 }
 .nf-card-thumb {
   position: relative;
-  height: 128px;
+  height: 96px;
   background: linear-gradient(135deg, #1a1a1a, #000);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
@@ -722,8 +658,16 @@ input[type="file"]::file-selector-button {
 .nf-stock-tag.ok { background: rgba(46,204,113,0.85); color: #06210f; }
 .nf-stock-tag.warn { background: rgba(255,215,0,0.85); color: #241a00; }
 
-.nf-card-body { padding: 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.nf-card-name { font-size: 13px; font-weight: 700; line-height: 1.25; }
+.nf-card-body { padding: 8px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.nf-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .nf-card-desc {
   font-size: 11px;
   color: var(--text-dim);
@@ -736,7 +680,7 @@ input[type="file"]::file-selector-button {
 }
 .nf-card-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .nf-price-old { font-size: 11px; color: var(--text-dim); text-decoration: line-through; }
-.nf-price-now { font-family: var(--font-mono); color: var(--cyan); font-size: 14px; font-weight: 700; }
+.nf-price-now { font-family: var(--font-mono); color: var(--cyan); font-size: 12.5px; font-weight: 700; }
 
 /* Kartu sekarang lebar mengikuti kolom grid (2 kolom, isi ke pinggir), jadi gak perlu lagi
    override width tetap buat layar kecil kayak sebelumnya. */
@@ -965,8 +909,8 @@ input[type="file"]::file-selector-button {
 /* ---- Quick action row: Deposit / Riwayat / Profil ---- */
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin-bottom: 22px;
 }
 .quick-action-btn {
@@ -992,6 +936,7 @@ input[type="file"]::file-selector-button {
 .quick-action-btn.qa-deposit .qa-icon { color: var(--success); }
 .quick-action-btn.qa-riwayat .qa-icon { color: var(--magenta); }
 .quick-action-btn.qa-profile .qa-icon { color: var(--cyan); }
+.quick-action-btn.qa-harga .qa-icon { color: var(--platinum); }
 
 /* ---- Guest banner / chip ---- */
 .guest-chip { color: var(--text-dim); }
@@ -1428,7 +1373,7 @@ input[type="file"]::file-selector-button {
 }
 .buy-main-btn:hover { box-shadow: 0 8px 28px rgba(229,9,20,0.55); }
 
-.guest-buy-box { text-align: center; }
+.guest-buy-box { text-align: center; margin-top: 4px; }
 
 
 /* =====================================================================
@@ -1564,16 +1509,9 @@ input[type="file"]::file-selector-button {
   box-shadow: 0 0 6px rgba(229,9,20,0.6);
 }
 
-/* ---- Media queries for pill nav & banner ---- */
+/* ---- Media query for banner (bottom-nav rules dihapus dari sini, fiturnya gak pernah
+   dipakai -- setiap halaman selalu pakai .no-bottom-nav, lihat catatan di bagian akhir file) ---- */
 @media (max-width: 520px) {
-  .bottom-nav {
-    bottom: 10px;
-    width: calc(100% - 24px);
-    padding: 5px 6px calc(5px + env(safe-area-inset-bottom));
-  }
-  .nav-item { font-size: 8px; }
-  .nav-item .nav-icon { font-size: 16px; }
-  .nav-item.active { padding-left: 12px; padding-right: 12px; }
   .banner-slider { aspect-ratio: 16 / 7; }
 }
 
@@ -1757,3 +1695,254 @@ input[type="file"]::file-selector-button {
 .rstar-on { color:#f5c518; font-size:13px; }
 .rstar-off { color:var(--border-glow); font-size:13px; }
 .review-comment { font-size:13px; color:var(--text-main); line-height:1.6; padding-left:44px; }
+
+/* =====================================================================
+   LIPAT / TAMPILKAN SEMUA PER KATEGORI (beranda: 3 kolom x 3 baris dulu,
+   sisanya disembunyikan sampai tombol "Lihat Semua" ditekan)
+   ===================================================================== */
+.nf-row:not(.expanded) .nf-card-extra { display: none; }
+
+.nf-row-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 11px;
+  background: transparent;
+  border: 1.5px dashed var(--border-glow);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.nf-row-more:hover { border-color: var(--cyan); color: var(--cyan); }
+.nf-row-more-icon { font-size: 11px; transition: transform .2s ease; }
+.nf-row.expanded .nf-row-more-icon { transform: rotate(180deg); }
+
+/* =====================================================================
+   TOMBOL KONTAK BANTUAN (FAB WhatsApp, tampil di semua halaman utama)
+   ===================================================================== */
+.help-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #2ecc71, #1f9c56);
+  color: #06210f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 8px 24px rgba(46,204,113,0.45), 0 0 0 1px rgba(255,255,255,0.08) inset;
+  z-index: 45;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.help-fab:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 12px 28px rgba(46,204,113,0.55); }
+
+/* =====================================================================
+   FOOTER (trust badge, kontak, komunitas, tautan cepat)
+   ===================================================================== */
+.site-footer {
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-glow);
+}
+.footer-trust {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.footer-trust-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 14px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+.footer-trust-item i { font-size: 18px; color: var(--cyan); }
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(229,9,20,0.4);
+  margin-bottom: 6px;
+  letter-spacing: .5px;
+}
+.footer-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+.footer-col-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.footer-links { display: flex; flex-direction: column; gap: 9px; }
+.footer-links a {
+  font-size: 13px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color .15s ease;
+}
+.footer-links a i { color: var(--text-dim); width: 14px; font-size: 12px; }
+.footer-links a:hover { color: var(--cyan); }
+.footer-links a:hover i { color: var(--cyan); }
+.footer-payment-note { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.footer-payment-note .fp-icons { margin-top: 8px; display: flex; gap: 10px; font-size: 18px; color: var(--text-dim); }
+.footer-bottom {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-glow);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.footer-bottom b { color: var(--text-main); }
+
+@media (min-width: 620px) {
+  .footer-grid { grid-template-columns: 1.3fr 1fr 1fr; }
+}
+
+/* =====================================================================
+   HALAMAN DAFTAR HARGA (/daftar-harga) — daftar semua produk & harga,
+   bisa dibuka tanpa login, dikelompokkan per kategori
+   ===================================================================== */
+.price-hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.price-hero-card .value { font-size: 26px; }
+.price-list-jump {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 18px;
+  scrollbar-width: none;
+}
+.price-list-jump::-webkit-scrollbar { display: none; }
+.price-list-jump a {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-panel);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.price-list-jump a:hover { border-color: var(--cyan); color: var(--cyan); }
+.price-list-group { margin-bottom: 24px; }
+.price-row-list { display: flex; flex-direction: column; gap: 3px; }
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background .15s ease, border-color .15s ease;
+}
+.price-row:hover { background: var(--bg-panel); border-color: var(--border-glow); }
+.price-row-info { min-width: 0; }
+.price-row-name { font-size: 13px; font-weight: 600; color: var(--text-main); }
+.price-row-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.price-row-price-wrap { text-align: right; flex-shrink: 0; }
+.price-row-price { font-family: var(--font-mono); font-weight: 800; color: var(--cyan); font-size: 14px; white-space: nowrap; }
+.price-row-price-old { font-size: 10.5px; color: var(--text-dim); text-decoration: line-through; display: block; }
+
+/* =====================================================================
+   DESKTOP LAYOUT (>= 900px) — sidebar tetap kelihatan di kiri, konten
+   melebar, katalog nambah kolom biar gak numpuk kosong di layar lebar
+   ===================================================================== */
+@media (min-width: 620px) {
+  .nf-row-track { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .nf-card-thumb { height: 130px; }
+  .nf-card-name { font-size: 13px; }
+  .nf-price-now { font-size: 14px; }
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    max-width: 1240px;
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "sidebar main";
+    border-left: 0;
+    border-right: 0;
+  }
+  .phone-topbar { grid-area: topbar; grid-template-columns: 44px 1fr; padding: 16px 28px; }
+  .brand-center { justify-self: start; text-align: left; }
+  .hamburger-btn { display: none; }
+  #drawerCloseBtn { display: none; }
+  .drawer-overlay { display: none; }
+  .drawer {
+    grid-area: sidebar;
+    position: sticky;
+    top: 0;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    transform: none;
+    box-shadow: none;
+    border-right: 1.5px solid var(--border-glow);
+  }
+  .main {
+    grid-area: main;
+    padding: 30px 36px 48px;
+    max-width: none;
+    min-width: 0;
+  }
+  .main.no-bottom-nav { padding-bottom: 48px; }
+
+  .nf-row-track { grid-template-columns: repeat(5, 1fr); }
+  .quick-actions { max-width: 640px; }
+  .banner-slider { max-width: 100%; }
+
+  /* Konten baca (deskripsi, buy box, ulasan) di halaman detail produk dibatasi lebarnya
+     biar gak jadi selebar layar penuh -- tetap nyaman dibaca kayak di HP, cuma sekarang
+     ada sidebar + ruang lebih di sekitarnya alih-alih kosong melompong. */
+  .detail-body { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
+  .detail-hero { max-width: 100%; }
+
+  .help-fab { right: 28px; bottom: 28px; }
+}
+
+@media (min-width: 1150px) {
+  .nf-row-track { grid-template-columns: repeat(6, 1fr); }
+}
