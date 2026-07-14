@@ -3,6 +3,9 @@
   const avatarUrl = (!isGuest && user.avatar) ? user.avatar : '';
   const initial = isGuest ? '?' : (user.username || '?').charAt(0).toUpperCase();
   const community = (typeof config !== 'undefined' && config.community) ? config.community : {};
+  const waRaw = ((typeof config !== 'undefined' && config.ownerWhatsapp) || '').replace(/[^0-9]/g, '');
+  const waNumber = waRaw ? (waRaw.startsWith('0') ? '62' + waRaw.slice(1) : waRaw) : '';
+  const waLink = waNumber ? ('https://wa.me/' + waNumber + '?text=' + encodeURIComponent('Halo ' + (config.siteName || '') + ', saya mau tanya-tanya.')) : '';
 %>
 
 <div class="phone-topbar">
@@ -58,6 +61,7 @@
 
   <nav class="drawer-nav">
     <a href="/produk" class="drawer-link <%= active === 'produk' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-house"></i></span> Beranda</a>
+    <a href="/daftar-harga" class="drawer-link <%= active === 'harga' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-tags"></i></span> Daftar Harga</a>
     <% if (!isGuest) { %>
       <a href="/topup" class="drawer-link <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-credit-card"></i></span> Deposit / Top Up</a>
       <a href="/riwayat" class="drawer-link <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Riwayat Order</a>
@@ -65,6 +69,9 @@
     <% } else { %>
       <a href="/login" class="drawer-link"><span class="nav-icon"><i class="fa-solid fa-key"></i></span> Masuk</a>
       <a href="/register" class="drawer-link"><span class="nav-icon"><i class="fa-solid fa-user-plus"></i></span> Daftar Akun</a>
+    <% } %>
+    <% if (waLink) { %>
+      <a href="<%= waLink %>" target="_blank" rel="noopener" class="drawer-link"><span class="nav-icon"><i class="fa-brands fa-whatsapp"></i></span> Bantuan / Kontak</a>
     <% } %>
     <% if (community.groupLink) { %>
       <a href="<%= community.groupLink %>" target="_blank" rel="noopener" class="drawer-link drawer-link-group"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> Gabung Grup Komunitas</a>

@@ -1,0 +1,57 @@
+<%
+  /* Nomor WA owner disimpan di Admin > Setting (config.ownerWhatsapp), dirapikan jadi format
+     wa.me (62xxxxxxxxxx) di sini. Kalau belum diisi admin, tombol kontak & FAB otomatis
+     disembunyikan semua -- daripada nampilin tombol yang ternyata gak nyambung ke mana-mana. */
+  const waRaw = ((typeof config !== 'undefined' && config.ownerWhatsapp) || '').replace(/[^0-9]/g, '');
+  const waNumber = waRaw ? (waRaw.startsWith('0') ? '62' + waRaw.slice(1) : waRaw) : '';
+  const waLink = waNumber ? ('https://wa.me/' + waNumber + '?text=' + encodeURIComponent('Halo ' + (config.siteName || '') + ', saya mau tanya-tanya.')) : '';
+  const community = (typeof config !== 'undefined' && config.community) ? config.community : {};
+  const year = new Date().getFullYear();
+%>
+
+<footer class="site-footer">
+  <div class="footer-trust">
+    <div class="footer-trust-item"><i class="fa-solid fa-shield-halved"></i> Topup Aman &amp; Terpercaya</div>
+    <div class="footer-trust-item"><i class="fa-solid fa-bolt"></i> Produk Terkirim Otomatis</div>
+    <div class="footer-trust-item"><i class="fa-solid fa-headset"></i> Kontak Bantuan Siap Bantu</div>
+  </div>
+
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-brand"><i class="fa-solid fa-bolt"></i> <%= config.siteName || 'TOPUP SHOP' %></div>
+      <p class="footer-desc"><%= config.siteTagline || 'Layanan top up game & digital otomatis, aman, dan terpercaya.' %></p>
+    </div>
+
+    <div class="footer-col">
+      <div class="footer-col-title">Tautan Cepat</div>
+      <div class="footer-links">
+        <a href="/produk"><i class="fa-solid fa-house"></i> Beranda</a>
+        <a href="/daftar-harga"><i class="fa-solid fa-tags"></i> Daftar Harga Layanan</a>
+        <% if (waLink) { %><a href="<%= waLink %>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Kontak Bantuan</a><% } %>
+        <% if (community.groupLink) { %><a href="<%= community.groupLink %>" target="_blank" rel="noopener"><i class="fa-solid fa-users"></i> Grup Komunitas</a><% } %>
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <div class="footer-col-title">Pembayaran</div>
+      <div class="footer-payment-note">
+        Saldo Akun &amp; QRIS — bisa dibayar dari e-wallet maupun m-banking apa saja.
+        <div class="fp-icons" aria-hidden="true">
+          <i class="fa-solid fa-qrcode" title="QRIS"></i>
+          <i class="fa-solid fa-wallet" title="Saldo Akun"></i>
+          <i class="fa-solid fa-building-columns" title="m-Banking"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    © <%= year %> <b><%= config.siteName || 'TOPUP SHOP' %></b>. Semua hak dilindungi. Semua harga dapat berubah sewaktu-waktu tanpa pemberitahuan.
+  </div>
+</footer>
+
+<% if (waLink) { %>
+<a href="<%= waLink %>" target="_blank" rel="noopener" class="help-fab" title="Hubungi Kontak Bantuan via WhatsApp" aria-label="Hubungi Kontak Bantuan via WhatsApp">
+  <i class="fa-brands fa-whatsapp"></i>
+</a>
+<% } %>
