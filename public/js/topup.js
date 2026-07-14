@@ -40,6 +40,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
 
 function showQr(deposit) {
   currentTrxid = deposit.trxid;
+  document.getElementById('form-card').style.display = 'none';
   document.getElementById('qr-card').style.display = 'block';
   document.getElementById('qr-image').src = deposit.imageBase64;
   document.getElementById('d-amount').textContent = 'Rp ' + Number(deposit.amount).toLocaleString('id-ID');
