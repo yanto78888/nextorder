@@ -109,30 +109,45 @@
         </div>
       <% } %>
 
-      <!-- Buy Box -->
-      <% if (user) { %>
-        <div class="detail-buy-box">
+      <!-- Buy Box: grid nominal & harga tampil buat SEMUA ORANG (termasuk tamu belum login).
+           Cuma kontrol pembelian (qty, data tujuan, metode bayar, tombol beli) yang wajib login. -->
+      <div class="detail-buy-box">
 
-          <% if (variants && variants.length > 1) { %>
-          <div class="detail-method-title" style="margin-top:0;">1. Pilih Nominal</div>
-          <div class="variant-grid" id="variantGrid">
-            <% variants.forEach(v => { %>
-              <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %>" data-variant-id="<%= v.id %>">
-                <span class="variant-card-name"><%= v.name %></span>
-                <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
-                <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
-              </button>
-            <% }) %>
-          </div>
+        <% if (variants && variants.length > 1) { %>
+        <div class="detail-method-title" style="margin-top:0;">1. Pilih Nominal</div>
+        <% if (user) { %>
+        <div class="variant-grid" id="variantGrid">
+          <% variants.forEach(v => { %>
+            <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %>" data-variant-id="<%= v.id %>">
+              <span class="variant-card-name"><%= v.name %></span>
+              <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
+              <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
+            </button>
+          <% }) %>
+        </div>
+        <% } else { %>
+        <!-- Tamu: kartu varian jadi tautan biasa ke halaman produknya masing-masing, biar semua
+             harga tetap kelihatan tanpa perlu JS pemilih varian yang cuma jalan buat user login. -->
+        <div class="variant-grid">
+          <% variants.forEach(v => { %>
+            <a href="/produk/<%= v.id %>" class="variant-card <%= v.id === product.id ? 'selected' : '' %>">
+              <span class="variant-card-name"><%= v.name %></span>
+              <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
+              <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
+            </a>
+          <% }) %>
+        </div>
+        <% } %>
+        <% } %>
+
+        <div class="detail-price-main">
+          <% if (finalPrice < product.price) { %>
+            <span class="detail-price-old" id="priceOld">Rp <%= product.price.toLocaleString('id-ID') %></span>
           <% } %>
+          <span class="detail-price-now" id="priceNow">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
+        </div>
 
-          <div class="detail-price-main">
-            <% if (finalPrice < product.price) { %>
-              <span class="detail-price-old" id="priceOld">Rp <%= product.price.toLocaleString('id-ID') %></span>
-            <% } %>
-            <span class="detail-price-now" id="priceNow">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
-          </div>
-
+        <% if (user) { %>
           <div class="detail-qty-row">
             <label><%= variants && variants.length > 1 ? '2. ' : '' %>Jumlah:</label>
             <div class="qty-stepper">
@@ -202,14 +217,13 @@
 
           <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
           <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>">Saldo tidak cukup — gunakan QRIS.</div>
-        </div>
-      <% } else { %>
-        <div class="detail-buy-box guest-buy-box">
-          <div class="detail-price-now" style="margin-bottom:12px;">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
-          <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
-          <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
-        </div>
-      <% } %>
+        <% } else { %>
+          <div class="guest-buy-box">
+            <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
+            <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
+          </div>
+        <% } %>
+      </div>
 
       <!-- ====== ULASAN / KOMENTAR ====== -->
       <div class="reviews-section">
@@ -265,6 +279,7 @@
       </div>
 
     </div><!-- /detail-body -->
+    <%- include('partials/footer') %>
   </div><!-- /main -->
 </div><!-- /app-shell -->
 

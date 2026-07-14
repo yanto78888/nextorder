@@ -105,6 +105,10 @@
           <span class="qa-icon"><i class="fa-solid fa-key"></i></span><span class="qa-label">Masuk</span>
         </a>
       <% } %>
+        <a href="/daftar-harga" class="quick-action-btn qa-harga">
+          <span class="qa-icon"><i class="fa-solid fa-tags"></i></span>
+          <span class="qa-label">Harga</span>
+        </a>
     </div>
 
     <% if (!user) { %>
@@ -127,8 +131,8 @@
         <div class="nf-row" data-row data-category="<%= row.category %>">
           <div class="nf-row-title"><i class="fa-solid fa-gamepad"></i> <%= row.category %></div>
           <div class="nf-row-track">
-            <% row.products.forEach(p => { %>
-              <a href="/produk/<%= p.id %>" class="nf-card nf-card-link game-card" data-name="<%= p.name.toLowerCase() %>">
+            <% row.products.forEach((p, idx) => { %>
+              <a href="/produk/<%= p.id %>" class="nf-card nf-card-link game-card <%= idx >= 9 ? 'nf-card-extra' : '' %>" data-name="<%= p.name.toLowerCase() %>">
                 <div class="nf-card-thumb">
                   <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %><span class="nf-noimg"><%= p.name.slice(0,1) %></span><% } %>
                   <% if (p.isVariantGroup) { %>
@@ -163,10 +167,17 @@
               </a>
             <% }) %>
           </div>
+          <% if (row.products.length > 9) { %>
+            <button type="button" class="nf-row-more" data-total="<%= row.products.length %>">
+              <span class="nf-row-more-text">Lihat Semua (<%= row.products.length %>)</span>
+              <i class="fa-solid fa-chevron-down nf-row-more-icon"></i>
+            </button>
+          <% } %>
         </div>
       <% }) %>
     <% } %>
 
+    <%- include('partials/footer') %>
   </div>
 </div>
 
@@ -238,6 +249,14 @@
       rows.forEach(function (row) {
         row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none';
         row.querySelectorAll('.nf-card').forEach(function (card) { card.style.display = ''; });
+        // Balik ke kondisi terlipat tiap ganti tab, biar konsisten kayak baru buka halaman
+        row.classList.remove('expanded');
+        var moreBtn = row.querySelector('.nf-row-more');
+        if (moreBtn) {
+          moreBtn.style.display = '';
+          var textEl = moreBtn.querySelector('.nf-row-more-text');
+          if (textEl) textEl.textContent = 'Lihat Semua (' + moreBtn.dataset.total + ')';
+        }
       });
     });
   });
@@ -251,6 +270,8 @@
   var emptyBox = document.getElementById('produkSearchEmpty');
   var emptyTerm = document.getElementById('produkSearchEmptyTerm');
   var tabs = document.querySelectorAll('.cat-tab');
+  var searchBtn = document.getElementById('catalogSearchBtn');
+  if (searchBtn) searchBtn.addEventListener('click', function () { input.focus(); });
 
   input.addEventListener('input', function () {
     var q = input.value.trim().toLowerCase();
@@ -270,12 +291,42 @@
         if (match) { visibleInRow++; totalVisible++; }
       });
       row.style.display = visibleInRow > 0 ? '' : 'none';
+
+      // Lagi search = buka semua lipatan biar produk yang ketutup fold ikut ketemu;
+      // pas kotak pencarian dikosongkan lagi, balik ke kondisi terlipat (default) lagi.
+      row.classList.toggle('expanded', !!q);
+      var moreBtn = row.querySelector('.nf-row-more');
+      if (moreBtn) {
+        moreBtn.style.display = q ? 'none' : '';
+        if (!q) {
+          var textEl = moreBtn.querySelector('.nf-row-more-text');
+          if (textEl) textEl.textContent = 'Lihat Semua (' + moreBtn.dataset.total + ')';
+        }
+      }
     });
 
     if (emptyBox) {
       emptyBox.style.display = (q && totalVisible === 0) ? '' : 'none';
       if (emptyTerm) emptyTerm.textContent = input.value.trim();
     }
+  });
+})();
+
+// ===== LIPAT / TAMPILKAN SEMUA per kategori (3 kolom x 3 baris dulu) =====
+(function () {
+  var moreButtons = document.querySelectorAll('.nf-row-more');
+  moreButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = btn.closest('.nf-row');
+      if (!row) return;
+      var expanded = row.classList.toggle('expanded');
+      var textEl = btn.querySelector('.nf-row-more-text');
+      if (textEl) textEl.textContent = expanded ? 'Tampilkan Lebih Sedikit' : ('Lihat Semua (' + btn.dataset.total + ')');
+      if (!expanded) {
+        // Balik ke tampilan rapi: scroll dikit ke atas biar user gak "kehilangan" posisi row ini
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
   });
 })();
 </script>
