@@ -66,7 +66,7 @@
             </div>
             <label class="mt-16">Template Customer No (opsional)</label>
             <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct.digiflazzCustomerNoTemplate %>">
-            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default (gabungan value dipisah titik).</div>
+            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default otomatis: Mobile Legends digabung tanpa pemisah, Genshin/Honkai/Wuthering Waves dipisah <code>|</code>, game lain dipisah titik.</div>
           <% } else { %>
             <input type="hidden" name="provider" value="manual">
             <div class="helper-text">Produk yang dibuat di sini otomatis jadi <b>Stok Manual</b>. Untuk produk auto top up Digiflazz (mis. Mobile Legends, Free Fire), cari &amp; import langsung dari halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dan tetap rapi per grup/folder.</div>
