@@ -57,3 +57,36 @@
 <meta name="twitter:title" content="<%= metaTitle %>">
 <meta name="twitter:description" content="<%= metaDescription %>">
 <% if (absoluteImage) { %><meta name="twitter:image" content="<%= absoluteImage %>"><% } %>
+
+<!-- Efek salju jatuh (tema aksen biru), site-wide. Jumlah kepingnya disesuaikan lebar layar
+     biar gak berat di HP. Aman dipasang di <head> karena nunggu DOMContentLoaded dulu. -->
+<script>
+(function () {
+  function initSnow() {
+    if (document.querySelector('.snow-layer')) return;
+    var layer = document.createElement('div');
+    layer.className = 'snow-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    var count = window.innerWidth < 520 ? 28 : 45;
+    for (var i = 0; i < count; i++) {
+      var flake = document.createElement('span');
+      flake.className = 'snowflake';
+      var size = (Math.random() * 3 + 2).toFixed(1);
+      flake.style.width = size + 'px';
+      flake.style.height = size + 'px';
+      flake.style.left = (Math.random() * 100).toFixed(2) + '%';
+      flake.style.opacity = (Math.random() * 0.5 + 0.35).toFixed(2);
+      flake.style.animationDuration = (Math.random() * 8 + 8).toFixed(2) + 's';
+      flake.style.animationDelay = (Math.random() * -16).toFixed(2) + 's';
+      flake.style.setProperty('--drift', (Math.random() * 60 - 30).toFixed(0) + 'px');
+      layer.appendChild(flake);
+    }
+    document.body.appendChild(layer);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSnow);
+  } else {
+    initSnow();
+  }
+})();
+</script>

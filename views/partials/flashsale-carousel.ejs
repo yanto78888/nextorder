@@ -1,0 +1,79 @@
+<%
+/* Partial carousel Flash Sale. Locals yang dipakai:
+   - flashSaleItems  : array hasil getFlashSaleDisplayItems() (wajib, kalau kosong/undefined partial gak nampilin apa-apa)
+   - flashSaleSettings : { enabled, endsAt, title } dari getFlashSaleSettings()
+   - fsGrid (opsional) : true = tampil grid penuh (dipakai di /flash-sale "Lihat Semua"), default carousel geser
+   - fsShowSeeAll (opsional) : false = sembunyikan link "Lihat Semua" (dipakai di halaman /flash-sale sendiri)
+*/
+const _items = typeof flashSaleItems !== 'undefined' ? flashSaleItems : [];
+const _settings = (typeof flashSaleSettings !== 'undefined' && flashSaleSettings) ? flashSaleSettings : {};
+const _isGrid = typeof fsGrid !== 'undefined' && fsGrid;
+const _showSeeAll = typeof fsShowSeeAll !== 'undefined' ? fsShowSeeAll : true;
+%>
+<% if (_items.length > 0) { %>
+<div class="fs-section" id="flashSaleSection" data-ends-at="<%= _settings.endsAt || '' %>">
+  <div class="fs-header">
+    <div class="fs-title"><i class="fa-solid fa-bolt"></i> <%= _settings.title || 'Flash Sale' %></div>
+    <% if (_settings.endsAt) { %>
+      <div class="fs-countdown" id="fsCountdown"><i class="fa-solid fa-bolt"></i> --:--:--</div>
+    <% } %>
+    <% if (_showSeeAll) { %><a href="/flash-sale" class="fs-see-all">Lihat Semua</a><% } %>
+  </div>
+  <div class="fs-track <%= _isGrid ? 'fs-grid' : '' %>">
+    <% _items.forEach(item => { %>
+      <% const soldOut = !item.isAuto && item.stockCount <= 0; %>
+      <a href="/produk/<%= item.productId %>" class="fs-card">
+        <% if (item.badge) { %><span class="fs-badge"><i class="fa-solid fa-bolt"></i> <%= item.badge %></span><% } %>
+        <div class="fs-card-thumb">
+          <% if (item.thumbnail) { %><img src="<%= item.thumbnail %>" alt="<%= item.name %>" loading="lazy"><% } else { %><span class="nf-noimg"><%= item.name.slice(0,1) %></span><% } %>
+        </div>
+        <div class="fs-card-body">
+          <div class="fs-card-name"><%= item.name %></div>
+          <% if (item.category) { %><div class="fs-card-cat"><%= item.category %></div><% } %>
+          <div class="fs-card-price">
+            <% if (item.originalPrice > item.flashPrice) { %><span class="nf-price-old">Rp <%= item.originalPrice.toLocaleString('id-ID') %></span><% } %>
+            <span class="nf-price-now"><b>Rp <%= item.flashPrice.toLocaleString('id-ID') %></b></span>
+          </div>
+          <%
+            let fillPct = 100;
+            if (!item.isAuto) fillPct = item.stockCount <= 0 ? 0 : Math.min(100, Math.max(8, Math.round((item.stockCount / 20) * 100)));
+          %>
+          <div class="fs-stock">
+            <span class="fs-stock-label"><%= soldOut ? 'habis' : 'tersedia' %></span>
+            <span class="fs-stock-bar"><span class="fs-stock-fill" style="width:<%= fillPct %>%"></span></span>
+          </div>
+          <span class="fs-buy-btn <%= soldOut ? 'disabled' : '' %>"><%= soldOut ? 'Habis' : 'Beli' %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</div>
+<script>
+(function () {
+  var section = document.getElementById('flashSaleSection');
+  var countdownEl = document.getElementById('fsCountdown');
+  if (!section || !countdownEl) return;
+  var endsAt = section.getAttribute('data-ends-at');
+  if (!endsAt) return;
+  var endTime = new Date(endsAt).getTime();
+  if (isNaN(endTime)) return;
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  var timer;
+  function tick() {
+    var diff = endTime - Date.now();
+    if (diff <= 0) {
+      countdownEl.innerHTML = '<i class="fa-solid fa-bolt"></i> Berakhir';
+      clearInterval(timer);
+      return;
+    }
+    var h = Math.floor(diff / 3600000);
+    var m = Math.floor((diff % 3600000) / 60000);
+    var s = Math.floor((diff % 60000) / 1000);
+    countdownEl.innerHTML = '<i class="fa-solid fa-bolt"></i> ' + pad(h) + ':' + pad(m) + ':' + pad(s);
+  }
+  tick();
+  timer = setInterval(tick, 1000);
+})();
+</script>
+<% } %>
