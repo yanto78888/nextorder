@@ -2,4 +2,58 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/css/style.css">
-<title><%= typeof config !== 'undefined' ? config.siteName : 'NEXORDER' %></title>
+<%
+  // ---------- Meta SEO & Open Graph ----------
+  // Semua halaman otomatis dapat title/description/OG yang masuk akal dari config.siteName +
+  // config.seo (diisi di Admin > Setting), TANPA harus di-set manual satu-satu per halaman.
+  // Halaman yang mau override cukup kirim local ini pas res.render(...):
+  //   pageTitle       - judul spesifik halaman (kalau kosong: "{siteName} - {siteTagline}")
+  //   pageDescription - deskripsi spesifik (kalau kosong: config.seo.metaDescription)
+  //   pageImage       - path/URL gambar buat og:image (relatif otomatis digabung ke siteOrigin)
+  //   noindex         - true buat halaman privat/admin (dashboard, riwayat, panel admin, dst)
+  const cfg = typeof config !== 'undefined' && config ? config : {};
+  const seo = cfg.seo || {};
+  const siteName = cfg.siteName || 'NEXORDER';
+  const siteTagline = cfg.siteTagline || '';
+
+  const metaTitle = (typeof pageTitle !== 'undefined' && pageTitle)
+    ? pageTitle
+    : (siteTagline ? `${siteName} - ${siteTagline}` : siteName);
+
+  const rawDescription = (typeof pageDescription !== 'undefined' && pageDescription)
+    ? pageDescription
+    : (seo.metaDescription || siteTagline || `Top up game & produk digital di ${siteName}, proses cepat dan aman.`);
+  const metaDescription = String(rawDescription).replace(/\s+/g, ' ').trim().slice(0, 160);
+
+  const origin = typeof siteOrigin !== 'undefined' && siteOrigin ? siteOrigin : '';
+  const pagePath = typeof currentPath !== 'undefined' && currentPath ? currentPath : '/';
+  const canonicalUrl = origin ? origin + pagePath : '';
+
+  const rawImage = (typeof pageImage !== 'undefined' && pageImage) ? pageImage : (seo.ogImage || '');
+  const absoluteImage = rawImage
+    ? (/^https?:\/\//i.test(rawImage) ? rawImage : origin + (rawImage.startsWith('/') ? rawImage : '/' + rawImage))
+    : '';
+
+  const isNoindex = typeof noindex !== 'undefined' && noindex;
+%>
+<title><%= metaTitle %></title>
+<meta name="description" content="<%= metaDescription %>">
+<% if (seo.metaKeywords) { %><meta name="keywords" content="<%= seo.metaKeywords %>"><% } %>
+<meta name="robots" content="<%= isNoindex ? 'noindex, nofollow' : 'index, follow' %>">
+<% if (canonicalUrl) { %><link rel="canonical" href="<%= canonicalUrl %>"><% } %>
+
+<!-- Open Graph -->
+<meta property="og:type" content="<%= typeof ogType !== 'undefined' ? ogType : 'website' %>">
+<meta property="og:site_name" content="<%= siteName %>">
+<meta property="og:locale" content="id_ID">
+<meta property="og:title" content="<%= metaTitle %>">
+<meta property="og:description" content="<%= metaDescription %>">
+<% if (canonicalUrl) { %><meta property="og:url" content="<%= canonicalUrl %>"><% } %>
+<% if (absoluteImage) { %><meta property="og:image" content="<%= absoluteImage %>">
+<meta property="og:image:secure_url" content="<%= absoluteImage %>"><% } %>
+
+<!-- Twitter Card (dibaca juga oleh X/Twitter; WhatsApp & Telegram cukup pakai tag Open Graph di atas) -->
+<meta name="twitter:card" content="<%= absoluteImage ? 'summary_large_image' : 'summary' %>">
+<meta name="twitter:title" content="<%= metaTitle %>">
+<meta name="twitter:description" content="<%= metaDescription %>">
+<% if (absoluteImage) { %><meta name="twitter:image" content="<%= absoluteImage %>"><% } %>
