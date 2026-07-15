@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'flashsale' }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-bolt"></i> Flash Sale</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="card" style="padding:16px; margin-bottom:16px;">
+      <div class="helper-text" style="margin-top:0; margin-bottom:12px;">
+        <i class="fa-solid fa-circle-info"></i> Harga Flash Sale <b style="color:var(--text-main);">berlaku sama buat semua role member</b> (reguler/gold/platinum) selama section ini aktif dan belum lewat batas waktu -- diskon membership normal otomatis gak dipakai buat produk yang lagi Flash Sale.
+      </div>
+
+      <div class="section-title" style="margin-top:0;"><h3>Pengaturan Section</h3><div class="line"></div></div>
+      <form method="POST" action="/admin/flashsale/settings" style="display:flex; flex-direction:column; gap:10px;">
+        <label class="check-row"><input type="checkbox" name="fsEnabled" <%= settings.enabled ? 'checked' : '' %>> Aktifkan Flash Sale di beranda</label>
+
+        <label>Judul Section</label>
+        <input type="text" name="fsTitle" value="<%= settings.title %>" placeholder="Flash Sale">
+
+        <label>Berakhir Pada <span style="opacity:.6;">(opsional, jam WIB/GMT+7)</span></label>
+        <input type="datetime-local" name="fsEndsAt" value="<%= endsAtLocal %>">
+        <div class="helper-text" style="margin-top:0;">Ini yang jadi hitung mundur di kartu Flash Sale, waktunya WIB. Kosongkan kalau mau Flash Sale nyala terus tanpa hitung mundur.</div>
+
+        <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Simpan Pengaturan</button>
+      </form>
+    </div>
+
+    <div class="card" style="padding:16px; margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;"><h3>Produk Flash Sale (<%= items.length %>)</h3><div class="line"></div></div>
+
+      <% if (items.length === 0) { %>
+        <p style="color:var(--text-dim); font-size:13px;">Belum ada produk di Flash Sale. Tambah lewat form di bawah.</p>
+      <% } else { %>
+        <div class="helper-text" style="margin-top:0;"><i class="fa-solid fa-arrows-up-down"></i> Geser (drag) pakai ikon <i class="fa-solid fa-grip-vertical"></i> buat atur urutan tampil di carousel.</div>
+        <div class="fs-adm-list" id="fsAdmList">
+          <% items.forEach(item => { %>
+            <div class="fs-adm-row" draggable="true" data-id="<%= item.id %>">
+              <span class="fs-adm-drag" title="Geser buat urutan"><i class="fa-solid fa-grip-vertical"></i></span>
+              <% if (item.thumbnail) { %>
+                <img class="fs-adm-thumb" src="<%= item.thumbnail %>" alt="">
+              <% } else { %>
+                <div class="fs-adm-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:10px;">No img</div>
+              <% } %>
+              <div class="fs-adm-info">
+                <div class="fs-adm-name"><%= item.name %><% if (!item.active) { %> <span style="color:var(--text-dim); font-weight:400;">(nonaktif)</span><% } %></div>
+                <div class="fs-adm-meta">Harga asli Rp <%= item.originalPrice.toLocaleString('id-ID') %> &middot; <%= item.isAuto ? 'Stok otomatis' : ('Stok ' + item.stockCount) %></div>
+              </div>
+              <form method="POST" action="/admin/flashsale/<%= item.id %>/update" class="fs-adm-editform">
+                <input type="number" name="flashPrice" value="<%= item.flashPrice %>" min="0" step="500" title="Harga Flash Sale">
+                <input type="text" name="badge" value="<%= item.badge %>" placeholder="Badge (mis. Promo)" maxlength="24" title="Teks badge">
+                <label class="check-row small" style="white-space:nowrap;"><input type="checkbox" name="active" <%= item.active ? 'checked' : '' %>> Aktif</label>
+                <button type="submit" class="btn small">Simpan</button>
+              </form>
+              <form method="POST" action="/admin/flashsale/<%= item.id %>/hapus" onsubmit="return confirm('Hapus produk ini dari Flash Sale?')">
+                <button type="submit" class="btn small danger">Hapus</button>
+              </form>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="card" style="padding:16px; margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;"><h3>+ Tambah Produk ke Flash Sale</h3><div class="line"></div></div>
+      <% if (availableProducts.length === 0) { %>
+        <p style="color:var(--text-dim); font-size:13px;">Semua produk aktif udah masuk Flash Sale, atau belum ada produk aktif sama sekali di Kelola Produk.</p>
+      <% } else { %>
+        <form method="POST" action="/admin/flashsale/add" style="display:flex; flex-direction:column; gap:10px;">
+          <label>Pilih Produk</label>
+          <select name="productId" required>
+            <option value="">-- pilih produk --</option>
+            <% availableProducts.forEach(p => { %>
+              <option value="<%= p.id %>">
+                <%= p.variantGroup || p.name %> &mdash; Rp <%= p.price.toLocaleString('id-ID') %>
+              </option>
+            <% }) %>
+          </select>
+
+          <label>Harga Flash Sale (Rp)</label>
+          <input type="number" name="flashPrice" min="0" step="500" placeholder="mis. 15000" required>
+          <div class="helper-text" style="margin-top:0;">Harga ini yang berlaku buat SEMUA orang selama Flash Sale aktif, gak ditambah/dikurangi diskon membership lagi.</div>
+
+          <label>Badge <span style="opacity:.6;">(opsional)</span></label>
+          <input type="text" name="badge" placeholder="mis. Promo" maxlength="24">
+
+          <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Tambahkan</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var list = document.getElementById('fsAdmList');
+  if (!list) return;
+  var dragged = null;
+
+  list.addEventListener('dragstart', function (e) {
+    var row = e.target.closest('.fs-adm-row');
+    if (!row) return;
+    dragged = row;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragend', function () {
+    if (dragged) dragged.classList.remove('dragging');
+    list.querySelectorAll('.fs-adm-row').forEach(function (r) { r.classList.remove('drag-over'); });
+    dragged = null;
+    persistOrder();
+  });
+
+  list.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    var row = e.target.closest('.fs-adm-row');
+    if (!row || row === dragged) return;
+    var rect = row.getBoundingClientRect();
+    var before = (e.clientY - rect.top) < rect.height / 2;
+    list.insertBefore(dragged, before ? row : row.nextSibling);
+  });
+
+  function persistOrder() {
+    var ids = Array.prototype.map.call(list.querySelectorAll('.fs-adm-row'), function (r) { return r.dataset.id; });
+    fetch('/admin/flashsale/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds: ids })
+    }).catch(function () { /* diem-diem gagal aja, urutan re-load dari server tetep yg lama */ });
+  }
+})();
+</script>
+</body>
+</html>
