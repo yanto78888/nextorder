@@ -13,12 +13,13 @@ import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
-import { getMembershipList, getMembershipTier, applyMemberDiscount } from '../lib/membership.js';
+import { getMembershipList, getMembershipTier } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { genId } from '../lib/db.js';
+import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice } from '../lib/flashsale.js';
 
 const router = express.Router();
 
@@ -221,7 +222,7 @@ router.get('/produk', (req, res) => {
   const products = getActiveProducts()
     .map(p => ({
       ...p,
-      finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price,
+      finalPrice: getEffectivePrice(p, user),
       icon: getGameIcon(p.gamePreset)
     }));
 
@@ -281,9 +282,28 @@ router.get('/produk', (req, res) => {
     config: cfg,
     banners: (cfg.banners || []).filter(b => b.image),
     marquee: cfg.marquee || {},
+    flashSaleItems: isFlashSaleRunning() ? getFlashSaleDisplayItems() : [],
+    flashSaleSettings: getFlashSaleSettings(),
     error: req.query.error || null,
     pageTitle: `${cfg.siteName || 'NEXORDER'} - ${cfg.siteTagline || 'Top Up Game Termurah & Terpercaya'}`,
     pageDescription: (cfg.seo && cfg.seo.metaDescription) || `Top up ${categoryOrder.join(', ') || 'game'} murah dan cepat di ${cfg.siteName || 'NEXORDER'}. Proses otomatis 24 jam, pembayaran QRIS.`
+  });
+});
+
+// Halaman "Lihat Semua" dari carousel Flash Sale di beranda -- daftar penuh, gak dipotong geser.
+router.get('/flash-sale', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  const settings = getFlashSaleSettings();
+  const items = isFlashSaleRunning() ? getFlashSaleDisplayItems() : [];
+
+  res.render('flash-sale', {
+    items,
+    settings,
+    user,
+    config: cfg,
+    pageTitle: `${settings.title || 'Flash Sale'} - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Semua produk ${settings.title || 'Flash Sale'} lagi diskon di ${cfg.siteName || 'NEXORDER'}, harga sama buat semua member. Buruan sebelum kehabisan!`
   });
 });
 
@@ -296,7 +316,7 @@ router.get('/daftar-harga', (req, res) => {
 
   const products = getActiveProducts().map(p => ({
     ...p,
-    finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price
+    finalPrice: getEffectivePrice(p, user)
   }));
 
   const categoryOrder = [];
@@ -336,7 +356,7 @@ router.post('/order', requireLogin, async (req, res) => {
   }
   const targetText = formatTargetText(product, targetData);
 
-  const unitPrice = applyMemberDiscount(product.price, user.membership);
+  const unitPrice = getEffectivePrice(product, user);
   const total = unitPrice * qty;
   if (user.saldo < total) {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
@@ -501,7 +521,7 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       return res.redirect('/produk?error=' + encodeURIComponent('Produk tidak tersedia'));
     }
 
-    const unitPrice = applyMemberDiscount(product.price, user.membership);
+    const unitPrice = getEffectivePrice(product, user);
     const total = unitPrice * qty;
 
     if (user.saldo < total) {
@@ -561,7 +581,7 @@ router.get('/produk/:id', (req, res) => {
   if (!product || product.status !== 'active') {
     return res.redirect('/produk?error=Produk tidak ditemukan');
   }
-  const finalPrice = user ? applyMemberDiscount(product.price, user.membership) : product.price;
+  const finalPrice = getEffectivePrice(product, user);
   const reviews = getReviewsByProduct(product.id);
   const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
   const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
@@ -575,7 +595,7 @@ router.get('/produk/:id', (req, res) => {
           id: p.id,
           name: p.name,
           price: p.price,
-          finalPrice: user ? applyMemberDiscount(p.price, user.membership) : p.price,
+          finalPrice: getEffectivePrice(p, user),
           thumbnail: p.thumbnail,
           targetFields: p.targetFields || [],
           stockCount: countStock(p),
@@ -652,7 +672,7 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     }
     const targetText = formatTargetText(product, targetData);
 
-    const unitPrice = applyMemberDiscount(product.price, user.membership);
+    const unitPrice = getEffectivePrice(product, user);
     const total = unitPrice * qty;
 
     const deposit = await createDeposit(user, total);

@@ -17,6 +17,11 @@ import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, computeSellPrice } from '../lib/digiflazz.js';
 import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
+import {
+  getAllFlashSaleItems, getFlashSaleDisplayItems, getFlashSaleSettings, updateFlashSaleSettings,
+  addFlashSaleItem, updateFlashSaleItem, deleteFlashSaleItem, reorderFlashSaleItems,
+  removeFlashSaleItemsByProductId, utcIsoToWibLocalInput
+} from '../lib/flashsale.js';
 
 // Tebak gamePreset yang cocok dari nama/brand produk Digiflazz, biar field ID Tujuan
 // (termasuk dropdown Server buat game kayak Genshin Impact/Wuthering Waves) otomatis
@@ -262,7 +267,78 @@ router.post('/produk/:id/stock/:stockId/hapus', (req, res) => {
 
 router.post('/produk/:id/hapus', (req, res) => {
   deleteProduct(req.params.id);
+  removeFlashSaleItemsByProductId(req.params.id);
   res.redirect('/admin/produk');
+});
+
+// ---------- FLASH SALE (nav khusus, kelola item + jadwal countdown) ----------
+
+function renderFlashSalePage(req, res, extra = {}) {
+  const items = getFlashSaleDisplayItems({ onlyActive: false });
+  const usedProductIds = new Set(getAllFlashSaleItems().map(it => it.productId));
+  const availableProducts = getAllProducts()
+    .filter(p => p.status === 'active' && !usedProductIds.has(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const settings = getFlashSaleSettings();
+
+  res.render('admin/flashsale', {
+    config: getConfig(),
+    items,
+    settings,
+    endsAtLocal: utcIsoToWibLocalInput(settings.endsAt),
+    availableProducts,
+    error: null,
+    success: null,
+    ...extra
+  });
+}
+
+router.get('/flashsale', (req, res) => {
+  renderFlashSalePage(req, res);
+});
+
+router.post('/flashsale/settings', (req, res) => {
+  const { fsEnabled, fsEndsAt, fsTitle } = req.body;
+  updateFlashSaleSettings({ enabled: !!fsEnabled, endsAt: fsEndsAt, title: fsTitle });
+  renderFlashSalePage(req, res, { success: 'Pengaturan Flash Sale disimpan' });
+});
+
+router.post('/flashsale/add', (req, res) => {
+  const { productId, flashPrice, badge } = req.body;
+  try {
+    if (!productId) throw new Error('Pilih produk yang mau dimasukkan Flash Sale');
+    if (!flashPrice || Number(flashPrice) <= 0) throw new Error('Isi harga Flash Sale-nya (harus lebih dari 0)');
+    addFlashSaleItem({ productId, flashPrice, badge });
+    renderFlashSalePage(req, res, { success: 'Produk ditambahkan ke Flash Sale' });
+  } catch (err) {
+    renderFlashSalePage(req, res, { error: err.message });
+  }
+});
+
+router.post('/flashsale/:id/update', (req, res) => {
+  const { flashPrice, badge, active } = req.body;
+  updateFlashSaleItem(req.params.id, {
+    flashPrice,
+    badge,
+    active: active === 'on' || active === 'true'
+  });
+  renderFlashSalePage(req, res, { success: 'Item Flash Sale diperbarui' });
+});
+
+router.post('/flashsale/:id/hapus', (req, res) => {
+  deleteFlashSaleItem(req.params.id);
+  renderFlashSalePage(req, res, { success: 'Item Flash Sale dihapus' });
+});
+
+// Dipanggil lewat fetch() dari drag-and-drop di admin/flashsale.ejs -- express.json() global
+// di server.js udah nangkep body JSON-nya, jadi di sini tinggal pakai req.body langsung.
+router.post('/flashsale/reorder', (req, res) => {
+  const { orderedIds } = req.body;
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return res.status(400).json({ ok: false, error: 'orderedIds harus array' });
+  }
+  reorderFlashSaleItems(orderedIds);
+  res.json({ ok: true });
 });
 
 // ---------- DIGIFLAZZ PRODUCTS (nav khusus, kelola produk auto topup + margin) ----------
