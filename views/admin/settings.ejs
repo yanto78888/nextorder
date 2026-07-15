@@ -18,6 +18,7 @@
       const qris = config.qris || {};
       const telegram = config.telegram || {};
       const digiflazz = config.digiflazz || {};
+      const seo = config.seo || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
 
@@ -34,6 +35,24 @@
           <label>Nomor WhatsApp Owner</label>
           <input type="text" name="ownerWhatsapp" placeholder="628xxxxxxxxxx" value="<%= config.ownerWhatsapp || '' %>">
           <div class="helper-text">Dipakai untuk tombol bantuan/kontak owner kalau ada di template.</div>
+
+          <div class="section-title"><h3>SEO & Meta (Open Graph)</h3><div class="line"></div></div>
+
+          <label>URL Website</label>
+          <input type="text" name="seoSiteUrl" placeholder="https://nexorder.domainkamu.com" value="<%= seo.siteUrl || '' %>">
+          <div class="helper-text">Domain lengkap situs (tanpa garis miring di akhir). Dipakai buat canonical link, sitemap.xml, dan URL di preview link Open Graph. Kosongkan untuk auto-deteksi dari domain yang diakses.</div>
+
+          <label>Meta Description Default</label>
+          <textarea name="seoMetaDescription" placeholder="Top up game & produk digital termurah, proses otomatis 24 jam." maxlength="160"><%= seo.metaDescription || '' %></textarea>
+          <div class="helper-text">Muncul di hasil pencarian Google & preview link kalau halaman tidak punya deskripsi sendiri (produk sudah otomatis pakai deskripsi produknya masing-masing). Maks. 160 karakter.</div>
+
+          <label>Meta Keywords <span style="opacity:.6;">(opsional)</span></label>
+          <input type="text" name="seoMetaKeywords" placeholder="top up game, diamond ml murah, jual voucher game" value="<%= seo.metaKeywords || '' %>">
+          <div class="helper-text">Pisahkan dengan koma. Pengaruhnya ke ranking Google sekarang minim, tapi boleh diisi kalau mau.</div>
+
+          <label>Gambar Open Graph Default</label>
+          <input type="text" name="seoOgImage" placeholder="/uploads/banner-share.jpg atau URL lengkap" value="<%= seo.ogImage || '' %>">
+          <div class="helper-text">Gambar yang muncul saat link situs di-share ke WhatsApp/Telegram/Facebook, buat halaman yang belum punya gambar sendiri (halaman produk otomatis pakai foto produknya). Ukuran disarankan 1200x630px. Upload gambarnya ke folder <code>public/</code> lewat server lalu isi path-nya di sini, atau pakai URL gambar yang sudah online.</div>
 
           <div class="section-title"><h3>Katalog</h3><div class="line"></div></div>
 
