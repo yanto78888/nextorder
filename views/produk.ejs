@@ -79,6 +79,9 @@
     </div>
     <% } %>
 
+    <!-- ====== FLASH SALE (carousel geser, harga sama semua role) ====== -->
+    <%- include('partials/flashsale-carousel', { flashSaleItems, flashSaleSettings }) %>
+
     <!-- Quick actions: Deposit & Riwayat -->
     <div class="quick-actions">
       <% if (user) { %>
