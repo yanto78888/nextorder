@@ -41,6 +41,9 @@ function guessGamePreset(text) {
 
 const router = express.Router();
 router.use(requireAdmin);
+// Panel admin gak boleh keindeks Google sama sekali -- res.locals.noindex dibaca partials/head.ejs
+// di SETIAP render admin/*.ejs tanpa perlu tambahin { noindex: true } manual satu-satu.
+router.use((req, res, next) => { res.locals.noindex = true; next(); });
 
 // ---------- UPLOAD FOTO PRODUK ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -635,6 +638,7 @@ router.post('/settings', (req, res) => {
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
+    seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
     marqueeEnabled, marqueeText
   } = req.body;
@@ -646,6 +650,12 @@ router.post('/settings', (req, res) => {
 
   updateConfig({
     siteName, siteTagline, ownerWhatsapp,
+    seo: {
+      siteUrl: String(seoSiteUrl || '').trim().replace(/\/+$/, ''),
+      metaDescription: String(seoMetaDescription || '').trim().slice(0, 160),
+      metaKeywords: String(seoMetaKeywords || '').trim(),
+      ogImage: String(seoOgImage || '').trim()
+    },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },

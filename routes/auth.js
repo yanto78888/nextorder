@@ -5,19 +5,23 @@ import { notifyRegister } from '../lib/telegram.js';
 
 const router = express.Router();
 
+// Halaman login/register di-noindex -- gak ada nilai SEO buat diindeks & biar gak numpuk
+// di hasil pencarian bareng halaman produk yang justru mau di-highlight.
 router.get('/login', (req, res) => {
   if (req.session.user) return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/produk');
-  res.render('login', { error: null, config: getConfig() });
+  res.render('login', { error: null, config: getConfig(), pageTitle: `Login - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
 });
 
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
   const user = findUserByUsername(username);
+  const cfg = getConfig();
+  const pageTitle = `Login - ${cfg.siteName || 'NEXORDER'}`;
   if (!user || !verifyPassword(user, password)) {
-    return res.render('login', { error: 'Username atau password salah', config: getConfig() });
+    return res.render('login', { error: 'Username atau password salah', config: cfg, pageTitle, noindex: true });
   }
   if (user.status === 'banned') {
-    return res.render('login', { error: 'Akun anda diblokir. Hubungi admin.', config: getConfig() });
+    return res.render('login', { error: 'Akun anda diblokir. Hubungi admin.', config: cfg, pageTitle, noindex: true });
   }
   req.session.user = { id: user.id, username: user.username, role: user.role };
   res.redirect(user.role === 'admin' ? '/admin' : '/produk');
@@ -25,21 +29,22 @@ router.post('/login', (req, res) => {
 
 router.get('/register', (req, res) => {
   if (req.session.user) return res.redirect('/produk');
-  res.render('register', { error: null, config: getConfig() });
+  res.render('register', { error: null, config: getConfig(), pageTitle: `Daftar Akun - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
 });
 
 router.post('/register', async (req, res) => {
   const { username, email, password, password2 } = req.body;
   const cfg = getConfig();
+  const pageTitle = `Daftar Akun - ${cfg.siteName || 'NEXORDER'}`;
 
   if (!username || !password) {
-    return res.render('register', { error: 'Username dan password wajib diisi', config: cfg });
+    return res.render('register', { error: 'Username dan password wajib diisi', config: cfg, pageTitle, noindex: true });
   }
   if (password !== password2) {
-    return res.render('register', { error: 'Konfirmasi password tidak cocok', config: cfg });
+    return res.render('register', { error: 'Konfirmasi password tidak cocok', config: cfg, pageTitle, noindex: true });
   }
   if (password.length < 6) {
-    return res.render('register', { error: 'Password minimal 6 karakter', config: cfg });
+    return res.render('register', { error: 'Password minimal 6 karakter', config: cfg, pageTitle, noindex: true });
   }
 
   try {
@@ -48,7 +53,7 @@ router.post('/register', async (req, res) => {
     notifyRegister({ username: user.username }).catch(() => {});
     res.redirect('/produk');
   } catch (err) {
-    res.render('register', { error: err.message, config: cfg });
+    res.render('register', { error: err.message, config: cfg, pageTitle, noindex: true });
   }
 });
 

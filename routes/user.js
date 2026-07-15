@@ -154,7 +154,8 @@ router.get('/profile', requireLogin, (req, res) => {
     membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership),
     totalOrder: orders.length,
     totalSpent: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
-    recentOrders: orders.slice(0, 5)
+    recentOrders: orders.slice(0, 5),
+    noindex: true
   });
 });
 
@@ -280,7 +281,9 @@ router.get('/produk', (req, res) => {
     config: cfg,
     banners: (cfg.banners || []).filter(b => b.image),
     marquee: cfg.marquee || {},
-    error: req.query.error || null
+    error: req.query.error || null,
+    pageTitle: `${cfg.siteName || 'NEXORDER'} - ${cfg.siteTagline || 'Top Up Game Termurah & Terpercaya'}`,
+    pageDescription: (cfg.seo && cfg.seo.metaDescription) || `Top up ${categoryOrder.join(', ') || 'game'} murah dan cepat di ${cfg.siteName || 'NEXORDER'}. Proses otomatis 24 jam, pembayaran QRIS.`
   });
 });
 
@@ -312,7 +315,9 @@ router.get('/daftar-harga', (req, res) => {
     totalProducts: products.length,
     memberDiscount: discountPercent,
     user,
-    config: cfg
+    config: cfg,
+    pageTitle: `Daftar Harga - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Daftar lengkap ${products.length} harga produk di ${cfg.siteName || 'NEXORDER'}, transparan tanpa biaya tersembunyi. ${categoryOrder.join(', ')}.`
   });
 });
 
@@ -394,7 +399,8 @@ router.get('/riwayat', requireLogin, (req, res) => {
     orders,
     config: getConfig(),
     user: findUserById(req.session.user.id),
-    success: req.query.success || null
+    success: req.query.success || null,
+    noindex: true
   });
 });
 
@@ -406,7 +412,8 @@ router.get('/riwayat/:id', requireLogin, (req, res) => {
     order,
     config: getConfig(),
     user: findUserById(req.session.user.id),
-    success: req.query.success || null
+    success: req.query.success || null,
+    noindex: true
   });
 });
 
@@ -427,7 +434,8 @@ router.get('/topup', requireLogin, (req, res) => {
     config: getConfig(),
     user: findUserById(req.session.user.id),
     success: req.query.success || null,
-    error: req.query.error || null
+    error: req.query.error || null,
+    noindex: true
   });
 });
 
@@ -576,6 +584,14 @@ router.get('/produk/:id', (req, res) => {
         .sort((a, b) => a.price - b.price)
     : [];
 
+  // SEO/OG per produk: judul & gambar ikutin nama grup varian (bukan SKU nominal tertentu),
+  // sama kayak logic "displayName" di produk-detail.ejs, biar konsisten dengan yang tampil di layar.
+  const cfgDetail = getConfig();
+  const seoName = product.variantGroup || product.name;
+  const seoDescription = product.description
+    ? product.description.replace(/\s+/g, ' ').trim()
+    : `Top up ${seoName} mulai Rp${finalPrice.toLocaleString('id-ID')}. Proses ${product.provider === 'digiflazz' ? 'otomatis' : 'cepat'}, aman, dan terpercaya di ${cfgDetail.siteName || 'NEXORDER'}.`;
+
   res.render('produk-detail', {
     product,
     finalPrice,
@@ -584,9 +600,12 @@ router.get('/produk/:id', (req, res) => {
     reviews,
     hasReviewed,
     user,
-    config: getConfig(),
+    config: cfgDetail,
     error: req.query.error || null,
-    success: req.query.success || null
+    success: req.query.success || null,
+    pageTitle: `${seoName} - ${cfgDetail.siteName || 'NEXORDER'}`,
+    pageDescription: seoDescription,
+    pageImage: displayThumbnail
   });
 });
 
@@ -654,7 +673,8 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
       total,
       targetText,
       user,
-      config: getConfig()
+      config: getConfig(),
+      noindex: true
     });
   } catch (err) {
     res.redirect(`/produk/${req.body.productId}?error=${encodeURIComponent(err.message)}`);
