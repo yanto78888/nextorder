@@ -75,6 +75,9 @@
           <% if (!isEditingDigiflazz) { %>
           <label class="mt-16">Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
+          <label>Harga Modal (Rp) <span class="helper-text">(opsional)</span></label>
+          <input type="number" name="costPrice" placeholder="0" value="<%= (editProduct && editProduct.costPrice) ? editProduct.costPrice : '' %>">
+          <div class="helper-text">Modal/harga beli produk ini (bukan harga jual). Dipakai buat menghitung Pendapatan Bersih di grafik Dashboard. Kosongkan/isi 0 kalau belum tahu/belum mau dihitung -- Pendapatan Bersih akan dianggap sama dengan Pendapatan Kotor untuk produk ini.</div>
           <label>Tambah Stok Otomatis</label>
           <textarea name="stockItems" placeholder="Boleh banyak baris (misal data akun lengkap: email, password, PIN, dll). Semua isian ini akan dihitung sebagai 1 stok."></textarea>
           <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. 1x tambah = 1 stok (isi boleh banyak baris). Jika stok habis, order masuk notifikasi manual admin.</div>

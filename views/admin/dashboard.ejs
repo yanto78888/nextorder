@@ -100,8 +100,30 @@
       </div>
     </div>
 
+    <!-- Grafik Penjualan Bulanan: Pendapatan Kotor (omzet) vs Pendapatan Bersih (omzet - modal) -->
+    <div class="adm-chart-card adm-chart-card-monthly" id="monthlyChartCard">
+      <div class="adm-chart-header">
+        <div class="adm-chart-title"><i class="fa-solid fa-chart-column" style="color:var(--cyan);"></i> Grafik Penjualan Bulanan</div>
+        <div class="adm-chart-tabs">
+          <button class="adm-tab active" data-range="6">6 Bulan</button>
+          <button class="adm-tab" data-range="12">12 Bulan</button>
+        </div>
+      </div>
+      <div class="adm-chart-summary">
+        <span class="pill-badge cyan"><i class="fa-solid fa-sack-dollar"></i> Kotor: Rp <span id="monthlyGrossTotal">0</span></span>
+        <span class="pill-badge green"><i class="fa-solid fa-coins"></i> Bersih: Rp <span id="monthlyNetTotal">0</span></span>
+        <span class="pill-badge amber"><i class="fa-solid fa-percent"></i> Margin: <span id="monthlyMarginPct">0</span>%</span>
+      </div>
+      <div class="adm-chart-wrap adm-chart-wrap-tall">
+        <canvas id="monthlyChart"></canvas>
+      </div>
+      <div class="helper-text" style="margin-top:10px; margin-bottom:0;">
+        <i class="fa-solid fa-circle-info"></i> <b style="color:var(--text-main);">Kotor</b> = total penjualan. <b style="color:var(--text-main);">Bersih</b> = penjualan dikurangi harga modal (Digiflazz otomatis pakai harga modal tersinkron, Stok Manual pakai Harga Modal yang diisi di halaman Kelola Produk).
+      </div>
+    </div>
+
     <!-- Line Chart -->
-    <div class="adm-chart-card">
+    <div class="adm-chart-card" id="weeklyChartCard">
       <div class="adm-chart-header">
         <div class="adm-chart-title">Performa 7 Hari Terakhir</div>
         <div class="adm-chart-tabs">
@@ -203,9 +225,9 @@ var lineChart=new Chart(lineCtx,{
       y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8c8c8c',callback:function(v){return v>=1000?(v/1000)+'rb':v;}},beginAtZero:true,border:{color:'rgba(255,255,255,0.06)'}}}}
 });
 
-document.querySelectorAll('.adm-tab').forEach(function(btn){
+document.querySelectorAll('#weeklyChartCard .adm-tab').forEach(function(btn){
   btn.addEventListener('click',function(){
-    document.querySelectorAll('.adm-tab').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('#weeklyChartCard .adm-tab').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');
     var t=btn.dataset.chart;
     var ds=lineChart.data.datasets[0];
@@ -220,6 +242,111 @@ new Chart(doCtx,{type:'doughnut',
   data:{datasets:[{data:[<%=statusCompleted%>,<%=statusProcessing%>,<%=statusCancelled%>,Math.max(0,<%=stats.totalOrders%>===0?1:0)],backgroundColor:['#2ecc71','#f5c518','#e50914','#1a1a1a'],borderWidth:0,hoverOffset:3}]},
   options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
 });
+
+// ===== GRAFIK PENJUALAN BULANAN (Kotor vs Bersih) =====
+(function () {
+  var monthlyLabelsFull = <%- monthlyLabels %>;
+  var monthlyGrossFull = <%- monthlyGross %>;
+  var monthlyNetFull = <%- monthlyNet %>;
+  var canvas = document.getElementById('monthlyChart');
+  if (!canvas) return;
+
+  function fmtShort(v) {
+    v = Math.round(v);
+    var sign = v < 0 ? '-' : '';
+    var abs = Math.abs(v);
+    if (abs >= 1000000000) return sign + (abs/1000000000).toFixed(1).replace(/\.0$/,'') + 'M';
+    if (abs >= 1000000) return sign + (abs/1000000).toFixed(1).replace(/\.0$/,'') + 'jt';
+    if (abs >= 1000) return sign + Math.round(abs/1000) + 'rb';
+    return sign + abs;
+  }
+
+  var mCtx = canvas.getContext('2d');
+  var grossGrad = mCtx.createLinearGradient(0,0,0,210);
+  grossGrad.addColorStop(0,'rgba(52,152,219,0.85)');
+  grossGrad.addColorStop(1,'rgba(52,152,219,0.18)');
+  var netGrad = mCtx.createLinearGradient(0,0,0,210);
+  netGrad.addColorStop(0,'rgba(46,204,113,0.38)');
+  netGrad.addColorStop(1,'rgba(46,204,113,0)');
+
+  var monthlyChart = new Chart(mCtx, {
+    data: {
+      labels: monthlyLabelsFull.slice(-6),
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Pendapatan Kotor',
+          data: monthlyGrossFull.slice(-6),
+          backgroundColor: grossGrad,
+          borderRadius: 6,
+          maxBarThickness: 30,
+          categoryPercentage: 0.6
+        },
+        {
+          type: 'line',
+          label: 'Pendapatan Bersih',
+          data: monthlyNetFull.slice(-6),
+          borderColor: '#2ecc71',
+          backgroundColor: netGrad,
+          borderWidth: 2.5,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#2ecc71',
+          pointBorderColor: '#0a0a0a',
+          pointBorderWidth: 1.5,
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { boxWidth: 10, boxHeight: 10, padding: 14, font: { size: 10.5 } }
+        },
+        tooltip: {
+          backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+          titleColor: '#f5f5f1', bodyColor: '#8c8c8c',
+          callbacks: { label: function (c) { return c.dataset.label + ': Rp ' + Math.round(c.raw).toLocaleString('id-ID'); } }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8c8c8c' }, border: { color: 'rgba(255,255,255,0.06)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8c8c8c', callback: function (v) { return fmtShort(v); } }, border: { color: 'rgba(255,255,255,0.06)' } }
+      }
+    }
+  });
+
+  function updateMonthlySummary(range) {
+    var g = monthlyGrossFull.slice(-range);
+    var n = monthlyNetFull.slice(-range);
+    var gSum = g.reduce(function (a, b) { return a + b; }, 0);
+    var nSum = n.reduce(function (a, b) { return a + b; }, 0);
+    var margin = gSum > 0 ? Math.round((nSum / gSum) * 100) : 0;
+    document.getElementById('monthlyGrossTotal').textContent = gSum.toLocaleString('id-ID');
+    document.getElementById('monthlyNetTotal').textContent = nSum.toLocaleString('id-ID');
+    document.getElementById('monthlyMarginPct').textContent = margin;
+  }
+  updateMonthlySummary(6);
+
+  document.querySelectorAll('#monthlyChartCard .adm-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#monthlyChartCard .adm-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var range = parseInt(btn.dataset.range, 10);
+      monthlyChart.data.labels = monthlyLabelsFull.slice(-range);
+      monthlyChart.data.datasets[0].data = monthlyGrossFull.slice(-range);
+      monthlyChart.data.datasets[1].data = monthlyNetFull.slice(-range);
+      monthlyChart.update();
+      updateMonthlySummary(range);
+    });
+  });
+})();
 </script>
 </body>
 </html>

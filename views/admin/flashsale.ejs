@@ -50,11 +50,26 @@
               <div class="fs-adm-info">
                 <div class="fs-adm-name"><%= item.name %><% if (!item.active) { %> <span style="color:var(--text-dim); font-weight:400;">(nonaktif)</span><% } %></div>
                 <div class="fs-adm-meta">Harga asli Rp <%= item.originalPrice.toLocaleString('id-ID') %> &middot; <%= item.isAuto ? 'Stok otomatis' : ('Stok ' + item.stockCount) %></div>
+                <% if (item.quota > 0) { %>
+                  <div class="fs-stock" style="max-width:220px;">
+                    <span class="badge <%= item.quotaReached ? 'cancelled' : 'pending' %>" style="font-size:9.5px; padding:2px 7px;">
+                      <%= item.quotaReached ? 'Kuota habis' : (item.soldCount + ' / ' + item.quota + ' terjual') %>
+                    </span>
+                    <span class="fs-stock-bar"><span class="fs-stock-fill" style="width:<%= Math.min(100, Math.round((item.soldCount / item.quota) * 100)) %>%"></span></span>
+                  </div>
+                <% } else if (item.soldCount > 0) { %>
+                  <div class="helper-text" style="margin:2px 0 0;">Terjual: <%= item.soldCount %> (tanpa batas kuota)</div>
+                <% } %>
               </div>
-              <form method="POST" action="/admin/flashsale/<%= item.id %>/update" class="fs-adm-editform">
+              <form method="POST" action="/admin/flashsale/<%= item.id %>/update" class="fs-adm-editform" enctype="multipart/form-data">
                 <input type="number" name="flashPrice" value="<%= item.flashPrice %>" min="0" step="500" title="Harga Flash Sale">
                 <input type="text" name="badge" value="<%= item.badge %>" placeholder="Badge (mis. Promo)" maxlength="24" title="Teks badge">
+                <input type="number" name="quota" value="<%= item.quota || '' %>" min="0" placeholder="Kuota (0=tanpa batas)" title="Kuota Flash Sale">
+                <input type="file" name="fsThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif" title="Ganti foto (opsional)">
                 <label class="check-row small" style="white-space:nowrap;"><input type="checkbox" name="active" <%= item.active ? 'checked' : '' %>> Aktif</label>
+                <% if (item.soldCount > 0) { %>
+                  <label class="check-row small" style="white-space:nowrap;"><input type="checkbox" name="resetSold"> Reset terjual</label>
+                <% } %>
                 <button type="submit" class="btn small">Simpan</button>
               </form>
               <form method="POST" action="/admin/flashsale/<%= item.id %>/hapus" onsubmit="return confirm('Hapus produk ini dari Flash Sale?')">
@@ -71,16 +86,26 @@
       <% if (availableProducts.length === 0) { %>
         <p style="color:var(--text-dim); font-size:13px;">Semua produk aktif udah masuk Flash Sale, atau belum ada produk aktif sama sekali di Kelola Produk.</p>
       <% } else { %>
-        <form method="POST" action="/admin/flashsale/add" style="display:flex; flex-direction:column; gap:10px;">
-          <label>Pilih Produk</label>
-          <select name="productId" required>
+        <form method="POST" action="/admin/flashsale/add" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:10px;">
+          <label>Kategori</label>
+          <select id="fsCategorySelect">
+            <option value="">-- Semua Kategori --</option>
+            <% categories.forEach(cat => { %>
+              <option value="<%= cat %>"><%= cat %></option>
+            <% }) %>
+          </select>
+          <div class="helper-text" style="margin-top:0;">Pilih kategori dulu biar daftar produk di bawah lebih pendek dan gampang dicari, terutama kalau produknya udah banyak.</div>
+
+          <label>Pilih Game / Produk</label>
+          <select name="productId" id="fsProductSelect" required>
             <option value="">-- pilih produk --</option>
             <% availableProducts.forEach(p => { %>
-              <option value="<%= p.id %>">
-                <%= p.variantGroup || p.name %> &mdash; Rp <%= p.price.toLocaleString('id-ID') %>
+              <option value="<%= p.id %>" data-category="<%= p.category || 'Umum' %>">
+                <%= (p.variantGroup || p.name) + ' — Rp ' + p.price.toLocaleString('id-ID') + ' [' + (p.provider === 'digiflazz' ? '⚡ Auto' : '🛠️ Manual') + ']' %>
               </option>
             <% }) %>
           </select>
+          <div class="helper-text" style="margin-top:0;">Nama produk ditampilkan lengkap tanpa dipotong. Tanda <b>⚡ Auto</b> = produk Digiflazz (game top up otomatis), <b>🛠️ Manual</b> = Stok Manual.</div>
 
           <label>Harga Flash Sale (Rp)</label>
           <input type="number" name="flashPrice" min="0" step="500" placeholder="mis. 15000" required>
@@ -89,6 +114,14 @@
           <label>Badge <span style="opacity:.6;">(opsional)</span></label>
           <input type="text" name="badge" placeholder="mis. Promo" maxlength="24">
 
+          <label>Kuota Flash Sale <span style="opacity:.6;">(opsional)</span></label>
+          <input type="number" name="quota" min="0" placeholder="Contoh: 10">
+          <div class="helper-text" style="margin-top:0;">Contoh: isi <b>10</b> kalau mau Flash Sale ini cuma buat 10 pembeli pertama -- begitu yang beli udah tembus 10, produk ini otomatis hilang dari Flash Sale (harga balik normal). Kosongkan/isi 0 kalau tanpa batas.</div>
+
+          <label>Foto Custom <span style="opacity:.6;">(opsional)</span></label>
+          <input type="file" name="fsThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
+          <div class="helper-text" style="margin-top:0;">Upload foto khusus buat kartu Flash Sale ini (mis. banner promo). Kosongkan buat pakai foto produk aslinya. Format JPG/PNG/WEBP/GIF, maks 3MB.</div>
+
           <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Tambahkan</button>
         </form>
       <% } %>
@@ -96,6 +129,22 @@
   </div>
 </div>
 
+<script>
+(function () {
+  var categorySelect = document.getElementById('fsCategorySelect');
+  var productSelect = document.getElementById('fsProductSelect');
+  if (categorySelect && productSelect) {
+    var allOptions = Array.prototype.slice.call(productSelect.querySelectorAll('option[data-category]'));
+    categorySelect.addEventListener('change', function () {
+      var cat = categorySelect.value;
+      productSelect.value = '';
+      allOptions.forEach(function (opt) {
+        opt.hidden = !!cat && opt.getAttribute('data-category') !== cat;
+      });
+    });
+  }
+})();
+</script>
 <script>
 (function () {
   var list = document.getElementById('fsAdmList');
