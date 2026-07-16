@@ -63,8 +63,8 @@ function bootstrap() {
     createUser({ username: 'skirk', email: '', password: 'binigw', role: 'admin' });
     console.log('===================================================');
     console.log(' Akun admin default dibuat!');
-    console.log(' Username : admin');
-    console.log(' Password : admin123');
+    console.log(' Username : skirk');
+    console.log(' Password : binigw');
     console.log(' >>> SEGERA LOGIN & GANTI PASSWORD DI HALAMAN PROFILE <<<');
     console.log('===================================================');
   }
