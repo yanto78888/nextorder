@@ -19,7 +19,7 @@
         <h3>Isi Saldo via QRIS</h3>
         <p class="helper-text">Masukkan nominal top up. QR dinamis akan otomatis dibuat sesuai nominal + fee + kode unik.</p>
         <label>Nominal Top Up (Rp)</label>
-        <input type="number" id="amount" min="<%= config.qris.depositMin %>" placeholder="Contoh: 50000">
+        <input type="number" id="amount" min="<%= (config.qris && config.qris.depositMin) || 1000 %>" placeholder="Contoh: 50000">
         <button class="btn solid mt-24" id="btn-create" style="width:100%;">Generate QRIS</button>
         <div id="form-error" class="alert error" style="display:none; margin-top:14px;"></div>
       </div>

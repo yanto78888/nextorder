@@ -21,6 +21,34 @@
       </div>
     </div>
 
+    <!-- ====== BANNER SLIDER ====== -->
+    <% if (banners && banners.length > 0) { %>
+    <div class="banner-slider" id="bannerSlider">
+      <div class="banner-track" id="bannerTrack">
+        <% banners.forEach((b, i) => { %>
+          <% if (b.link) { %>
+            <a href="<%= b.link %>" class="banner-slide" target="<%= b.link.startsWith('http') ? '_blank' : '_self' %>" rel="noopener">
+              <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
+              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
+            </a>
+          <% } else { %>
+            <div class="banner-slide">
+              <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
+              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
+            </div>
+          <% } %>
+        <% }) %>
+      </div>
+      <% if (banners.length > 1) { %>
+        <div class="banner-dots" id="bannerDots">
+          <% banners.forEach((b, i) => { %>
+            <span class="banner-dot <%= i === 0 ? 'active' : '' %>" data-idx="<%= i %>"></span>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+    <% } %>
+
     <!-- ====== TAB KATEGORI (filter produk per kategori, tanpa reload) ====== -->
     <div class="cat-tabs" id="catTabs">
       <button type="button" class="cat-tab active" data-cat="all"><i class="fa-solid fa-table-cells-large"></i> Semua</button>
@@ -49,70 +77,8 @@
     </div>
     <% } %>
 
-    <!-- ====== BANNER SLIDER ====== -->
-    <% if (banners && banners.length > 0) { %>
-    <div class="banner-slider" id="bannerSlider">
-      <div class="banner-track" id="bannerTrack">
-        <% banners.forEach((b, i) => { %>
-          <% if (b.link) { %>
-            <a href="<%= b.link %>" class="banner-slide" target="<%= b.link.startsWith('http') ? '_blank' : '_self' %>" rel="noopener">
-              <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
-              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
-            </a>
-          <% } else { %>
-            <div class="banner-slide">
-              <img src="<%= b.image %>" alt="<%= b.title || 'Banner' %>" loading="<%= i === 0 ? 'eager' : 'lazy' %>">
-              <% if (b.title) { %><div class="banner-caption"><%= b.title %></div><% } %>
-            </div>
-          <% } %>
-        <% }) %>
-      </div>
-      <% if (banners.length > 1) { %>
-        <button class="banner-prev" id="bannerPrev" aria-label="Sebelumnya">‹</button>
-        <button class="banner-next" id="bannerNext" aria-label="Berikutnya">›</button>
-        <div class="banner-dots" id="bannerDots">
-          <% banners.forEach((b, i) => { %>
-            <span class="banner-dot <%= i === 0 ? 'active' : '' %>" data-idx="<%= i %>"></span>
-          <% }) %>
-        </div>
-      <% } %>
-    </div>
-    <% } %>
-
     <!-- ====== FLASH SALE (carousel geser, harga sama semua role) ====== -->
     <%- include('partials/flashsale-carousel', { flashSaleItems, flashSaleSettings }) %>
-
-    <!-- Quick actions: Deposit & Riwayat -->
-    <div class="quick-actions">
-      <% if (user) { %>
-        <a href="/topup" class="quick-action-btn qa-deposit">
-          <span class="qa-icon"><i class="fa-solid fa-credit-card"></i></span>
-          <span class="qa-label">Deposit</span>
-        </a>
-        <a href="/riwayat" class="quick-action-btn qa-riwayat">
-          <span class="qa-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-          <span class="qa-label">Riwayat</span>
-        </a>
-        <a href="/profile" class="quick-action-btn qa-profile">
-          <span class="qa-icon"><i class="fa-solid fa-user"></i></span>
-          <span class="qa-label">Profil</span>
-        </a>
-      <% } else { %>
-        <a href="/login" class="quick-action-btn qa-deposit">
-          <span class="qa-icon"><i class="fa-solid fa-credit-card"></i></span><span class="qa-label">Deposit</span>
-        </a>
-        <a href="/login" class="quick-action-btn qa-riwayat">
-          <span class="qa-icon"><i class="fa-solid fa-clock-rotate-left"></i></span><span class="qa-label">Riwayat</span>
-        </a>
-        <a href="/login" class="quick-action-btn qa-profile">
-          <span class="qa-icon"><i class="fa-solid fa-key"></i></span><span class="qa-label">Masuk</span>
-        </a>
-      <% } %>
-        <a href="/daftar-harga" class="quick-action-btn qa-harga">
-          <span class="qa-icon"><i class="fa-solid fa-tags"></i></span>
-          <span class="qa-label">Harga</span>
-        </a>
-    </div>
 
     <% if (!user) { %>
       <div class="alert guest-alert"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
@@ -188,8 +154,6 @@
 // ===== BANNER SLIDER =====
 (function () {
   var track = document.getElementById('bannerTrack');
-  var prevBtn = document.getElementById('bannerPrev');
-  var nextBtn = document.getElementById('bannerNext');
   var dots = document.querySelectorAll('.banner-dot');
   if (!track) return;
 
@@ -214,8 +178,6 @@
     autoTimer = setInterval(next, 4500);
   }
 
-  if (prevBtn) prevBtn.addEventListener('click', function () { prev(); resetAuto(); });
-  if (nextBtn) nextBtn.addEventListener('click', function () { next(); resetAuto(); });
   dots.forEach(function (d) {
     d.addEventListener('click', function () { goTo(parseInt(d.dataset.idx)); resetAuto(); });
   });
