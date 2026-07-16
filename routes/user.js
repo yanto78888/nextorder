@@ -8,7 +8,7 @@ import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership
 } from '../lib/users.js';
-import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct } from '../lib/products.js';
+import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct, getProductCostPrice } from '../lib/products.js';
 import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
@@ -19,7 +19,7 @@ import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/revie
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { genId } from '../lib/db.js';
-import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice } from '../lib/flashsale.js';
+import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale } from '../lib/flashsale.js';
 
 const router = express.Router();
 
@@ -357,6 +357,7 @@ router.post('/order', requireLogin, async (req, res) => {
   const targetText = formatTargetText(product, targetData);
 
   const unitPrice = getEffectivePrice(product, user);
+  const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
   const total = unitPrice * qty;
   if (user.saldo < total) {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
@@ -383,7 +384,8 @@ router.post('/order', requireLogin, async (req, res) => {
     note: delivery.note,
     provider: delivery.provider,
     providerRefId: delivery.providerRefId,
-    providerCustomerNo: delivery.providerCustomerNo
+    providerCustomerNo: delivery.providerCustomerNo,
+    costPrice: getProductCostPrice(product)
   });
 
   notifyOrder({
@@ -399,6 +401,7 @@ router.post('/order', requireLogin, async (req, res) => {
   // Update total terjual di produk (tidak dihitung kalau transaksi Digiflazz gagal & saldo di-refund)
   if (!delivery.refund) {
     updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+    if (usedFlashPrice) recordFlashSaleSale(product.id, qty);
   }
 
   if (delivery.refund) {
@@ -522,6 +525,7 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
     }
 
     const unitPrice = getEffectivePrice(product, user);
+    const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
     const total = unitPrice * qty;
 
     if (user.saldo < total) {
@@ -549,11 +553,13 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       note: delivery.refund ? delivery.note : 'Dibayar via QRIS',
       provider: delivery.provider,
       providerRefId: delivery.providerRefId,
-      providerCustomerNo: delivery.providerCustomerNo
+      providerCustomerNo: delivery.providerCustomerNo,
+      costPrice: getProductCostPrice(product)
     });
 
     if (!delivery.refund) {
       updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
+      if (usedFlashPrice) recordFlashSaleSale(product.id, qty);
     }
     notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: delivery.manualRequired, targetText: pending.targetText || '' }).catch(() => {});
 

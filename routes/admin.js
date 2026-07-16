@@ -8,9 +8,9 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock
+  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice
 } from '../lib/products.js';
-import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats } from '../lib/orders.js';
+import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { runBackupNow } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
@@ -140,6 +140,40 @@ function uploadGroupThumbnail(req, res, next) {
   });
 }
 
+// ---------- UPLOAD FOTO CUSTOM FLASH SALE (opsional, override foto produk aslinya) ----------
+const flashsaleDir = path.join(__dirname, '..', 'public', 'uploads', 'flashsale');
+fs.mkdirSync(flashsaleDir, { recursive: true });
+
+const flashsaleStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, flashsaleDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique = Date.now() + '_' + Math.round(Math.random() * 1e6);
+    cb(null, `fs_${unique}${ext}`);
+  }
+});
+const uploadFlashsaleRaw = multer({
+  storage: flashsaleStorage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedExt = /\.(jpe?g|png|webp|gif)$/i;
+    const allowedMime = /^image\/(jpeg|png|webp|gif)$/i;
+    if (!allowedExt.test(file.originalname) || !allowedMime.test(file.mimetype || '')) {
+      return cb(new Error('Format foto harus JPG, PNG, WEBP, atau GIF'));
+    }
+    cb(null, true);
+  }
+});
+// File foto di form Flash Sale bersifat OPSIONAL (beda dari upload produk/banner yang wajib ada
+// filenya sendiri) -- jadi err di sini cuma muncul kalau admin MEMANG upload file tapi formatnya
+// salah / kegedean, bukan karena field-nya kosong.
+function uploadFlashsaleThumbnail(req, res, next) {
+  uploadFlashsaleRaw.single('fsThumbnailFile')(req, res, (err) => {
+    if (err) return res.redirect('/admin/flashsale?error=' + encodeURIComponent(err.message));
+    next();
+  });
+}
+
 function renderSettings(req, res, extra = {}) {
   res.render('admin/settings', {
     config: getConfig(),
@@ -183,6 +217,11 @@ router.get('/', (req, res) => {
   const processing = orders.filter(o => o.status === 'processing').length;
   const cancelled = orders.filter(o => o.status === 'cancelled').length;
 
+  // Data grafik penjualan bulanan (12 bulan ke belakang) -- Pendapatan Kotor (omzet) vs
+  // Pendapatan Bersih (omzet - modal). Selalu dihitung 12 bulan penuh; toggle 6/12 bulan di
+  // halaman tinggal slice(-6) di sisi client, gak perlu request ulang ke server.
+  const monthly = getMonthlyRevenueStats(12);
+
   res.render('admin/dashboard', {
     stats,
     totalUsers: users.length,
@@ -194,6 +233,9 @@ router.get('/', (req, res) => {
     chartLabels: JSON.stringify(chartLabels),
     chartRevenue: JSON.stringify(chartRevenue),
     chartOrders: JSON.stringify(chartOrders),
+    monthlyLabels: JSON.stringify(monthly.map(m => m.label)),
+    monthlyGross: JSON.stringify(monthly.map(m => m.gross)),
+    monthlyNet: JSON.stringify(monthly.map(m => m.net)),
     statusCompleted: completed,
     statusProcessing: processing,
     statusCancelled: cancelled
@@ -230,15 +272,15 @@ function parseCustomTargetFields(body) {
 }
 
 router.post('/produk', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup } = req.body;
+  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice } = req.body;
   const thumbnail = req.file ? '/uploads/products/' + req.file.filename : '';
-  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, customTargetFields: parseCustomTargetFields(req.body) });
+  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, customTargetFields: parseCustomTargetFields(req.body) });
   res.redirect('/admin/produk');
 });
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup } = req.body;
-  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, customTargetFields: parseCustomTargetFields(req.body) };
+  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice } = req.body;
+  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, customTargetFields: parseCustomTargetFields(req.body) };
   // Foto hanya diganti kalau admin upload file baru, kalau tidak foto lama tetap dipakai
   if (req.file) partial.thumbnail = '/uploads/products/' + req.file.filename;
   updateProduct(req.params.id, partial);
@@ -281,12 +323,19 @@ function renderFlashSalePage(req, res, extra = {}) {
     .sort((a, b) => a.name.localeCompare(b.name));
   const settings = getFlashSaleSettings();
 
+  // Daftar kategori dari produk yang masih bisa dipilih -- dipakai buat dropdown "Pilih Kategori"
+  // di form Tambah Produk (biar admin gak harus scroll 1 dropdown gede isi semua produk campur).
+  // Filter kategori->produknya sendiri dikerjakan di sisi client dari atribut data-category tiap
+  // <option> (lihat admin/flashsale.ejs), jadi gak perlu kirim salinan data produk lagi sebagai JSON.
+  const categories = [...new Set(availableProducts.map(p => p.category || 'Umum'))].sort((a, b) => a.localeCompare(b));
+
   res.render('admin/flashsale', {
     config: getConfig(),
     items,
     settings,
     endsAtLocal: utcIsoToWibLocalInput(settings.endsAt),
     availableProducts,
+    categories,
     error: null,
     success: null,
     ...extra
@@ -303,25 +352,32 @@ router.post('/flashsale/settings', (req, res) => {
   renderFlashSalePage(req, res, { success: 'Pengaturan Flash Sale disimpan' });
 });
 
-router.post('/flashsale/add', (req, res) => {
-  const { productId, flashPrice, badge } = req.body;
+router.post('/flashsale/add', uploadFlashsaleThumbnail, (req, res) => {
+  const { productId, flashPrice, badge, quota } = req.body;
   try {
     if (!productId) throw new Error('Pilih produk yang mau dimasukkan Flash Sale');
     if (!flashPrice || Number(flashPrice) <= 0) throw new Error('Isi harga Flash Sale-nya (harus lebih dari 0)');
-    addFlashSaleItem({ productId, flashPrice, badge });
+    const thumbnail = req.file ? '/uploads/flashsale/' + req.file.filename : '';
+    addFlashSaleItem({ productId, flashPrice, badge, thumbnail, quota });
     renderFlashSalePage(req, res, { success: 'Produk ditambahkan ke Flash Sale' });
   } catch (err) {
     renderFlashSalePage(req, res, { error: err.message });
   }
 });
 
-router.post('/flashsale/:id/update', (req, res) => {
-  const { flashPrice, badge, active } = req.body;
-  updateFlashSaleItem(req.params.id, {
+router.post('/flashsale/:id/update', uploadFlashsaleThumbnail, (req, res) => {
+  const { flashPrice, badge, active, quota, resetSold } = req.body;
+  const partial = {
     flashPrice,
     badge,
-    active: active === 'on' || active === 'true'
-  });
+    active: active === 'on' || active === 'true',
+    quota,
+    resetSold: resetSold === 'on' || resetSold === 'true'
+  };
+  // Foto cuma diganti kalau admin upload file baru di form edit ini; kalau tidak ada file baru,
+  // foto lama (custom atau ikut foto produk) tetap dipakai apa adanya.
+  if (req.file) partial.thumbnail = '/uploads/flashsale/' + req.file.filename;
+  updateFlashSaleItem(req.params.id, partial);
   renderFlashSalePage(req, res, { success: 'Item Flash Sale diperbarui' });
 });
 
@@ -598,12 +654,13 @@ router.post('/order/manual', async (req, res) => {
   const user = findUserById(userId);
   if (!user) return res.redirect('/admin/order?error=User tidak ditemukan');
 
-  let productName, price;
+  let productName, price, costPrice = 0;
   if (productId) {
     const product = findProductById(productId);
     if (!product) return res.redirect('/admin/order?error=Produk tidak ditemukan');
     productName = product.name;
     price = product.price;
+    costPrice = getProductCostPrice(product);
   } else {
     productName = customName || 'Order Manual';
     price = Number(customPrice) || 0;
@@ -621,7 +678,8 @@ router.post('/order/manual', async (req, res) => {
     deliveryMode: 'manual',
     manualRequired: false,
     note: note || '',
-    detail: detail || ''
+    detail: detail || '',
+    costPrice
   });
 
   notifyOrder({
