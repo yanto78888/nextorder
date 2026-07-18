@@ -152,7 +152,7 @@
             <label><%= variants && variants.length > 1 ? '2. ' : '' %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
-              <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : 99 %>">
+              <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? 10 : 99) %>">
               <button type="button" class="qty-btn" id="qtyPlus">+</button>
             </div>
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
