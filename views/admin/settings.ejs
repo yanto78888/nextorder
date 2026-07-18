@@ -192,6 +192,17 @@
         <form method="POST" action="/admin/settings/backup/now" class="mt-16">
           <button type="submit" class="btn ghost" style="width:100%;"><i class="fa-solid fa-box-archive"></i> Backup Sekarang (Manual)</button>
         </form>
+
+        <div class="section-title" style="margin-top:24px;"><h3>Export &amp; Import Database</h3><div class="line"></div></div>
+        <div class="helper-text" style="margin-top:0;">Beda dari Backup Otomatis di atas (yang lewat Telegram) — ini buat download SEMUA data (produk, order, user, config, dll) langsung ke perangkatmu sebagai 1 file .json, atau pulihkan data dari file itu ke server ini. Berguna juga buat pindah server.</div>
+        <a href="/admin/settings/backup/export-json" class="btn ghost mt-16" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; text-decoration:none;"><i class="fa-solid fa-download"></i> Download Backup (JSON)</a>
+
+        <form method="POST" action="/admin/settings/backup/import" enctype="multipart/form-data" class="mt-16" onsubmit="return confirm('Import akan MENIMPA semua data yang ada sekarang (produk, order, user, saldo, dll) dengan isi file ini. Data yang ada sekarang otomatis dicadangkan dulu di server sebelum ditimpa, tapi tetap pastikan file yang diupload sudah benar. Lanjutkan?');">
+          <label>Pulihkan dari File (.json)</label>
+          <input type="file" name="dbFile" accept=".json,application/json" required>
+          <div class="helper-text">Pakai file hasil "Download Backup (JSON)" di atas (dari toko ini atau toko lain yang mau dipindahkan datanya ke sini).</div>
+          <button type="submit" class="btn danger mt-16" style="width:100%;"><i class="fa-solid fa-upload"></i> Import &amp; Timpa Database</button>
+        </form>
       </div>
 
       <div class="card account-card">

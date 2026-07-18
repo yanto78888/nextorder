@@ -58,17 +58,28 @@
 
     <div class="card mt-24">
       <h3>Cari &amp; Import Produk dari Digiflazz</h3>
-      <div class="helper-text">Kategori dipisah biar hasil pencarian fokus — pilih kategori dulu (mis. "Games") baru cari, atau langsung ketik nama produk. Pakai "Import Semua Hasil" buat isi katalog cepat tanpa klik satu-satu.</div>
-      <div class="flex" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <select id="dfCategorySelect" style="min-width:140px;">
+      <div class="helper-text">Pilih Kategori → Brand/Judul → Tipe biar hasil makin fokus (tiap dropdown aktif setelah yang sebelumnya dipilih), atau langsung ketik nama produk/SKU. Centang hasil yang mau ditambah — judul tiap produk bisa diedit dulu di kolom "Produk" kalau mau pakai judul sendiri, lalu klik "Tambah Produk Terpilih".</div>
+
+      <div class="df-filter-row">
+        <select id="dfCategorySelect">
           <option value="">Semua Kategori</option>
         </select>
-        <input type="text" id="dfSearchInput" placeholder="Ketik nama produk, mis. Mobile Legends, Free Fire, PUBG..." style="flex:1; min-width:180px;">
+        <select id="dfBrandSelect" disabled>
+          <option value="">Semua Brand/Judul</option>
+        </select>
+        <select id="dfTypeSelect" style="display:none;">
+          <option value="">Semua Tipe</option>
+        </select>
+        <input type="text" id="dfSearchInput" placeholder="Cari nama produk / SKU...">
         <button type="button" class="btn solid" id="dfSearchBtn">Cari</button>
       </div>
-      <div id="dfImportAllWrap" style="display:none; margin-top:10px;">
-        <button type="button" class="btn ghost" id="dfImportAllBtn"><i class="fa-solid fa-download"></i> Import Semua Hasil (<span id="dfResultCount">0</span>)</button>
+
+      <div id="dfBulkBar" class="df-bulk-bar" style="display:none;">
+        <label class="df-select-all"><input type="checkbox" id="dfSelectAllChk"> Pilih semua</label>
+        <span id="dfSelectedCount" class="helper-text">0 dipilih</span>
+        <button type="button" class="btn ghost small" id="dfAddSelectedBtn" disabled><i class="fa-solid fa-plus"></i> Tambah Produk Terpilih</button>
       </div>
+
       <div id="dfSearchResults" style="margin-top:14px;"></div>
     </div>
 
@@ -207,11 +218,16 @@
   var searchBtn = document.getElementById('dfSearchBtn');
   var searchInput = document.getElementById('dfSearchInput');
   var categorySelect = document.getElementById('dfCategorySelect');
+  var brandSelect = document.getElementById('dfBrandSelect');
+  var typeSelect = document.getElementById('dfTypeSelect');
   var resultsBox = document.getElementById('dfSearchResults');
-  var importAllWrap = document.getElementById('dfImportAllWrap');
-  var importAllBtn = document.getElementById('dfImportAllBtn');
-  var resultCountEl = document.getElementById('dfResultCount');
+  var bulkBar = document.getElementById('dfBulkBar');
+  var selectAllChk = document.getElementById('dfSelectAllChk');
+  var selectedCountEl = document.getElementById('dfSelectedCount');
+  var addSelectedBtn = document.getElementById('dfAddSelectedBtn');
   if (!searchBtn) return;
+
+  var lastResults = []; // hasil pencarian terakhir, diindex sesuai urutan baris tabel
 
   function esc(s) {
     return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -219,8 +235,14 @@
     });
   }
 
-  // Isi dropdown kategori dari Digiflazz sekali di awal (Games, Pulsa, Data, PLN, dst — dipisah,
-  // gak digabung jadi 1 list random) biar admin bisa fokus cari per kategori.
+  function resetSelect(sel, placeholder) {
+    sel.innerHTML = '';
+    var opt = document.createElement('option');
+    opt.value = ''; opt.textContent = placeholder;
+    sel.appendChild(opt);
+  }
+
+  // Isi dropdown kategori dari Digiflazz sekali di awal (Games, Pulsa, Data, PLN, dst).
   fetch('/admin/digiflazz/categories')
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -233,110 +255,264 @@
     })
     .catch(function () {});
 
+  // Level ke-2: Brand/Judul, cuma aktif setelah Kategori dipilih -- biar daftarnya gak nyampur
+  // ratusan brand dari semua kategori sekaligus (itu yang bikin "makan tempat" di versi lama).
+  function loadBrands(category) {
+    resetSelect(brandSelect, 'Semua Brand/Judul');
+    hideTypeSelect();
+    if (!category) { brandSelect.disabled = true; return; }
+    brandSelect.disabled = true;
+    fetch('/admin/digiflazz/brands?category=' + encodeURIComponent(category))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) return;
+        data.brands.forEach(function (b) {
+          var opt = document.createElement('option');
+          opt.value = b; opt.textContent = b;
+          brandSelect.appendChild(opt);
+        });
+        brandSelect.disabled = false;
+      })
+      .catch(function () {});
+  }
+
+  function hideTypeSelect() {
+    resetSelect(typeSelect, 'Semua Tipe');
+    typeSelect.style.display = 'none';
+  }
+
+  // Level ke-3: Tipe, dipisah 2 grup (Tipe: Umum/Membership, Negara/Lainnya: Malaysia/Global/dst).
+  // Dropdown ini disembunyikan total kalau brand-nya cuma punya 1 (atau 0) pilihan tipe -- gak ada
+  // gunanya nampilin dropdown yang isinya cuma 1 opsi, cuma makan tempat doang.
+  function loadTypes(category, brand) {
+    hideTypeSelect();
+    if (!brand) return;
+    fetch('/admin/digiflazz/types?category=' + encodeURIComponent(category) + '&brand=' + encodeURIComponent(brand))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) return;
+        var total = (data.modes || []).length + (data.regions || []).length;
+        if (total <= 1) return; // gak perlu dropdown, biarin ke-skip (search tetap jalan tanpa filter tipe)
+
+        if (data.modes && data.modes.length) {
+          var g1 = document.createElement('optgroup');
+          g1.label = 'Tipe';
+          data.modes.forEach(function (t) {
+            var opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            g1.appendChild(opt);
+          });
+          typeSelect.appendChild(g1);
+        }
+        if (data.regions && data.regions.length) {
+          var g2 = document.createElement('optgroup');
+          g2.label = 'Negara / Lainnya';
+          data.regions.forEach(function (t) {
+            var opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            g2.appendChild(opt);
+          });
+          typeSelect.appendChild(g2);
+        }
+        typeSelect.style.display = '';
+      })
+      .catch(function () {});
+  }
+
   function doSearch() {
     var q = searchInput.value.trim();
     var category = categorySelect ? categorySelect.value : '';
+    var brand = brandSelect ? brandSelect.value : '';
+    var type = typeSelect ? typeSelect.value : '';
     resultsBox.innerHTML = '<div class="helper-text">Mencari...</div>';
-    if (importAllWrap) importAllWrap.style.display = 'none';
+    bulkBar.style.display = 'none';
 
-    fetch('/admin/digiflazz/search?q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(category))
+    var qs = '?q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(category) +
+      '&brand=' + encodeURIComponent(brand) + '&type=' + encodeURIComponent(type);
+
+    fetch('/admin/digiflazz/search' + qs)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(data.error) + '</div>'; return; }
         if (!data.results.length) { resultsBox.innerHTML = '<div class="helper-text">Tidak ada hasil.</div>'; return; }
 
-        if (importAllWrap && resultCountEl) {
-          var belum = data.results.filter(function (r) { return !r.alreadyImported; }).length;
-          if (belum > 0) {
-            resultCountEl.textContent = belum;
-            importAllWrap.style.display = '';
-          }
-        }
-
-        var table = document.createElement('table');
-        table.innerHTML = '<thead><tr><th>Produk</th><th>Kategori</th><th>SKU</th><th>Modal</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
-        var tbody = document.createElement('tbody');
-
-        data.results.forEach(function (item) {
-          var tr = document.createElement('tr');
-          var priceStr = 'Rp ' + Number(item.price || 0).toLocaleString('id-ID');
-          var sellStr = 'Rp ' + Number(item.sellPricePreview || 0).toLocaleString('id-ID');
-          tr.innerHTML =
-            '<td>' + esc(item.product_name) + '<br><span class="helper-text">' + esc(item.brand || '') + '</span></td>' +
-            '<td><span class="helper-text">' + esc(item.category || '-') + '</span></td>' +
-            '<td class="mono">' + esc(item.buyer_sku_code) + '</td>' +
-            '<td class="mono">' + priceStr + '</td>' +
-            '<td class="mono" style="color:var(--cyan);">' + sellStr + '</td>' +
-            '<td></td>';
-
-          var actionTd = tr.querySelector('td:last-child');
-          if (item.alreadyImported) {
-            var span = document.createElement('span');
-            span.className = 'badge completed';
-            span.textContent = 'Sudah diimport';
-            actionTd.appendChild(span);
-          } else {
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/admin/digiflazz/import';
-            form.style.display = 'flex';
-            form.style.gap = '4px';
-
-            function hidden(name, value) {
-              var inp = document.createElement('input');
-              inp.type = 'hidden'; inp.name = name; inp.value = value == null ? '' : value;
-              form.appendChild(inp);
-            }
-            hidden('buyerSkuCode', item.buyer_sku_code);
-            hidden('productName', item.product_name);
-            hidden('category', item.category || 'Games');
-            hidden('brand', item.brand || '');
-            hidden('basePrice', item.price);
-
-            var btn = document.createElement('button');
-            btn.type = 'submit';
-            btn.className = 'btn small solid';
-            btn.textContent = 'Import';
-            form.appendChild(btn);
-            actionTd.appendChild(form);
-          }
-          tbody.appendChild(tr);
-        });
-
-        table.appendChild(tbody);
-        resultsBox.innerHTML = '';
-        resultsBox.appendChild(table);
+        lastResults = data.results;
+        renderResultsTable();
       })
       .catch(function (err) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(err.message) + '</div>'; });
+  }
+
+  function updateBulkBar() {
+    var boxes = resultsBox.querySelectorAll('.df-row-chk');
+    var checked = resultsBox.querySelectorAll('.df-row-chk:checked');
+    var anySelectable = boxes.length > 0;
+    bulkBar.style.display = anySelectable ? '' : 'none';
+    selectedCountEl.textContent = checked.length + ' dipilih';
+    addSelectedBtn.disabled = checked.length === 0;
+    if (selectAllChk) selectAllChk.checked = boxes.length > 0 && checked.length === boxes.length;
+  }
+
+  function renderResultsTable() {
+    var table = document.createElement('table');
+    table.innerHTML = '<thead><tr><th style="width:28px;"></th><th>Produk</th><th>Kategori</th><th>SKU</th><th>Modal</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
+    var tbody = document.createElement('tbody');
+
+    lastResults.forEach(function (item, idx) {
+      var tr = document.createElement('tr');
+      var priceStr = 'Rp ' + Number(item.price || 0).toLocaleString('id-ID');
+      var sellStr = 'Rp ' + Number(item.sellPricePreview || 0).toLocaleString('id-ID');
+
+      var chkTd = document.createElement('td');
+      if (!item.alreadyImported) {
+        var chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'df-row-chk';
+        chk.dataset.idx = idx;
+        chk.addEventListener('change', updateBulkBar);
+        chkTd.appendChild(chk);
+      }
+      tr.appendChild(chkTd);
+
+      var nameTd = document.createElement('td');
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'df-row-name';
+      nameInput.value = item.product_name;
+      nameInput.disabled = !!item.alreadyImported;
+      nameInput.style.marginBottom = '4px';
+      nameTd.appendChild(nameInput);
+      var brandHint = document.createElement('div');
+      brandHint.className = 'helper-text';
+      brandHint.textContent = (item.brand || '') + (item.type ? ' · ' + item.type : '');
+      nameTd.appendChild(brandHint);
+      tr.appendChild(nameTd);
+
+      var catTd = document.createElement('td');
+      catTd.innerHTML = '<span class="helper-text">' + esc(item.category || '-') + '</span>';
+      tr.appendChild(catTd);
+
+      var skuTd = document.createElement('td');
+      skuTd.className = 'mono';
+      skuTd.textContent = item.buyer_sku_code;
+      tr.appendChild(skuTd);
+
+      var modalTd = document.createElement('td');
+      modalTd.className = 'mono';
+      modalTd.textContent = priceStr;
+      tr.appendChild(modalTd);
+
+      var sellTd = document.createElement('td');
+      sellTd.className = 'mono';
+      sellTd.style.color = 'var(--cyan)';
+      sellTd.textContent = sellStr;
+      tr.appendChild(sellTd);
+
+      var actionTd = document.createElement('td');
+      if (item.alreadyImported) {
+        var span = document.createElement('span');
+        span.className = 'badge completed';
+        span.textContent = 'Sudah diimport';
+        actionTd.appendChild(span);
+      } else {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn small solid';
+        btn.textContent = 'Import';
+        btn.addEventListener('click', function () { importSingle(item, nameInput.value.trim(), btn); });
+        actionTd.appendChild(btn);
+      }
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    resultsBox.innerHTML = '';
+    resultsBox.appendChild(table);
+    updateBulkBar();
+  }
+
+  function importSingle(item, productName, btn) {
+    if (!productName) { alert('Judul produk tidak boleh kosong.'); return; }
+    btn.disabled = true;
+    btn.textContent = '...';
+    fetch('/admin/digiflazz/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        buyerSkuCode: item.buyer_sku_code,
+        productName: productName,
+        category: item.category || 'Games',
+        brand: item.brand || '',
+        basePrice: item.price
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { alert('Gagal: ' + data.error); btn.disabled = false; btn.textContent = 'Import'; return; }
+        item.alreadyImported = true;
+        renderResultsTable();
+      })
+      .catch(function (err) { alert('Gagal: ' + err.message); btn.disabled = false; btn.textContent = 'Import'; });
   }
 
   searchBtn.addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
   });
-  if (categorySelect) categorySelect.addEventListener('change', doSearch);
+  categorySelect.addEventListener('change', function () {
+    loadBrands(categorySelect.value);
+    doSearch();
+  });
+  brandSelect.addEventListener('change', function () {
+    loadTypes(categorySelect.value, brandSelect.value);
+    doSearch();
+  });
+  typeSelect.addEventListener('change', doSearch);
 
-  if (importAllBtn) {
-    importAllBtn.addEventListener('click', function () {
-      var count = resultCountEl ? resultCountEl.textContent : '';
-      if (!confirm('Import ' + count + ' produk sekaligus dengan margin default? Bisa disesuaikan lagi per-produk setelahnya.')) return;
+  selectAllChk.addEventListener('change', function () {
+    resultsBox.querySelectorAll('.df-row-chk').forEach(function (chk) { chk.checked = selectAllChk.checked; });
+    updateBulkBar();
+  });
 
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/admin/digiflazz/import-all';
-
-      var qInp = document.createElement('input');
-      qInp.type = 'hidden'; qInp.name = 'q'; qInp.value = searchInput.value.trim();
-      form.appendChild(qInp);
-
-      var catInp = document.createElement('input');
-      catInp.type = 'hidden'; catInp.name = 'category'; catInp.value = categorySelect ? categorySelect.value : '';
-      form.appendChild(catInp);
-
-      document.body.appendChild(form);
-      form.submit();
+  addSelectedBtn.addEventListener('click', function () {
+    var checked = resultsBox.querySelectorAll('.df-row-chk:checked');
+    if (!checked.length) return;
+    var items = [];
+    checked.forEach(function (chk) {
+      var item = lastResults[Number(chk.dataset.idx)];
+      var nameInput = chk.closest('tr').querySelector('.df-row-name');
+      var name = nameInput ? nameInput.value.trim() : item.product_name;
+      if (!name) return;
+      items.push({
+        buyerSkuCode: item.buyer_sku_code,
+        productName: name,
+        category: item.category || 'Games',
+        brand: item.brand || '',
+        basePrice: item.price
+      });
     });
-  }
+    if (!items.length) { alert('Judul produk tidak boleh kosong.'); return; }
+
+    addSelectedBtn.disabled = true;
+    addSelectedBtn.textContent = 'Menambahkan...';
+    fetch('/admin/digiflazz/import-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        addSelectedBtn.textContent = 'Tambah Produk Terpilih';
+        if (!data.ok) { alert('Gagal: ' + data.error); return; }
+        alert(data.message);
+        location.reload(); // refresh biar badge "Sudah diimport" & daftar "Produk Digiflazz Terhubung" di bawah keupdate
+      })
+      .catch(function (err) {
+        addSelectedBtn.textContent = 'Tambah Produk Terpilih';
+        alert('Gagal: ' + err.message);
+      });
+  });
 })();
 
 // ===== FOLDER GRUP DIGIFLAZZ: klik header buat buka/tutup isi nominal =====
