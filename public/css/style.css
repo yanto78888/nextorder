@@ -455,6 +455,39 @@ input[type="file"] {
 .df-group-upload input[type="file"] { flex: 1; min-width: 140px; font-size: 12px; padding: 6px 8px; }
 .df-group-body { display: none; padding: 0 14px 14px; }
 .df-group-card.open .df-group-body { display: block; }
+
+/* Filter bertingkat Kategori -> Brand/Judul -> Tipe di halaman Kelola Digiflazz. Pakai dropdown
+   (bukan tumpukan tombol pill) supaya tetap ringkas & gak overflow di layar sempit -- tiap kontrol
+   dikasih flex-basis kecil (bukan width:100% bawaan) biar bisa berdampingan lalu wrap rapi kalau
+   sempit (lihat juga aturan .flex di @media max-width:520px yang otomatis nge-wrap). */
+.df-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.df-filter-row select { flex: 1 1 150px; min-width: 130px; max-width: 240px; }
+.df-filter-row input[type="text"] { flex: 2 1 200px; min-width: 160px; }
+.df-filter-row .btn { flex: 0 0 auto; }
+.df-filter-row select:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Bar aksi massal (checkbox "pilih semua" + jumlah terpilih + tombol tambah) yang muncul di atas
+   tabel hasil pencarian Digiflazz. */
+.df-bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,0.02);
+}
+.df-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; margin: 0; }
+.df-select-all input { width: auto; margin: 0; }
+.df-bulk-bar .btn { margin-left: auto; }
+.df-row-name { font-size: 13px; padding: 6px 8px; }
 input[type="file"]::file-selector-button {
   padding: 7px 14px;
   margin-right: 12px;
