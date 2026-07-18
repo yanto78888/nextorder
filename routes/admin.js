@@ -12,10 +12,10 @@ import {
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { notifyOrder } from '../lib/telegram.js';
-import { runBackupNow } from '../lib/backup.js';
+import { runBackupNow, exportAllData, importAllData } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
-import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, computeSellPrice } from '../lib/digiflazz.js';
+import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice } from '../lib/digiflazz.js';
 import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
 import {
   getAllFlashSaleItems, getFlashSaleDisplayItems, getFlashSaleSettings, updateFlashSaleSettings,
@@ -170,6 +170,26 @@ const uploadFlashsaleRaw = multer({
 function uploadFlashsaleThumbnail(req, res, next) {
   uploadFlashsaleRaw.single('fsThumbnailFile')(req, res, (err) => {
     if (err) return res.redirect('/admin/flashsale?error=' + encodeURIComponent(err.message));
+    next();
+  });
+}
+
+// ---------- IMPORT DATABASE (upload file .json hasil "Download Backup (JSON)") ----------
+// Disimpan di memory (bukan disk) -- filenya cuma dibaca sekali buat JSON.parse lalu dibuang,
+// gak perlu nyimpen file mentahnya di server.
+const uploadDbImportRaw = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB, longgar buat toko yang datanya udah banyak
+  fileFilter: (req, file, cb) => {
+    if (!/\.json$/i.test(file.originalname)) {
+      return cb(new Error('File harus format .json (hasil "Download Backup (JSON)" di halaman ini)'));
+    }
+    cb(null, true);
+  }
+});
+function uploadDatabaseFile(req, res, next) {
+  uploadDbImportRaw.single('dbFile')(req, res, (err) => {
+    if (err) return renderSettings(req, res, { accountError: err.message });
     next();
   });
 }
@@ -427,13 +447,40 @@ router.get('/digiflazz/categories', async (req, res) => {
   }
 });
 
+// Level filter ke-2: daftar Brand/Judul (mis. "MOBILE LEGENDS", "TELKOMSEL") dalam 1 kategori.
+router.get('/digiflazz/brands', async (req, res) => {
+  try {
+    const category = req.query.category || '';
+    const brands = await getDigiflazzBrands('prepaid', category);
+    res.json({ ok: true, brands });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Level filter ke-3: tipe dalam 1 kategori+brand, sudah dipisah "modes" (Umum/Membership/dst)
+// dan "regions" (Malaysia/Indonesia/Global/dst) -- lihat classifyPriceListType() di lib/digiflazz.js.
+router.get('/digiflazz/types', async (req, res) => {
+  try {
+    const category = req.query.category || '';
+    const brand = req.query.brand || '';
+    const types = await getDigiflazzTypes('prepaid', category, brand);
+    res.json({ ok: true, ...types });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 // Cari produk Digiflazz + preview harga jual (base + margin default) buat halaman kelola khusus ini.
-// Kategori dipisah lewat query ?category=, gak dicampur — biar hasil pencarian fokus (mis. cuma "Games").
+// Difilter bertingkat lewat query ?category=&brand=&type=, gak dicampur — biar hasil pencarian fokus
+// (mis. cuma "Games" > "Mobile Legends" > "Umum").
 router.get('/digiflazz/search', async (req, res) => {
   try {
     const q = req.query.q || '';
     const category = req.query.category || '';
-    const raw = await searchDigiflazzPriceList(q, 'prepaid', category);
+    const brand = req.query.brand || '';
+    const type = req.query.type || '';
+    const raw = await searchDigiflazzPriceList(q, 'prepaid', category, brand, type);
     const linkedSkus = new Set(getAllProducts().filter(p => p.provider === 'digiflazz').map(p => p.digiflazzSku));
     const results = raw.map(item => ({
       ...item,
@@ -446,41 +493,83 @@ router.get('/digiflazz/search', async (req, res) => {
   }
 });
 
-// Import SEMUA hasil pencarian/kategori sekaligus (skip yang udah pernah diimport), pakai margin
-// default global. Buat admin yang mau isi katalog cepat tanpa klik "Import" satu-satu.
-router.post('/digiflazz/import-all', async (req, res) => {
+// Import atau update 1 produk Digiflazz jadi produk lokal. Dipakai bareng oleh route form-post
+// "/digiflazz/import" (1 produk, tombol "Import" per baris) dan "/digiflazz/import-batch"
+// (JSON, banyak produk sekaligus lewat checkbox) supaya logic-nya gak kembar/gampang beda perilaku.
+function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue }) {
+  if (!buyerSkuCode || !productName) {
+    throw new Error('SKU dan nama produk wajib diisi');
+  }
+  const existing = getAllProducts().find(p => p.provider === 'digiflazz' && p.digiflazzSku === buyerSkuCode);
+  const base = Number(basePrice) || 0;
+  const sellPrice = computeSellPrice(base, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+  const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`);
+
+  if (existing) {
+    updateProduct(existing.id, {
+      name: productName,
+      price: sellPrice,
+      digiflazzBasePrice: base,
+      marginType: marginType || '',
+      marginValue: marginValue !== '' && marginValue != null ? marginValue : null
+    });
+    return { created: false, product: existing };
+  }
+
+  const product = createProduct({
+    name: productName,
+    category: category || 'Games',
+    description: '',
+    price: sellPrice,
+    provider: 'digiflazz',
+    digiflazzSku: buyerSkuCode,
+    digiflazzBasePrice: base,
+    variantGroup: brand || '',
+    gamePreset: detectedPreset,
+    marginType: marginType || '',
+    marginValue: marginValue !== '' && marginValue != null ? marginValue : null
+  });
+  return { created: true, product };
+}
+
+// Import/update produk Digiflazz TERPILIH sekaligus (checkbox di UI), masing-masing baris boleh
+// bawa nama/judul sendiri (custom title, hasil admin edit di kolom nama sebelum submit) -- gantiin
+// "Import Semua Hasil" yang lama (all-or-nothing) jadi lebih presisi: admin pilih baris mana aja
+// yang mau ditambah lewat checkbox (termasuk bisa "pilih semua" via checkbox header).
+router.post('/digiflazz/import-batch', async (req, res) => {
   try {
-    const q = req.body.q || '';
-    const category = req.body.category || '';
-    const raw = await searchDigiflazzPriceList(q, 'prepaid', category);
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (items.length === 0) {
+      return res.status(400).json({ ok: false, error: 'Tidak ada produk yang dipilih.' });
+    }
 
-    const existingSkus = new Set(getAllProducts().filter(p => p.provider === 'digiflazz').map(p => p.digiflazzSku));
-    const toImport = raw.filter(item => !existingSkus.has(item.buyer_sku_code));
-
-    toImport.forEach(item => {
-      const sellPrice = computeSellPrice(item.price, null, null);
-      createProduct({
-        name: item.product_name,
-        category: item.category || 'Games',
-        description: '',
-        price: sellPrice,
-        provider: 'digiflazz',
-        digiflazzSku: item.buyer_sku_code,
-        digiflazzBasePrice: item.price,
-        variantGroup: item.brand || '',
-        gamePreset: guessGamePreset(`${item.product_name} ${item.brand || ''}`),
-        marginType: '',
-        marginValue: null
-      });
+    let created = 0;
+    let updated = 0;
+    const errors = [];
+    items.forEach(item => {
+      try {
+        const result = importOrUpdateDigiflazzProduct({
+          buyerSkuCode: item.buyerSkuCode,
+          productName: (item.productName || '').trim(),
+          category: item.category,
+          brand: item.brand,
+          basePrice: item.basePrice
+        });
+        if (result.created) created++; else updated++;
+      } catch (err) {
+        errors.push(`${item.buyerSkuCode || '?'}: ${err.message}`);
+      }
     });
 
-    renderDigiflazzPage(req, res, {
-      success: toImport.length > 0
-        ? `${toImport.length} produk berhasil diimport sekaligus.${raw.length - toImport.length > 0 ? ` ${raw.length - toImport.length} lainnya udah pernah diimport, dilewati.` : ''}`
-        : 'Tidak ada produk baru buat diimport (semua hasil pencarian ini udah pernah diimport).'
+    res.json({
+      ok: true,
+      created,
+      updated,
+      errors,
+      message: `${created} produk baru ditambahkan${updated > 0 ? `, ${updated} produk yang udah ada diperbarui` : ''}.${errors.length > 0 ? ` ${errors.length} baris gagal.` : ''}`
     });
   } catch (err) {
-    renderDigiflazzPage(req, res, { error: err.message });
+    res.status(400).json({ ok: false, error: err.message });
   }
 });
 
@@ -510,52 +599,23 @@ router.post('/digiflazz/margin', (req, res) => {
   renderDigiflazzPage(req, res, { success: `Margin default berhasil disimpan. ${updated} produk (tanpa margin sendiri) langsung ikut diperbarui harganya.` });
 });
 
-// Import 1 produk dari price list Digiflazz jadi produk lokal
+// Import 1 produk dari price list Digiflazz jadi produk lokal (nama produk boleh diedit dulu di
+// UI sebelum submit -- itu yang jadi fitur "buat judul sendiri"). Respons JSON (bukan render ulang
+// halaman) supaya baris itu aja yang keupdate di UI, gak ilang filter/hasil pencarian yang lagi dibuka.
 router.post('/digiflazz/import', (req, res) => {
   try {
-    const {
-      buyerSkuCode, productName, category, brand, basePrice,
-      gamePreset, marginType, marginValue
-    } = req.body;
+    const { buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue } = req.body;
+    const result = importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue });
 
-    if (!buyerSkuCode || !productName) {
-      return renderDigiflazzPage(req, res, { error: 'SKU dan nama produk wajib diisi' });
-    }
-
-    // Cegah double-import SKU yang sama
-    const existing = getAllProducts().find(p => p.provider === 'digiflazz' && p.digiflazzSku === buyerSkuCode);
-    const base = Number(basePrice) || 0;
-    const sellPrice = computeSellPrice(base, marginType || null, marginValue !== '' ? marginValue : null);
-    const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`);
-
-    if (existing) {
-      updateProduct(existing.id, {
-        name: productName,
-        price: sellPrice,
-        digiflazzBasePrice: base,
-        marginType: marginType || '',
-        marginValue: marginValue !== '' ? marginValue : null
-      });
-      return renderDigiflazzPage(req, res, { success: `SKU ${buyerSkuCode} sudah pernah diimport, harga & data produk diperbarui.` });
-    }
-
-    createProduct({
-      name: productName,
-      category: category || 'Games',
-      description: '',
-      price: sellPrice,
-      provider: 'digiflazz',
-      digiflazzSku: buyerSkuCode,
-      digiflazzBasePrice: base,
-      variantGroup: brand || '',
-      gamePreset: detectedPreset,
-      marginType: marginType || '',
-      marginValue: marginValue !== '' ? marginValue : null
+    res.json({
+      ok: true,
+      created: result.created,
+      message: result.created
+        ? `Produk "${productName}" berhasil diimport dari Digiflazz.`
+        : `SKU ${buyerSkuCode} sudah pernah diimport, harga & data produk diperbarui.`
     });
-
-    renderDigiflazzPage(req, res, { success: `Produk "${productName}" berhasil diimport dari Digiflazz.` });
   } catch (err) {
-    renderDigiflazzPage(req, res, { error: err.message });
+    res.status(400).json({ ok: false, error: err.message });
   }
 });
 
@@ -813,6 +873,37 @@ router.post('/settings/backup/now', async (req, res) => {
     renderSettings(req, res, { accountError: 'Isi dulu Bot Token & Chat ID Telegram sebelum backup manual' });
   } else {
     renderSettings(req, res, { accountError: 'Backup gagal: ' + (result.reason || 'unknown error') });
+  }
+});
+
+// Download seluruh database (semua tabel) jadi 1 file .json langsung dari browser -- gak butuh
+// Telegram diisi dulu kayak backup otomatis di atas. File ini juga yang dipakai buat Import/Pulihkan.
+router.get('/settings/backup/export-json', (req, res) => {
+  const bundle = exportAllData();
+  const cfg = getConfig();
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `${(cfg.siteName || 'nexorder').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-backup-${stamp}.json`;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(JSON.stringify(bundle, null, 2));
+});
+
+// Pulihkan/Import database dari file .json (hasil download di atas, atau backup lama). MENIMPA
+// data yang ada sekarang -- makanya importAllData() otomatis nyimpen snapshot data lama dulu
+// sebelum ditimpa (lihat lib/backup.js) sebagai jaring pengaman.
+router.post('/settings/backup/import', uploadDatabaseFile, (req, res) => {
+  try {
+    if (!req.file) {
+      return renderSettings(req, res, { accountError: 'Pilih dulu file .json backup yang mau dipulihkan' });
+    }
+    const bundle = JSON.parse(req.file.buffer.toString('utf-8'));
+    const result = importAllData(bundle);
+    renderSettings(req, res, {
+      success: `✅ Database berhasil dipulihkan (${result.restored} tabel: ${result.tableNames.join(', ')}). Data lama otomatis disimpan sebagai cadangan di server sebelum ditimpa.`
+    });
+  } catch (err) {
+    const msg = err instanceof SyntaxError ? 'File bukan JSON yang valid' : err.message;
+    renderSettings(req, res, { accountError: 'Gagal memulihkan database: ' + msg });
   }
 });
 

@@ -9,7 +9,7 @@ import {
   getMembershipDiscount, upgradeMembership
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct, getProductCostPrice } from '../lib/products.js';
-import { getOrdersByUser, createOrder, getStats } from '../lib/orders.js';
+import { getOrdersByUser, createOrder, getStats, getTotalSoldMap } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
@@ -50,6 +50,20 @@ function formatTargetText(product, data) {
       return `${f.label}: ${val}`;
     })
     .join(' | ');
+}
+
+// Digiflazz gak punya konsep "quantity" per transaksi -- tiap unit butuh 1 panggilan
+// createTransaction() SENDIRI ke Digiflazz secara berurutan (lihat fulfillAndRecordOrders di
+// bawah). Kalau qty dibiarkan sampai puluhan, 1 request checkout bisa jadi puluhan panggilan API
+// berurutan yang lama & rawan timeout di browser/proxy. Makanya dibatasi wajar di sini (dicek di
+// /order, /order/qris-init, DAN /order/qris-confirm -- bukan cuma di 1 tempat, khususnya jangan
+// sampai baru ketahuan kelebihan qty SETELAH customer bayar QRIS beneran).
+const MAX_DIGIFLAZZ_QTY_PER_ORDER = 10;
+function validateQty(product, qty) {
+  if (product.provider === 'digiflazz' && qty > MAX_DIGIFLAZZ_QTY_PER_ORDER) {
+    return `Maksimal ${MAX_DIGIFLAZZ_QTY_PER_ORDER}x per transaksi untuk produk auto top up ini. Silakan checkout terpisah untuk jumlah lebih banyak.`;
+  }
+  return null;
 }
 
 // Kirim produk ke user: stok manual dari sistem, atau auto top up game lewat Digiflazz.
@@ -116,6 +130,85 @@ async function fulfillOrder(product, qty, targetData, targetText) {
     note: isAutoDelivered ? 'Dikirim otomatis dari stok sistem' : 'Stok otomatis habis, menunggu admin kirim manual',
     provider: 'manual', providerRefId: '', providerCustomerNo: '', refund: false
   };
+}
+
+// Proses 1 aksi checkout (bayar Saldo atau QRIS) jadi 1 ATAU LEBIH order record + kirim produknya.
+//
+// KENAPA BISA LEBIH DARI 1 ORDER: Digiflazz gak punya konsep "quantity" per transaksi -- 1
+// panggilan createTransaction() = 1 unit dikirim ke 1 customer_no. Dulu qty diabaikan sama
+// sekali buat produk Digiflazz (cuma manggil createTransaction() 1x walau qty=3 misalnya),
+// akibatnya customer BAYAR 3x lipat harga tapi Digiflazz cuma memproses ("ke-hit") 1x. Sekarang,
+// khusus produk Digiflazz, benar-benar di-loop sebanyak qty (masing-masing createTransaction()
+// dengan ref_id BEDA -- Digiflazz menganggap ref_id yang SAMA sebagai retry transaksi yang sama,
+// BUKAN transaksi baru), dan masing-masing unit dicatat sebagai order TERPISAH (qty:1). Dengan
+// gitu status/refund/reconcile per unit otomatis akurat lewat logic single-unit yang sudah ada
+// (gak perlu bikin konsep "refund sebagian" yang baru). Produk provider manual/stok TETAP 1
+// order (qty:N) kayak sebelumnya -- itu memang sudah benar (lihat takeProductStock yang emang
+// ngambil N item stok sekaligus).
+async function fulfillAndRecordOrders({ user, product, qty, targetData, targetText, notifySource, paidNote }) {
+  const unitPrice = getEffectivePrice(product, user);
+  const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
+  const perUnit = product.provider === 'digiflazz' && isDigiflazzEnabled();
+  const iterations = perUnit ? qty : 1;
+  const orderQty = perUnit ? 1 : qty;
+
+  const orders = [];
+  for (let i = 0; i < iterations; i++) {
+    const delivery = await fulfillOrder(product, orderQty, targetData, targetText);
+    if (delivery.refund) addSaldo(user.id, unitPrice * orderQty); // refund per-unit kalau gagal
+
+    const order = createOrder({
+      userId: user.id,
+      username: user.username,
+      productId: product.id,
+      productName: product.name,
+      price: unitPrice,
+      qty: orderQty,
+      source: 'user',
+      status: delivery.status,
+      deliveryMode: delivery.deliveryMode,
+      manualRequired: delivery.manualRequired,
+      targetText,
+      detail: delivery.detail,
+      note: delivery.refund ? delivery.note : (paidNote || delivery.note),
+      provider: delivery.provider,
+      providerRefId: delivery.providerRefId,
+      providerCustomerNo: delivery.providerCustomerNo,
+      costPrice: getProductCostPrice(product),
+      usedFlashPrice
+    });
+    orders.push(order);
+
+    // Catatan: total terjual TIDAK di-increment manual di sini -- dihitung live dari order (lihat
+    // getTotalSoldMap di lib/orders.js), jadi otomatis akurat termasuk kalau order Digiflazz yang
+    // sempat "Pending" ini belakangan ternyata gagal (lihat checkPendingDigiflazzOrders).
+    if (!delivery.refund && usedFlashPrice) recordFlashSaleSale(product.id, orderQty);
+
+    notifyOrder({
+      username: user.username,
+      productName: product.name,
+      total: order.total,
+      orderId: order.id,
+      source: notifySource || (delivery.status === 'completed' ? 'auto' : 'user'),
+      needsManual: delivery.manualRequired,
+      targetText
+    }).catch(() => {});
+  }
+  return orders;
+}
+
+// Ringkas hasil banyak order (qty>1 produk Digiflazz) jadi 1 pesan buat redirect ke /riwayat.
+// Return null kalau cuma 1 order -- biar caller pakai pesan single-order yang lebih spesifik.
+function summarizeOrders(orders) {
+  if (orders.length <= 1) return null;
+  const completed = orders.filter(o => o.status === 'completed').length;
+  const processing = orders.filter(o => o.status === 'processing').length;
+  const cancelled = orders.filter(o => o.status === 'cancelled').length;
+  const parts = [];
+  if (completed) parts.push(`${completed} berhasil dikirim`);
+  if (processing) parts.push(`${processing} masih diproses otomatis`);
+  if (cancelled) parts.push(`${cancelled} gagal & saldo bagian itu sudah dikembalikan`);
+  return `${orders.length} order diproses: ${parts.join(', ')}.`;
 }
 
 // ---------- UPLOAD FOTO PROFIL ----------
@@ -219,9 +312,14 @@ router.get('/produk', (req, res) => {
   const discountPercent = user ? getMembershipDiscount(user) : 0;
   const cfg = getConfig();
 
+  // totalSold dihitung LIVE dari order asli (qty semua order yang bukan 'cancelled'), bukan dari
+  // counter tersimpan di produk -- lihat getTotalSoldMap() di lib/orders.js buat alasannya (bug
+  // lama: order Digiflazz "Pending" yang belakangan gagal gak pernah ke-kurangi lagi dari counter).
+  const soldMap = getTotalSoldMap();
   const products = getActiveProducts()
     .map(p => ({
       ...p,
+      totalSold: soldMap[p.id] || 0,
       finalPrice: getEffectivePrice(p, user),
       icon: getGameIcon(p.gamePreset)
     }));
@@ -350,6 +448,9 @@ router.post('/order', requireLogin, async (req, res) => {
     return res.redirect('/produk?error=Produk tidak tersedia');
   }
 
+  const qtyError = validateQty(product, qty);
+  if (qtyError) return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(qtyError));
+
   const { data: targetData, missing } = extractTargetData(product, req.body);
   if (missing.length > 0) {
     return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(`Lengkapi dulu: ${missing.join(', ')}`));
@@ -357,7 +458,6 @@ router.post('/order', requireLogin, async (req, res) => {
   const targetText = formatTargetText(product, targetData);
 
   const unitPrice = getEffectivePrice(product, user);
-  const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
   const total = unitPrice * qty;
   if (user.saldo < total) {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
@@ -365,55 +465,23 @@ router.post('/order', requireLogin, async (req, res) => {
 
   deductSaldo(user.id, total);
 
-  const delivery = await fulfillOrder(product, qty, targetData, targetText);
-  if (delivery.refund) addSaldo(user.id, total); // refund saldo kalau Digiflazz gagal
+  const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText });
 
-  const order = createOrder({
-    userId: user.id,
-    username: user.username,
-    productId: product.id,
-    productName: product.name,
-    price: unitPrice,
-    qty,
-    source: 'user',
-    status: delivery.status,
-    deliveryMode: delivery.deliveryMode,
-    manualRequired: delivery.manualRequired,
-    targetText,
-    detail: delivery.detail,
-    note: delivery.note,
-    provider: delivery.provider,
-    providerRefId: delivery.providerRefId,
-    providerCustomerNo: delivery.providerCustomerNo,
-    costPrice: getProductCostPrice(product)
-  });
-
-  notifyOrder({
-    username: user.username,
-    productName: product.name,
-    total: order.total,
-    orderId: order.id,
-    source: delivery.status === 'completed' ? 'auto' : 'user',
-    needsManual: delivery.manualRequired,
-    targetText
-  }).catch(() => {});
-
-  // Update total terjual di produk (tidak dihitung kalau transaksi Digiflazz gagal & saldo di-refund)
-  if (!delivery.refund) {
-    updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
-    if (usedFlashPrice) recordFlashSaleSale(product.id, qty);
+  if (orders.every(o => o.status === 'cancelled')) {
+    return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
   }
 
-  if (delivery.refund) {
-    return res.redirect('/produk?error=' + encodeURIComponent(delivery.note + ', saldo sudah dikembalikan'));
+  if (orders.length === 1) {
+    const order = orders[0];
+    const msg = order.status === 'completed'
+      ? 'Order berhasil, produk sudah dikirim.'
+      : order.status === 'processing' && order.provider === 'digiflazz'
+        ? 'Order berhasil, top up sedang diproses otomatis.'
+        : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
+    return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
   }
 
-  const msg = delivery.status === 'completed'
-    ? 'Order berhasil, produk sudah dikirim.'
-    : delivery.status === 'processing' && delivery.provider === 'digiflazz'
-      ? 'Order berhasil, top up sedang diproses otomatis.'
-      : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
-  res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
+  res.redirect('/riwayat?success=' + encodeURIComponent(summarizeOrders(orders)));
 });
 
 router.get('/riwayat', requireLogin, (req, res) => {
@@ -525,7 +593,6 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
     }
 
     const unitPrice = getEffectivePrice(product, user);
-    const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
     const total = unitPrice * qty;
 
     if (user.saldo < total) {
@@ -534,47 +601,28 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
 
     deductSaldo(user.id, total);
 
-    const delivery = await fulfillOrder(product, qty, pending.targetData || {}, pending.targetText || '');
-    if (delivery.refund) addSaldo(user.id, total); // refund saldo kalau Digiflazz gagal
-
-    const order = createOrder({
-      userId: user.id,
-      username: user.username,
-      productId: product.id,
-      productName: product.name,
-      price: unitPrice,
-      qty,
-      source: 'user',
-      status: delivery.status,
-      deliveryMode: delivery.deliveryMode,
-      manualRequired: delivery.manualRequired,
-      targetText: pending.targetText || '',
-      detail: delivery.detail,
-      note: delivery.refund ? delivery.note : 'Dibayar via QRIS',
-      provider: delivery.provider,
-      providerRefId: delivery.providerRefId,
-      providerCustomerNo: delivery.providerCustomerNo,
-      costPrice: getProductCostPrice(product)
+    const orders = await fulfillAndRecordOrders({
+      user, product, qty, targetData: pending.targetData || {}, targetText: pending.targetText || '',
+      notifySource: 'qris', paidNote: 'Dibayar via QRIS'
     });
-
-    if (!delivery.refund) {
-      updateProduct(product.id, { totalSold: (product.totalSold || 0) + qty });
-      if (usedFlashPrice) recordFlashSaleSale(product.id, qty);
-    }
-    notifyOrder({ username: user.username, productName: product.name, total: order.total, orderId: order.id, source: 'qris', needsManual: delivery.manualRequired, targetText: pending.targetText || '' }).catch(() => {});
 
     delete req.session.pendingQrisOrder;
 
-    if (delivery.refund) {
-      return res.redirect('/produk?error=' + encodeURIComponent(delivery.note + ', saldo sudah dikembalikan'));
+    if (orders.every(o => o.status === 'cancelled')) {
+      return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
     }
 
-    const msg = delivery.status === 'completed'
-      ? 'Pembayaran QRIS berhasil! Produk sudah dikirim.'
-      : delivery.status === 'processing' && delivery.provider === 'digiflazz'
-        ? 'Pembayaran QRIS berhasil! Top up sedang diproses otomatis.'
-        : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
-    res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
+    if (orders.length === 1) {
+      const order = orders[0];
+      const msg = order.status === 'completed'
+        ? 'Pembayaran QRIS berhasil! Produk sudah dikirim.'
+        : order.status === 'processing' && order.provider === 'digiflazz'
+          ? 'Pembayaran QRIS berhasil! Top up sedang diproses otomatis.'
+          : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
+      return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
+    }
+
+    res.redirect('/riwayat?success=' + encodeURIComponent('Pembayaran QRIS berhasil! ' + summarizeOrders(orders)));
   } catch (err) {
     res.redirect('/produk?error=' + encodeURIComponent(err.message));
   }
@@ -588,6 +636,8 @@ router.get('/produk/:id', (req, res) => {
     return res.redirect('/produk?error=Produk tidak ditemukan');
   }
   const finalPrice = getEffectivePrice(product, user);
+  // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
+  product.totalSold = getTotalSoldMap()[product.id] || 0;
   const reviews = getReviewsByProduct(product.id);
   const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
   const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
@@ -671,6 +721,9 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     if (!product || product.status !== 'active') {
       return res.redirect('/produk?error=Produk tidak tersedia');
     }
+
+    const qtyError = validateQty(product, qty);
+    if (qtyError) return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(qtyError));
 
     const { data: targetData, missing } = extractTargetData(product, req.body);
     if (missing.length > 0) {
