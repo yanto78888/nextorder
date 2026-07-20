@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'jasa-sosmed', user, config }) %>
+  <div class="main detail-main no-bottom-nav">
+
+    <div class="detail-hero" style="min-height:120px;">
+      <div class="detail-thumb detail-thumb-placeholder"><i class="fa-solid fa-share-nodes"></i></div>
+      <div class="detail-hero-overlay"></div>
+      <a href="/jasa-sosmed" class="detail-back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+    </div>
+
+    <div class="detail-body">
+
+      <div class="detail-meta-row">
+        <span class="nf-stock-tag ok"><i class="fa-solid fa-bolt"></i> Auto</span>
+        <span class="detail-category"><%= product.category || 'Jasa Sosmed' %></span>
+      </div>
+
+      <h1 class="detail-title"><%= product.name %></h1>
+
+      <div class="detail-stats-row">
+        <div class="detail-stat">
+          <div class="detail-stat-val"><%= (product.totalSold || 0).toLocaleString('id-ID') %></div>
+          <div class="detail-stat-label">Terjual</div>
+        </div>
+        <div class="detail-stat-divider"></div>
+        <div class="detail-stat">
+          <div class="detail-stat-val"><%= (product.indosmmMin||0).toLocaleString('id-ID') %> - <%= (product.indosmmMax||0).toLocaleString('id-ID') %></div>
+          <div class="detail-stat-label">Min - Maks</div>
+        </div>
+        <div class="detail-stat-divider"></div>
+        <div class="detail-stat">
+          <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+          <div class="detail-stat-label">per 1000</div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Cara Kerja</div>
+        <ol class="buy-guide-list">
+          <li class="buy-guide-item"><span class="buy-guide-num">1</span><span class="buy-guide-text">Salin link postingan/profil/video yang mau ditambah, tempel di kolom Link Target.</span></li>
+          <li class="buy-guide-item"><span class="buy-guide-num">2</span><span class="buy-guide-text">Atur jumlah sesuai kebutuhan (min-maks tertera di atas), lalu cek total harganya.</span></li>
+          <li class="buy-guide-item"><span class="buy-guide-num">3</span><span class="buy-guide-text">Klik <b>Beli Sekarang</b>. Proses berjalan otomatis di sistem -- bisa butuh waktu beberapa saat sampai beberapa jam tergantung layanan.</span></li>
+        </ol>
+      </div>
+
+      <div class="detail-buy-box">
+        <div class="detail-price-main">
+          <% if (finalPrice < product.price) { %>
+            <span class="detail-price-old">Rp <%= product.price.toLocaleString('id-ID') %></span>
+          <% } %>
+          <span class="detail-price-now">Rp <%= finalPrice.toLocaleString('id-ID') %> <span style="font-size:13px; font-weight:400; color:var(--text-dim);">/1000</span></span>
+        </div>
+
+        <% if (user) { %>
+          <div class="target-fields-box">
+            <div class="detail-method-title" style="margin-top:0;">1. Isi Link Target</div>
+            <label>Link Postingan/Profil/Video <span style="color:var(--cyan);">*</span></label>
+            <input type="text" class="target-field-input" data-key="link" placeholder="https://instagram.com/p/..." required>
+            <div class="helper-text">Pastikan link publik/bisa diakses (bukan private) supaya prosesnya lancar.</div>
+          </div>
+
+          <div class="detail-qty-row">
+            <label>2. Jumlah (min <%= (product.indosmmMin||1).toLocaleString('id-ID') %>, maks <%= (product.indosmmMax||1).toLocaleString('id-ID') %>):</label>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn" id="qtyMinus">−</button>
+              <input type="number" id="qtyInput" value="<%= product.indosmmMin || 1 %>" min="<%= product.indosmmMin || 1 %>" max="<%= product.indosmmMax || 1 %>" step="1">
+              <button type="button" class="qty-btn" id="qtyPlus">+</button>
+            </div>
+            <span class="total-preview">= <b id="totalPreview">Rp 0</b></span>
+          </div>
+
+          <div class="detail-method-title">Metode Pembayaran</div>
+          <div class="payment-method-tabs">
+            <label class="method-tab">
+              <input type="radio" name="payMethod" value="saldo" checked>
+              <div class="method-card">
+                <div class="method-icon"><i class="fa-solid fa-credit-card"></i></div>
+                <div class="method-info">
+                  <div class="method-name">Saldo</div>
+                  <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                </div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
+              </div>
+            </label>
+            <label class="method-tab">
+              <input type="radio" name="payMethod" value="qris">
+              <div class="method-card">
+                <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
+                <div class="method-info">
+                  <div class="method-name">QRIS</div>
+                  <div class="method-sub">Bayar via scan QR</div>
+                </div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
+              </div>
+            </label>
+          </div>
+
+          <form method="POST" action="/order" id="buyFormSaldo">
+            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="qty" id="buyQtySaldo" value="<%= product.indosmmMin || 1 %>">
+          </form>
+          <form method="POST" action="/order/qris-init" id="buyFormQris">
+            <input type="hidden" name="productId" value="<%= product.id %>">
+            <input type="hidden" name="qty" id="buyQtyQris" value="<%= product.indosmmMin || 1 %>">
+          </form>
+
+          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
+          <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; display:none;">Saldo tidak cukup — gunakan QRIS.</div>
+        <% } else { %>
+          <div class="guest-buy-box">
+            <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
+            <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
+          </div>
+        <% } %>
+      </div>
+
+    </div><!-- /detail-body -->
+    <%- include('partials/footer') %>
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+(function(){
+  var ratePer1000 = <%= finalPrice %>;
+  var userSaldo = <%= user ? user.saldo : 0 %>;
+  var qEl = document.getElementById('qtyInput');
+  var tEl = document.getElementById('totalPreview');
+  var minQty = <%= product.indosmmMin || 1 %>;
+  var maxQty = <%= product.indosmmMax || 1 %>;
+
+  function fmt(n) { return 'Rp ' + n.toLocaleString('id-ID'); }
+  function calcTotal(q) { return Math.ceil((ratePer1000 * q) / 1000); }
+
+  function upd() {
+    var q = parseInt(qEl.value) || minQty;
+    if (q < minQty) q = minQty;
+    if (q > maxQty) q = maxQty;
+    qEl.value = q;
+    var qs = document.getElementById('buyQtySaldo');
+    var qq = document.getElementById('buyQtyQris');
+    if (qs) qs.value = q;
+    if (qq) qq.value = q;
+    var total = calcTotal(q);
+    if (tEl) tEl.textContent = fmt(total);
+    var warn = document.getElementById('saldoWarning');
+    if (warn) warn.style.display = (userSaldo < total) ? '' : 'none';
+  }
+
+  if (qEl) {
+    qEl.addEventListener('input', upd);
+    var m = document.getElementById('qtyMinus');
+    var p = document.getElementById('qtyPlus');
+    if (m) m.addEventListener('click', function () { qEl.value = Math.max(minQty, (parseInt(qEl.value) || minQty) - 1); upd(); });
+    if (p) p.addEventListener('click', function () { qEl.value = Math.min(maxQty, (parseInt(qEl.value) || minQty) + 1); upd(); });
+    upd();
+  }
+
+  // Method tabs
+  var radios = document.querySelectorAll('input[name="payMethod"]');
+  radios.forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('selected'); });
+      r.closest('.method-tab').querySelector('.method-card').classList.add('selected');
+    });
+  });
+  var def = document.querySelector('input[name="payMethod"]:checked');
+  if (def) def.closest('.method-tab').querySelector('.method-card').classList.add('selected');
+
+  // Buy button
+  var buyBtn = document.getElementById('buyMainBtn');
+  function injectTargetFields(form) {
+    if (!form) return true;
+    form.querySelectorAll('input[data-target-hidden]').forEach(function (el) { el.remove(); });
+    var inputs = document.querySelectorAll('.target-field-input');
+    var ok = true;
+    inputs.forEach(function (el) {
+      var val = el.value.trim();
+      if (el.hasAttribute('required') && !val) { el.style.borderColor = 'var(--cyan)'; ok = false; }
+      else { el.style.borderColor = ''; }
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'target_' + el.dataset.key;
+      hidden.value = val;
+      hidden.setAttribute('data-target-hidden', '1');
+      form.appendChild(hidden);
+    });
+    return ok;
+  }
+  if (buyBtn) buyBtn.addEventListener('click', function () {
+    var m = 'saldo';
+    radios.forEach(function (r) { if (r.checked) m = r.value; });
+    var f = m === 'qris' ? document.getElementById('buyFormQris') : document.getElementById('buyFormSaldo');
+    if (!injectTargetFields(f)) { alert('Isi dulu Link Target-nya'); return; }
+    if (f) f.submit();
+  });
+})();
+</script>
+</body>
+</html>
