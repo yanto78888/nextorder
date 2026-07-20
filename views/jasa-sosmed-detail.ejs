@@ -72,11 +72,7 @@
 
           <div class="detail-qty-row">
             <label>2. Jumlah (min <%= (product.indosmmMin||1).toLocaleString('id-ID') %>, maks <%= (product.indosmmMax||1).toLocaleString('id-ID') %>):</label>
-            <div class="qty-stepper">
-              <button type="button" class="qty-btn" id="qtyMinus">−</button>
-              <input type="number" id="qtyInput" value="<%= product.indosmmMin || 1 %>" min="<%= product.indosmmMin || 1 %>" max="<%= product.indosmmMax || 1 %>" step="1">
-              <button type="button" class="qty-btn" id="qtyPlus">+</button>
-            </div>
+            <input type="number" class="target-field-input" id="qtyInput" value="<%= product.indosmmMin || 1 %>" min="<%= product.indosmmMin || 1 %>" max="<%= product.indosmmMax || 1 %>" step="1" style="margin-top: 8px; margin-bottom: 8px;">
             <span class="total-preview">= <b id="totalPreview">Rp 0</b></span>
           </div>
 
@@ -160,10 +156,6 @@
 
   if (qEl) {
     qEl.addEventListener('input', upd);
-    var m = document.getElementById('qtyMinus');
-    var p = document.getElementById('qtyPlus');
-    if (m) m.addEventListener('click', function () { qEl.value = Math.max(minQty, (parseInt(qEl.value) || minQty) - 1); upd(); });
-    if (p) p.addEventListener('click', function () { qEl.value = Math.min(maxQty, (parseInt(qEl.value) || minQty) + 1); upd(); });
     upd();
   }
 
