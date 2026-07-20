@@ -2206,3 +2206,13 @@ input[type="file"]::file-selector-button {
   color: var(--text-dim);
   padding: 4px 0;
 }
+ /* Menghilangkan panah atas/bawah bawaan browser di kolom angka */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield; /* Khusus untuk browser Firefox */
+}
+
