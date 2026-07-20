@@ -8,6 +8,7 @@ import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
 import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
+import { checkPendingIndosmmOrders } from './lib/indosmm.js';
 import { scheduleAutoBackup } from './lib/backup.js';
 import { getActiveProducts } from './lib/products.js';
 
@@ -148,6 +149,13 @@ if (process.env.VERCEL !== '1') {
   setInterval(() => {
     checkPendingDigiflazzOrders().catch(err => console.error('[job] checkPendingDigiflazzOrders error:', err.message));
   }, 20000);
+
+  // Cek ulang status order IndoSMM yang masih "processing" tiap 60 detik -- lebih jarang dari
+  // Digiflazz karena order SMM (followers/likes/dst) wajarnya butuh waktu lebih lama buat selesai
+  // (bisa menitan-jaman), gak perlu se-sering itu dicek ulang.
+  setInterval(() => {
+    checkPendingIndosmmOrders().catch(err => console.error('[job] checkPendingIndosmmOrders error:', err.message));
+  }, 60000);
 
   // Backup data (config/produk/order/user, dll) tiap 5 jam, dikirim ke Telegram lalu file zip-nya dihapus
   scheduleAutoBackup(5);
