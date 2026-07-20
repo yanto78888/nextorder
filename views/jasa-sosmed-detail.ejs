@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    /* Menghilangkan panah atas/bawah bawaan browser di kolom angka agar rapi */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+  </style>
+</head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'jasa-sosmed', user, config }) %>
@@ -72,7 +80,7 @@
 
           <div class="detail-qty-row">
             <label>2. Jumlah (min <%= (product.indosmmMin||1).toLocaleString('id-ID') %>, maks <%= (product.indosmmMax||1).toLocaleString('id-ID') %>):</label>
-            <input type="number" class="target-field-input" id="qtyInput" value="<%= product.indosmmMin || 1 %>" min="<%= product.indosmmMin || 1 %>" max="<%= product.indosmmMax || 1 %>" step="1" style="margin-top: 8px; margin-bottom: 8px;">
+            <input type="number" class="target-field-input" id="qtyInput" placeholder="Masukkan jumlah..." min="<%= product.indosmmMin || 1 %>" max="<%= product.indosmmMax || 1 %>" step="1" style="margin-top: 8px; margin-bottom: 8px;">
             <span class="total-preview">= <b id="totalPreview">Rp 0</b></span>
           </div>
 
@@ -104,11 +112,11 @@
 
           <form method="POST" action="/order" id="buyFormSaldo">
             <input type="hidden" name="productId" value="<%= product.id %>">
-            <input type="hidden" name="qty" id="buyQtySaldo" value="<%= product.indosmmMin || 1 %>">
+            <input type="hidden" name="qty" id="buyQtySaldo" value="0">
           </form>
           <form method="POST" action="/order/qris-init" id="buyFormQris">
             <input type="hidden" name="productId" value="<%= product.id %>">
-            <input type="hidden" name="qty" id="buyQtyQris" value="<%= product.indosmmMin || 1 %>">
+            <input type="hidden" name="qty" id="buyQtyQris" value="0">
           </form>
 
           <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
@@ -140,18 +148,19 @@
   function calcTotal(q) { return Math.ceil((ratePer1000 * q) / 1000); }
 
   function upd() {
-    var q = parseInt(qEl.value) || minQty;
-    if (q < minQty) q = minQty;
-    if (q > maxQty) q = maxQty;
-    qEl.value = q;
+    var q = parseInt(qEl.value);
+    if (isNaN(q) || q < 0) q = 0;
+    
     var qs = document.getElementById('buyQtySaldo');
     var qq = document.getElementById('buyQtyQris');
     if (qs) qs.value = q;
     if (qq) qq.value = q;
+    
     var total = calcTotal(q);
     if (tEl) tEl.textContent = fmt(total);
+    
     var warn = document.getElementById('saldoWarning');
-    if (warn) warn.style.display = (userSaldo < total) ? '' : 'none';
+    if (warn) warn.style.display = (userSaldo < total && q > 0) ? '' : 'none';
   }
 
   if (qEl) {
@@ -170,7 +179,7 @@
   var def = document.querySelector('input[name="payMethod"]:checked');
   if (def) def.closest('.method-tab').querySelector('.method-card').classList.add('selected');
 
-  // Buy button
+  // Buy button & Validation
   var buyBtn = document.getElementById('buyMainBtn');
   function injectTargetFields(form) {
     if (!form) return true;
@@ -178,6 +187,9 @@
     var inputs = document.querySelectorAll('.target-field-input');
     var ok = true;
     inputs.forEach(function (el) {
+      // Abaikan jika input itu adalah input jumlah, kita hanya inject link
+      if (el.id === 'qtyInput') return; 
+      
       var val = el.value.trim();
       if (el.hasAttribute('required') && !val) { el.style.borderColor = 'var(--cyan)'; ok = false; }
       else { el.style.borderColor = ''; }
@@ -190,7 +202,21 @@
     });
     return ok;
   }
+  
   if (buyBtn) buyBtn.addEventListener('click', function () {
+    // Validasi Minimal dan Maksimal Jumlah di Sini (LANGKAH 3)
+    var q = parseInt(qEl.value);
+    if (isNaN(q) || q < minQty) { 
+      alert('Jumlah minimal pemesanan adalah ' + minQty); 
+      qEl.focus(); 
+      return; 
+    }
+    if (q > maxQty) { 
+      alert('Jumlah maksimal pemesanan adalah ' + maxQty); 
+      qEl.focus(); 
+      return; 
+    }
+
     var m = 'saldo';
     radios.forEach(function (r) { if (r.checked) m = r.value; });
     var f = m === 'qris' ? document.getElementById('buyFormQris') : document.getElementById('buyFormSaldo');

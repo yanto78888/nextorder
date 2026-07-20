@@ -1,11 +1,101 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .order-panel {
+      background: #1e222d; /* Warna background gelap yang elegan */
+      border: 1px solid #2a2e39;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 15px;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #e1eef4;
+    }
+    .form-control, .form-select {
+      width: 100%;
+      padding: 12px 14px;
+      background: #14171f;
+      border: 1px solid #2a2e39;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1);
+    }
+    .form-select option {
+      background: #1e222d;
+      color: #fff;
+      padding: 10px;
+    }
+    .service-desc {
+      background: rgba(0, 255, 255, 0.05);
+      border-left: 3px solid var(--cyan);
+      padding: 12px 15px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #bbb;
+      margin-bottom: 18px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .helper-text {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+      display: block;
+    }
+    
+    /* Menghilangkan panah spinner di input angka */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    
+    /* Desain Tab Pembayaran */
+    .payment-method-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .method-tab { flex: 1; min-width: 140px; cursor: pointer; }
+    .method-tab input { display: none; }
+    .method-card { 
+      border: 1px solid #2a2e39; 
+      background: #14171f;
+      border-radius: 8px; 
+      padding: 12px; 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      opacity: 0.7; 
+      transition: 0.2s; 
+    }
+    .method-tab input:checked + .method-card { 
+      border-color: var(--cyan); 
+      opacity: 1; 
+      background: rgba(0,255,255,0.05); 
+    }
+    .method-icon { font-size: 20px; color: var(--cyan); }
+    .method-info { flex: 1; }
+    .method-name { font-size: 14px; font-weight: bold; color: #fff; }
+    .method-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .method-check { display: none; color: var(--cyan); font-size: 16px; }
+    .method-tab input:checked + .method-card .method-check { display: block; }
+  </style>
+</head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'jasa-sosmed', user, config }) %>
 
-  <div class="main produk-main no-bottom-nav">
+  <div class="main no-bottom-nav">
 
     <div class="topbar" style="margin-bottom: 12px;">
       <h2 style="margin:0;"><i class="fa-solid fa-share-nodes"></i> Jasa Sosmed</h2>
@@ -18,158 +108,293 @@
       </div>
     </div>
 
-    <div class="helper-text" style="margin-bottom:14px;">Followers, likes, views, dan layanan sosial media lainnya. Isi link postingan/profil dan jumlah yang diinginkan, proses otomatis oleh sistem.</div>
-
-    <% if (rows.length > 0) { %>
-    <div class="cat-tabs" id="catTabs">
-      <button type="button" class="cat-tab active" data-cat="all"><i class="fa-solid fa-table-cells-large"></i> Semua</button>
-      <% rows.forEach(row => { %>
-        <button type="button" class="cat-tab" data-cat="<%= row.category %>"><i class="fa-solid fa-share-nodes"></i> <%= row.category %></button>
-      <% }) %>
-    </div>
-
-    <div class="catalog-search-bar">
-      <input type="text" id="produkSearchInput" placeholder="Cari layanan...">
-      <button type="button" class="catalog-search-btn" id="catalogSearchBtn" aria-label="Cari layanan"><i class="fa-solid fa-magnifying-glass"></i></button>
-    </div>
-    <div id="produkSearchEmpty" class="card empty-state" style="display:none;">Layanan "<span id="produkSearchEmptyTerm"></span>" tidak ditemukan.</div>
-    <% } %>
-
     <% if (!user) { %>
-      <div class="alert guest-alert"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
+      <div class="alert guest-alert" style="margin-bottom: 15px;"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
     <% } %>
+
     <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
 
-    <% if (products.length === 0) { %>
-      <div class="card empty-state">Belum ada layanan tersedia saat ini.</div>
-    <% } else { %>
-      <% rows.forEach(row => { %>
-        <div class="nf-row" data-row data-category="<%= row.category %>">
-          <div class="nf-row-title"><i class="fa-solid fa-share-nodes"></i> <%= row.category %></div>
-          <div class="nf-row-track">
-            <% row.products.forEach((p, idx) => { %>
-              <a href="/jasa-sosmed/<%= p.id %>" class="nf-card nf-card-link game-card <%= idx >= 9 ? 'nf-card-extra' : '' %>" data-name="<%= p.name.toLowerCase() %>">
-                <div class="nf-card-thumb">
-                  <span class="nf-noimg"><i class="fa-solid fa-share-nodes"></i></span>
-                  <span class="nf-stock-tag ok"><i class="fa-solid fa-bolt"></i></span>
-                </div>
-                <div class="nf-card-body">
-                  <div class="nf-card-name"><%= p.name %></div>
-                  <div class="nf-rating">
-                    <span class="helper-text" style="margin:0;">Min <%= (p.indosmmMin||0).toLocaleString('id-ID') %> - Maks <%= (p.indosmmMax||0).toLocaleString('id-ID') %></span>
-                    <% if (p.totalSold) { %><span class="nf-sold"><%= p.totalSold.toLocaleString('id-ID') %> terjual</span><% } %>
-                  </div>
-                  <div class="nf-card-price">
-                    <span class="nf-price-now">Rp <%= p.finalPrice.toLocaleString('id-ID') %> <span style="font-size:11px; font-weight:400; color:var(--text-dim);">/1000</span></span>
-                  </div>
-                </div>
-              </a>
-            <% }) %>
-          </div>
-          <% if (row.products.length > 9) { %>
-            <button type="button" class="nf-row-more" data-total="<%= row.products.length %>">
-              <span class="nf-row-more-text">Lihat Semua (<%= row.products.length %>)</span>
-              <i class="fa-solid fa-chevron-down nf-row-more-icon"></i>
-            </button>
-          <% } %>
+    <div class="order-panel">
+        
+        <!-- Pencarian -->
+        <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Pencarian</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="Cari layanan berdasarkan nama...">
         </div>
-      <% }) %>
-    <% } %>
+
+        <!-- Kategori -->
+        <div class="form-group">
+            <label class="form-label">Kategori</label>
+            <select id="kategoriSelect" class="form-select">
+                <option value="">Pilih Kategori...</option>
+                <% rows.forEach(row => { %>
+                    <option value="<%= row.category %>"><%= row.category %></option>
+                <% }) %>
+            </select>
+        </div>
+
+        <!-- Layanan -->
+        <div class="form-group">
+            <label class="form-label">Layanan</label>
+            <select id="layananSelect" class="form-select">
+                <option value="">Pilih Kategori Terlebih Dahulu</option>
+            </select>
+        </div>
+
+        <!-- Detail Pesanan (Disembunyikan sebelum layanan dipilih) -->
+        <div id="serviceDetails" style="display: none; margin-top: 25px; border-top: 1px dashed #2a2e39; padding-top: 25px;">
+            
+            <div class="service-desc" id="serviceDesc"></div>
+            
+            <!-- Link Target -->
+            <div class="form-group">
+                <label class="form-label">Link Target <span style="color:var(--cyan);">*</span></label>
+                <input type="text" id="linkInput" class="form-control" placeholder="Masukkan Link (Misal: https://instagram.com/p/...)" required>
+            </div>
+
+            <!-- Jumlah -->
+            <div class="form-group">
+                <label class="form-label">Jumlah</label>
+                <input type="number" id="jumlahInput" class="form-control" placeholder="Masukkan Jumlah Pesanan">
+                <span class="helper-text">Min: <span id="minText">0</span> - Max: <span id="maxText">0</span></span>
+            </div>
+
+            <!-- Harga Total -->
+            <div class="form-group">
+                <label class="form-label">Harga (Per 1000)</label>
+                <input type="text" id="hargaRate" class="form-control" readonly style="background: rgba(0,0,0,0.2); border: none;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="color: var(--cyan);">Total Harga</label>
+                <input type="text" id="totalHarga" class="form-control" readonly value="Rp 0" style="font-weight: bold; font-size: 16px; color: var(--cyan); background: rgba(0, 255, 255, 0.05); border-color: var(--cyan);">
+            </div>
+
+            <!-- Bagian Checkout Khusus User Login -->
+            <% if (user) { %>
+            <div class="form-group" style="margin-top: 25px;">
+                <label class="form-label">Metode Pembayaran</label>
+                <div class="payment-method-tabs">
+                    <label class="method-tab">
+                        <input type="radio" name="payMethod" value="saldo" checked>
+                        <div class="method-card">
+                            <div class="method-icon"><i class="fa-solid fa-wallet"></i></div>
+                            <div class="method-info">
+                                <div class="method-name">Saldo Akun</div>
+                                <div class="method-sub">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+                            </div>
+                            <div class="method-check"><i class="fa-solid fa-circle-check"></i></div>
+                        </div>
+                    </label>
+                    <label class="method-tab">
+                        <input type="radio" name="payMethod" value="qris">
+                        <div class="method-card">
+                            <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
+                            <div class="method-info">
+                                <div class="method-name">QRIS</div>
+                                <div class="method-sub">Scan semua e-Wallet</div>
+                            </div>
+                            <div class="method-check"><i class="fa-solid fa-circle-check"></i></div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Form Rahasia untuk Kirim Data -->
+            <form method="POST" action="/order" id="buyFormSaldo">
+                <input type="hidden" name="productId" id="formProductIdSaldo" value="">
+                <input type="hidden" name="qty" id="formQtySaldo" value="">
+                <input type="hidden" name="target_link" id="formLinkSaldo" value="">
+            </form>
+            <form method="POST" action="/order/qris-init" id="buyFormQris">
+                <input type="hidden" name="productId" id="formProductIdQris" value="">
+                <input type="hidden" name="qty" id="formQtyQris" value="">
+                <input type="hidden" name="target_link" id="formLinkQris" value="">
+            </form>
+
+            <button type="button" class="btn solid buy-main-btn" id="btnSubmit" style="width: 100%; padding: 14px; font-size: 15px;"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
+            <div class="alert error" id="saldoWarning" style="margin-top:12px; font-size:13px; display:none;">Saldo tidak cukup — silakan gunakan metode QRIS.</div>
+            <% } %>
+        </div>
+    </div>
 
     <%- include('partials/footer') %>
   </div>
 </div>
 
 <%- include('partials/smm-rules-modal', { config }) %>
+
 <script>
-// ===== TAB KATEGORI (filter tanpa reload) =====
-(function () {
-  var tabs = document.querySelectorAll('.cat-tab');
-  var rows = document.querySelectorAll('[data-row]');
-  var searchInput = document.getElementById('produkSearchInput');
-  if (!tabs.length) return;
-
-  tabs.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      tabs.forEach(function (t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      if (searchInput) searchInput.value = '';
-      var emptyBox = document.getElementById('produkSearchEmpty');
-      if (emptyBox) emptyBox.style.display = 'none';
-
-      var cat = tab.dataset.cat;
-      rows.forEach(function (row) {
-        row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none';
-        row.querySelectorAll('.nf-card').forEach(function (card) { card.style.display = ''; });
-        row.classList.remove('expanded');
-        var moreBtn = row.querySelector('.nf-row-more');
-        if (moreBtn) {
-          moreBtn.style.display = '';
-          var textEl = moreBtn.querySelector('.nf-row-more-text');
-          if (textEl) textEl.textContent = 'Lihat Semua (' + moreBtn.dataset.total + ')';
+document.addEventListener('DOMContentLoaded', function() {
+    // Inject Data Produk Secara Aman
+    const smmData = <%- JSON.stringify(rows).replace(/</g, '\\u003c') %>;
+    
+    // Variabel DOM
+    const katSelect = document.getElementById('kategoriSelect');
+    const laySelect = document.getElementById('layananSelect');
+    const searchInput = document.getElementById('searchInput');
+    
+    const serviceDetails = document.getElementById('serviceDetails');
+    const serviceDesc = document.getElementById('serviceDesc');
+    const hargaRate = document.getElementById('hargaRate');
+    const minText = document.getElementById('minText');
+    const maxText = document.getElementById('maxText');
+    const linkInput = document.getElementById('linkInput');
+    const jumlahInput = document.getElementById('jumlahInput');
+    const totalHarga = document.getElementById('totalHarga');
+    
+    let selectedProduct = null;
+    let userSaldo = <%= user ? user.saldo : 0 %>;
+    
+    // Format Uang
+    function fmt(n) { return 'Rp ' + Math.ceil(n).toLocaleString('id-ID'); }
+    
+    // 1. Saat Kategori Dipilih
+    katSelect.addEventListener('change', function() {
+        const catName = this.value;
+        laySelect.innerHTML = '<option value="">Pilih Layanan...</option>';
+        serviceDetails.style.display = 'none';
+        
+        if(!catName) return;
+        
+        const category = smmData.find(c => c.category === catName);
+        if(category && category.products) {
+            category.products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                // Format teks di dalam select layanan
+                opt.textContent = `${p.id} - ${p.name} - Rp ${p.finalPrice.toLocaleString('id-ID')}`;
+                laySelect.appendChild(opt);
+            });
         }
-      });
     });
-  });
-})();
-
-// ===== SEARCH LAYANAN (live filter) =====
-(function () {
-  var input = document.getElementById('produkSearchInput');
-  if (!input) return;
-  var rows = document.querySelectorAll('[data-row]');
-  var emptyBox = document.getElementById('produkSearchEmpty');
-  var emptyTerm = document.getElementById('produkSearchEmptyTerm');
-  var tabs = document.querySelectorAll('.cat-tab');
-  var searchBtn = document.getElementById('catalogSearchBtn');
-  if (searchBtn) searchBtn.addEventListener('click', function () { input.focus(); });
-
-  input.addEventListener('input', function () {
-    var q = input.value.trim().toLowerCase();
-    var totalVisible = 0;
-    if (q && tabs.length) {
-      tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.cat === 'all'); });
-    }
-    rows.forEach(function (row) {
-      var cards = row.querySelectorAll('.nf-card');
-      var visibleInRow = 0;
-      cards.forEach(function (card) {
-        var match = !q || (card.dataset.name || '').includes(q);
-        card.style.display = match ? '' : 'none';
-        if (match) { visibleInRow++; totalVisible++; }
-      });
-      row.style.display = visibleInRow > 0 ? '' : 'none';
-      row.classList.toggle('expanded', !!q);
-      var moreBtn = row.querySelector('.nf-row-more');
-      if (moreBtn) {
-        moreBtn.style.display = q ? 'none' : '';
-        if (!q) {
-          var textEl = moreBtn.querySelector('.nf-row-more-text');
-          if (textEl) textEl.textContent = 'Lihat Semua (' + moreBtn.dataset.total + ')';
+    
+    // 2. Saat Layanan Dipilih
+    laySelect.addEventListener('change', function() {
+        const pId = this.value;
+        if(!pId) {
+            serviceDetails.style.display = 'none';
+            selectedProduct = null;
+            return;
         }
-      }
+        
+        // Cari Produk di dalam data
+        for(const cat of smmData) {
+            const p = cat.products.find(x => x.id == pId);
+            if(p) { selectedProduct = p; break; }
+        }
+        
+        // Tampilkan Form Order
+        if(selectedProduct) {
+            serviceDetails.style.display = 'block';
+            serviceDesc.innerHTML = (selectedProduct.description || 'Tidak ada informasi / catatan tambahan untuk layanan ini.').replace(/\n/g, '<br>');
+            hargaRate.value = fmt(selectedProduct.finalPrice);
+            
+            minText.textContent = selectedProduct.indosmmMin ? selectedProduct.indosmmMin.toLocaleString('id-ID') : 1;
+            maxText.textContent = selectedProduct.indosmmMax ? selectedProduct.indosmmMax.toLocaleString('id-ID') : 1;
+            
+            // Reset input form
+            jumlahInput.value = '';
+            linkInput.value = '';
+            totalHarga.value = 'Rp 0';
+            calculateTotal();
+        }
     });
-    if (emptyBox) {
-      emptyBox.style.display = (q && totalVisible === 0) ? '' : 'none';
-      if (emptyTerm) emptyTerm.textContent = input.value.trim();
+    
+    // 3. Saat Pencarian Diketik (Filter Semua Layanan)
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        if(query.length === 0) {
+            katSelect.dispatchEvent(new Event('change')); // Kembalikan ke normal
+            return;
+        }
+        
+        katSelect.value = ""; // Kosongkan kategori
+        laySelect.innerHTML = '<option value="">Pilih Layanan Hasil Pencarian...</option>';
+        serviceDetails.style.display = 'none';
+        
+        let found = 0;
+        smmData.forEach(cat => {
+            cat.products.forEach(p => {
+                if(p.name.toLowerCase().includes(query)) {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `[${cat.category}] ${p.name} - Rp ${p.finalPrice.toLocaleString('id-ID')}`;
+                    laySelect.appendChild(opt);
+                    found++;
+                }
+            });
+        });
+        
+        if(found === 0) {
+            laySelect.innerHTML = '<option value="">Layanan tidak ditemukan</option>';
+        }
+    });
+    
+    // 4. Hitung Harga Otomatis
+    function calculateTotal() {
+        if(!selectedProduct) return;
+        let q = parseInt(jumlahInput.value);
+        if(isNaN(q) || q < 0) q = 0;
+        
+        let total = (selectedProduct.finalPrice * q) / 1000;
+        totalHarga.value = fmt(total);
+        
+        const warn = document.getElementById('saldoWarning');
+        if(warn) warn.style.display = (userSaldo < total && q > 0) ? 'block' : 'none';
     }
-  });
-})();
-
-// ===== LIPAT / TAMPILKAN SEMUA per kategori =====
-(function () {
-  var moreButtons = document.querySelectorAll('.nf-row-more');
-  moreButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var row = btn.closest('.nf-row');
-      if (!row) return;
-      var expanded = row.classList.toggle('expanded');
-      var textEl = btn.querySelector('.nf-row-more-text');
-      if (textEl) textEl.textContent = expanded ? 'Tampilkan Lebih Sedikit' : ('Lihat Semua (' + btn.dataset.total + ')');
-      if (!expanded) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  });
-})();
+    
+    jumlahInput.addEventListener('input', calculateTotal);
+    
+    // 5. Submit Order
+    const btnSubmit = document.getElementById('btnSubmit');
+    if(btnSubmit) {
+        btnSubmit.addEventListener('click', function() {
+            if(!selectedProduct) return;
+            
+            const q = parseInt(jumlahInput.value);
+            const minQ = selectedProduct.indosmmMin || 1;
+            const maxQ = selectedProduct.indosmmMax || 1;
+            const link = linkInput.value.trim();
+            
+            if(!link) {
+                alert('Silakan isi Link Target.');
+                linkInput.focus();
+                return;
+            }
+            if(isNaN(q) || q < minQ) {
+                alert('Jumlah minimal pemesanan adalah ' + minQ);
+                jumlahInput.focus();
+                return;
+            }
+            if(q > maxQ) {
+                alert('Jumlah maksimal pemesanan adalah ' + maxQ);
+                jumlahInput.focus();
+                return;
+            }
+            
+            // Ambil metode bayar terpilih
+            const radios = document.getElementsByName('payMethod');
+            let method = 'saldo';
+            for(let i=0; i<radios.length; i++) {
+                if(radios[i].checked) method = radios[i].value;
+            }
+            
+            // Eksekusi Form tersembunyi
+            if (method === 'saldo') {
+                document.getElementById('formProductIdSaldo').value = selectedProduct.id;
+                document.getElementById('formQtySaldo').value = q;
+                document.getElementById('formLinkSaldo').value = link;
+                document.getElementById('buyFormSaldo').submit();
+            } else {
+                document.getElementById('formProductIdQris').value = selectedProduct.id;
+                document.getElementById('formQtyQris').value = q;
+                document.getElementById('formLinkQris').value = link;
+                document.getElementById('buyFormQris').submit();
+            }
+        });
+    }
+});
 </script>
 </body>
 </html>
