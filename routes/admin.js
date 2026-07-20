@@ -17,6 +17,7 @@ import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice } from '../lib/digiflazz.js';
 import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
+import { getBalance as getIndosmmBalance, getServiceCategories as getIndosmmCategories, searchServices as searchIndosmmServices, computeSellPrice as computeIndosmmSellPrice, isIndosmmEnabled } from '../lib/indosmm.js';
 import {
   getAllFlashSaleItems, getFlashSaleDisplayItems, getFlashSaleSettings, updateFlashSaleSettings,
   addFlashSaleItem, updateFlashSaleItem, deleteFlashSaleItem, reorderFlashSaleItems,
@@ -300,7 +301,22 @@ router.post('/produk', uploadThumbnail, (req, res) => {
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
   const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice } = req.body;
-  const partial = { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, customTargetFields: parseCustomTargetFields(req.body) };
+  const existing = findProductById(req.params.id);
+  // Produk IndoSMM pakai field "link" TETAP (dikunci sejak import, checkout-nya hard-code baca
+  // targetData.link) -- form generik ini gak nampilin editor field custom buat provider ini
+  // (lihat views/admin/produk.ejs), tapi kita JUGA harus jaga di sisi server: JANGAN kirim
+  // gamePreset/customTargetFields ke updateProduct sama sekali buat produk indosmm, soalnya kalau
+  // dikirim (walau kosong) updateProduct bakal nganggep itu perintah "kosongin ulang targetFields"
+  // dan bikin field "link"-nya lenyap -- checkout produk ini jadi selalu gagal "link belum diisi".
+  const isIndosmmProduct = existing && existing.provider === 'indosmm';
+  const partial = {
+    name, category, description, price, stockNote, status, stockItems, provider,
+    digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice
+  };
+  if (!isIndosmmProduct) {
+    partial.gamePreset = gamePreset;
+    partial.customTargetFields = parseCustomTargetFields(req.body);
+  }
   // Foto hanya diganti kalau admin upload file baru, kalau tidak foto lama tetap dipakai
   if (req.file) partial.thumbnail = '/uploads/products/' + req.file.filename;
   updateProduct(req.params.id, partial);
@@ -696,6 +712,186 @@ router.post('/digiflazz/group/:group/thumbnail', uploadGroupThumbnail, (req, res
   }
 });
 
+// ---------- INDOSMM (Jasa Sosmed: followers/likes/views dkk) ----------
+// Polanya sengaja dibikin mirip halaman Kelola Digiflazz di atas (cari+filter, checkbox multi
+// import, margin default & per-produk) biar admin yang udah biasa pakai itu gak perlu belajar
+// UI baru lagi. Bedanya cuma filter di sini cuma Kategori + kata kunci (gak ada level Brand/Tipe
+// kayak Digiflazz) karena data kategori IndoSMM sudah 1 string gabungan per layanan (mis.
+// "Instagram - Followers [Guaranteed]"), gak punya struktur brand/tipe terpisah yang bisa digali.
+function renderIndosmmPage(req, res, extra = {}) {
+  const indosmmProducts = getAllProducts().filter(p => p.provider === 'indosmm');
+  res.render('admin/indosmm', {
+    config: getConfig(),
+    indosmmProducts,
+    error: null,
+    success: null,
+    ...extra
+  });
+}
+
+router.get('/indosmm', (req, res) => {
+  renderIndosmmPage(req, res);
+});
+
+router.get('/indosmm/categories', async (req, res) => {
+  try {
+    const categories = await getIndosmmCategories();
+    res.json({ ok: true, categories });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/indosmm/search', async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const category = req.query.category || '';
+    const raw = await searchIndosmmServices(q, category);
+    const linkedIds = new Set(getAllProducts().filter(p => p.provider === 'indosmm').map(p => p.indosmmServiceId));
+    const results = raw.map(item => ({
+      ...item,
+      sellPricePreview: computeIndosmmSellPrice(item.rate, null, null),
+      alreadyImported: linkedIds.has(String(item.service))
+    }));
+    res.json({ ok: true, results });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Import/update 1 produk IndoSMM, dipakai bareng oleh route single & batch (sama kayak
+// importOrUpdateDigiflazzProduct di atas) biar logic-nya gak kembar/gampang beda perilaku.
+function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, marginType, marginValue }) {
+  if (!serviceId || !productName) {
+    throw new Error('Service ID dan nama produk wajib diisi');
+  }
+  const existing = getAllProducts().find(p => p.provider === 'indosmm' && p.indosmmServiceId === String(serviceId));
+  const rate = Number(ratePer1000) || 0;
+  const sellPrice = computeIndosmmSellPrice(rate, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+
+  if (existing) {
+    updateProduct(existing.id, {
+      name: productName,
+      price: sellPrice,
+      indosmmRatePer1000: rate,
+      indosmmMin: min,
+      indosmmMax: max,
+      marginType: marginType || '',
+      marginValue: marginValue !== '' && marginValue != null ? marginValue : null
+    });
+    return { created: false, product: existing };
+  }
+
+  const product = createProduct({
+    name: productName,
+    category: category || 'Jasa Sosmed',
+    description: '',
+    price: sellPrice,
+    provider: 'indosmm',
+    indosmmServiceId: String(serviceId),
+    indosmmRatePer1000: rate,
+    indosmmMin: min,
+    indosmmMax: max,
+    gamePreset: 'custom',
+    customTargetFields: [
+      { key: 'link', label: 'Link Target (postingan/profil/video)', placeholder: 'https://...', required: true }
+    ],
+    marginType: marginType || '',
+    marginValue: marginValue !== '' && marginValue != null ? marginValue : null
+  });
+  return { created: true, product };
+}
+
+router.post('/indosmm/import', (req, res) => {
+  try {
+    const { serviceId, productName, category, ratePer1000, min, max, marginType, marginValue } = req.body;
+    const result = importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, marginType, marginValue });
+    res.json({
+      ok: true,
+      created: result.created,
+      message: result.created
+        ? `Produk "${productName}" berhasil diimport dari IndoSMM.`
+        : `Service ${serviceId} sudah pernah diimport, harga & data produk diperbarui.`
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/indosmm/import-batch', async (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (items.length === 0) {
+      return res.status(400).json({ ok: false, error: 'Tidak ada layanan yang dipilih.' });
+    }
+
+    let created = 0;
+    let updated = 0;
+    const errors = [];
+    items.forEach(item => {
+      try {
+        const result = importOrUpdateIndosmmProduct({
+          serviceId: item.serviceId,
+          productName: (item.productName || '').trim(),
+          category: item.category,
+          ratePer1000: item.ratePer1000,
+          min: item.min,
+          max: item.max
+        });
+        if (result.created) created++; else updated++;
+      } catch (err) {
+        errors.push(`${item.serviceId || '?'}: ${err.message}`);
+      }
+    });
+
+    res.json({
+      ok: true,
+      created,
+      updated,
+      errors,
+      message: `${created} layanan baru ditambahkan${updated > 0 ? `, ${updated} yang udah ada diperbarui` : ''}.${errors.length > 0 ? ` ${errors.length} baris gagal.` : ''}`
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/indosmm/margin', (req, res) => {
+  const { marginType, marginValue } = req.body;
+  updateConfig({ indosmm: { marginType, marginValue: marginValue === '' ? null : Number(marginValue) } });
+  renderIndosmmPage(req, res, { success: 'Margin default IndoSMM berhasil disimpan.' });
+});
+
+router.post('/indosmm/:id/margin', (req, res) => {
+  try {
+    const { marginType, marginValue } = req.body;
+    const product = findProductById(req.params.id);
+    if (!product || product.provider !== 'indosmm') throw new Error('Produk tidak ditemukan');
+    const sellPrice = computeIndosmmSellPrice(product.indosmmRatePer1000, marginType || null, marginValue !== '' ? marginValue : null);
+    updateProduct(product.id, {
+      marginType: marginType || '',
+      marginValue: marginValue !== '' ? Number(marginValue) : null,
+      price: sellPrice
+    });
+    renderIndosmmPage(req, res, { success: `Margin produk "${product.name}" berhasil diperbarui.` });
+  } catch (err) {
+    renderIndosmmPage(req, res, { error: err.message });
+  }
+});
+
+// Lepas produk dari IndoSMM -- jadi produk manual biasa (safety valve kalau admin mau berhenti
+// auto-order lewat IndoSMM buat produk ini, tanpa harus hapus produknya).
+router.post('/indosmm/:id/unlink', (req, res) => {
+  try {
+    const product = findProductById(req.params.id);
+    if (!product || product.provider !== 'indosmm') throw new Error('Produk tidak ditemukan');
+    updateProduct(product.id, { provider: 'manual' });
+    renderIndosmmPage(req, res, { success: `Produk "${product.name}" dilepas dari IndoSMM, sekarang jadi produk manual.` });
+  } catch (err) {
+    renderIndosmmPage(req, res, { error: err.message });
+  }
+});
+
 // ---------- ORDER ----------
 router.get('/order', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -824,12 +1020,23 @@ router.get('/settings/digiflazz/saldo', async (req, res) => {
   }
 });
 
+// Cek saldo IndoSMM via AJAX, ditampilkan di halaman settings
+router.get('/settings/indosmm/saldo', async (req, res) => {
+  try {
+    const { balance, currency } = await getIndosmmBalance();
+    res.json({ ok: true, balance, currency });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
     catalogCategories,
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
+    indosmmEnabled, indosmmApiKey,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
     seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
@@ -853,6 +1060,7 @@ router.post('/settings', (req, res) => {
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
+    indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' }

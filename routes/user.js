@@ -18,6 +18,7 @@ import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
+import { isIndosmmEnabled, placeOrder as placeIndosmmOrder, computeTotalForQty as computeIndosmmTotal } from '../lib/indosmm.js';
 import { genId } from '../lib/db.js';
 import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale } from '../lib/flashsale.js';
 
@@ -63,7 +64,21 @@ function validateQty(product, qty) {
   if (product.provider === 'digiflazz' && qty > MAX_DIGIFLAZZ_QTY_PER_ORDER) {
     return `Maksimal ${MAX_DIGIFLAZZ_QTY_PER_ORDER}x per transaksi untuk produk auto top up ini. Silakan checkout terpisah untuk jumlah lebih banyak.`;
   }
+  if (product.provider === 'indosmm') {
+    const min = Number(product.indosmmMin) || 1;
+    const max = Number(product.indosmmMax) || min;
+    if (qty < min || qty > max) {
+      return `Jumlah harus antara ${min.toLocaleString('id-ID')} - ${max.toLocaleString('id-ID')} untuk layanan ini.`;
+    }
+  }
   return null;
+}
+
+// Total harga buat qty tertentu, provider-aware: IndoSMM dihitung dari RATE PER 1000 (qty = jumlah
+// asli, mis. 500 follower -- BUKAN "berapa kali beli"), provider lain tetap unitPrice * qty biasa.
+function computeOrderTotal(product, unitPrice, qty) {
+  if (product.provider === 'indosmm') return computeIndosmmTotal(unitPrice, qty);
+  return unitPrice * qty;
 }
 
 // Kirim produk ke user: stok manual dari sistem, atau auto top up game lewat Digiflazz.
@@ -92,28 +107,59 @@ async function fulfillOrder(product, qty, targetData, targetText) {
         return {
           status: 'completed', deliveryMode: 'auto', manualRequired: false,
           detail: result.sn || result.message || 'Top up berhasil',
-          note: 'Top up otomatis via Digiflazz',
+          note: 'Top up otomatis berhasil',
           provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
         };
       }
       if (status === 'gagal') {
         return {
           status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-          detail: '', note: 'Top up gagal: ' + (result.message || 'ditolak Digiflazz'),
+          detail: '', note: 'Top up gagal: ' + (result.message || 'ditolak sistem'),
           provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
         };
       }
-      // Pending: masih diproses Digiflazz, dicek ulang otomatis oleh background job
+      // Pending: masih diproses Digiflazz di baliknya, dicek ulang otomatis oleh background job
+      // (catatan sengaja gak nyebut nama provider ke customer, lihat validateQty & invoice.ejs juga)
       return {
         status: 'processing', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Sedang diproses Digiflazz, tunggu beberapa saat',
+        detail: '', note: 'Sedang diproses sistem, tunggu beberapa saat',
         provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
       };
     } catch (err) {
       return {
         status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Gagal hubungi Digiflazz: ' + err.message,
+        detail: '', note: 'Gagal menghubungi sistem top up: ' + err.message,
         provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
+      };
+    }
+  }
+
+  if (product.provider === 'indosmm' && isIndosmmEnabled()) {
+    const link = (targetData.link || '').trim();
+    if (!link) {
+      return {
+        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Gagal memproses: link tujuan tidak diisi',
+        provider: 'indosmm', providerRefId: '', providerCustomerNo: '', refund: true
+      };
+    }
+    try {
+      // qty di sini = jumlah asli (mis. 500 followers) -- BEDA dari Digiflazz, IndoSMM emang
+      // native dukung "quantity" per 1 kali panggilan API, jadi TIDAK di-loop/split per unit
+      // (lihat perUnit di fulfillAndRecordOrders, cuma true buat provider 'digiflazz').
+      const result = await placeIndosmmOrder({ serviceId: product.indosmmServiceId, link, quantity: qty });
+      // Order SMM SELALU mulai dari "diproses" (gak ada status sukses/gagal instan kayak
+      // Digiflazz) -- baru dituntasin belakangan oleh job checkPendingIndosmmOrders().
+      return {
+        status: 'processing', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Sedang diproses sistem, tunggu beberapa saat',
+        provider: 'indosmm', providerRefId: result.orderId, providerCustomerNo: link, refund: false
+      };
+    } catch (err) {
+      return {
+        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
+        detail: '', note: 'Gagal menghubungi sistem: ' + err.message,
+        provider: 'indosmm', providerRefId: '', providerCustomerNo: link, refund: true
       };
     }
   }
@@ -151,11 +197,12 @@ async function fulfillAndRecordOrders({ user, product, qty, targetData, targetTe
   const perUnit = product.provider === 'digiflazz' && isDigiflazzEnabled();
   const iterations = perUnit ? qty : 1;
   const orderQty = perUnit ? 1 : qty;
+  const orderTotal = computeOrderTotal(product, unitPrice, orderQty);
 
   const orders = [];
   for (let i = 0; i < iterations; i++) {
     const delivery = await fulfillOrder(product, orderQty, targetData, targetText);
-    if (delivery.refund) addSaldo(user.id, unitPrice * orderQty); // refund per-unit kalau gagal
+    if (delivery.refund) addSaldo(user.id, orderTotal); // refund per-unit kalau gagal
 
     const order = createOrder({
       userId: user.id,
@@ -164,6 +211,7 @@ async function fulfillAndRecordOrders({ user, product, qty, targetData, targetTe
       productName: product.name,
       price: unitPrice,
       qty: orderQty,
+      total: orderTotal,
       source: 'user',
       status: delivery.status,
       deliveryMode: delivery.deliveryMode,
@@ -317,6 +365,7 @@ router.get('/produk', (req, res) => {
   // lama: order Digiflazz "Pending" yang belakangan gagal gak pernah ke-kurangi lagi dari counter).
   const soldMap = getTotalSoldMap();
   const products = getActiveProducts()
+    .filter(p => p.provider !== 'indosmm') // Jasa Sosmed punya katalog terpisah di /jasa-sosmed
     .map(p => ({
       ...p,
       totalSold: soldMap[p.id] || 0,
@@ -412,10 +461,12 @@ router.get('/daftar-harga', (req, res) => {
   const cfg = getConfig();
   const discountPercent = user ? getMembershipDiscount(user) : 0;
 
-  const products = getActiveProducts().map(p => ({
-    ...p,
-    finalPrice: getEffectivePrice(p, user)
-  }));
+  const products = getActiveProducts()
+    .filter(p => p.provider !== 'indosmm') // Jasa Sosmed harganya per 1000, beda format -- ada di /jasa-sosmed sendiri
+    .map(p => ({
+      ...p,
+      finalPrice: getEffectivePrice(p, user)
+    }));
 
   const categoryOrder = [];
   const grouped = {};
@@ -458,7 +509,7 @@ router.post('/order', requireLogin, async (req, res) => {
   const targetText = formatTargetText(product, targetData);
 
   const unitPrice = getEffectivePrice(product, user);
-  const total = unitPrice * qty;
+  const total = computeOrderTotal(product, unitPrice, qty);
   if (user.saldo < total) {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
   }
@@ -475,8 +526,8 @@ router.post('/order', requireLogin, async (req, res) => {
     const order = orders[0];
     const msg = order.status === 'completed'
       ? 'Order berhasil, produk sudah dikirim.'
-      : order.status === 'processing' && order.provider === 'digiflazz'
-        ? 'Order berhasil, top up sedang diproses otomatis.'
+      : order.status === 'processing' && (order.provider === 'digiflazz' || order.provider === 'indosmm')
+        ? 'Order berhasil, sedang diproses otomatis.'
         : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
     return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
   }
@@ -593,7 +644,7 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
     }
 
     const unitPrice = getEffectivePrice(product, user);
-    const total = unitPrice * qty;
+    const total = computeOrderTotal(product, unitPrice, qty);
 
     if (user.saldo < total) {
       return res.redirect('/produk?error=' + encodeURIComponent('Saldo tidak cukup setelah deposit'));
@@ -616,8 +667,8 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       const order = orders[0];
       const msg = order.status === 'completed'
         ? 'Pembayaran QRIS berhasil! Produk sudah dikirim.'
-        : order.status === 'processing' && order.provider === 'digiflazz'
-          ? 'Pembayaran QRIS berhasil! Top up sedang diproses otomatis.'
+        : order.status === 'processing' && (order.provider === 'digiflazz' || order.provider === 'indosmm')
+          ? 'Pembayaran QRIS berhasil! Sedang diproses otomatis.'
           : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
       return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
     }
@@ -634,6 +685,9 @@ router.get('/produk/:id', (req, res) => {
   const product = findProductById(req.params.id);
   if (!product || product.status !== 'active') {
     return res.redirect('/produk?error=Produk tidak ditemukan');
+  }
+  if (product.provider === 'indosmm') {
+    return res.redirect(`/jasa-sosmed/${product.id}`);
   }
   const finalPrice = getEffectivePrice(product, user);
   // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
@@ -685,6 +739,64 @@ router.get('/produk/:id', (req, res) => {
   });
 });
 
+// ---------- JASA SOSMED (IndoSMM: followers/likes/views dkk) ----------
+// Katalog & halaman detail terpisah dari /produk (game topup) karena model produknya beda total:
+// qty di sini = jumlah asli (followers/likes/dst, bisa ratusan-ribuan) bukan "berapa kali beli",
+// dan butuh input Link (bukan ID Game/Zone ID).
+router.get('/jasa-sosmed', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  const soldMap = getTotalSoldMap();
+  const products = getActiveProducts()
+    .filter(p => p.provider === 'indosmm')
+    .map(p => ({
+      ...p,
+      totalSold: soldMap[p.id] || 0,
+      finalPrice: getEffectivePrice(p, user)
+    }));
+
+  const categoryOrder = [];
+  const grouped = {};
+  products.forEach(p => {
+    const cat = p.category || 'Jasa Sosmed';
+    if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
+    grouped[cat].push(p);
+  });
+  const rows = categoryOrder.sort().map(cat => ({ category: cat, products: grouped[cat] }));
+
+  res.render('jasa-sosmed', {
+    products,
+    rows,
+    user,
+    config: cfg,
+    error: req.query.error || null,
+    pageTitle: `Jasa Sosmed - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Layanan sosial media (followers, likes, views, dan lainnya) murah dan cepat di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
+router.get('/jasa-sosmed/:id', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const product = findProductById(req.params.id);
+  if (!product || product.status !== 'active' || product.provider !== 'indosmm') {
+    return res.redirect('/jasa-sosmed?error=Layanan tidak ditemukan');
+  }
+  const finalPrice = getEffectivePrice(product, user);
+  product.totalSold = getTotalSoldMap()[product.id] || 0;
+
+  const cfgDetail = getConfig();
+  res.render('jasa-sosmed-detail', {
+    product,
+    finalPrice,
+    user,
+    config: cfgDetail,
+    error: req.query.error || null,
+    success: req.query.success || null,
+    pageTitle: `${product.name} - ${cfgDetail.siteName || 'NEXORDER'}`,
+    pageDescription: `${product.name} mulai Rp${finalPrice.toLocaleString('id-ID')} per 1000 di ${cfgDetail.siteName || 'NEXORDER'}.`
+  });
+});
+
 // Submit ulasan (rating + komentar) — 1x per user per produk
 router.post('/produk/:id/review', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
@@ -732,7 +844,7 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     const targetText = formatTargetText(product, targetData);
 
     const unitPrice = getEffectivePrice(product, user);
-    const total = unitPrice * qty;
+    const total = computeOrderTotal(product, unitPrice, qty);
 
     const deposit = await createDeposit(user, total);
 
