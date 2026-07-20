@@ -761,13 +761,14 @@ router.get('/indosmm/search', async (req, res) => {
 
 // Import/update 1 produk IndoSMM, dipakai bareng oleh route single & batch (sama kayak
 // importOrUpdateDigiflazzProduct di atas) biar logic-nya gak kembar/gampang beda perilaku.
-function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, marginType, marginValue }) {
+function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, description, marginType, marginValue }) {
   if (!serviceId || !productName) {
     throw new Error('Service ID dan nama produk wajib diisi');
   }
   const existing = getAllProducts().find(p => p.provider === 'indosmm' && p.indosmmServiceId === String(serviceId));
   const rate = Number(ratePer1000) || 0;
   const sellPrice = computeIndosmmSellPrice(rate, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+  const desc = String(description || '').trim();
 
   if (existing) {
     updateProduct(existing.id, {
@@ -776,6 +777,9 @@ function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePe
       indosmmRatePer1000: rate,
       indosmmMin: min,
       indosmmMax: max,
+      // description CUMA ditimpa kalau ada isinya dari IndoSMM -- biar deskripsi custom yang
+      // sempat diedit admin lewat /admin/produk gak ke-timpa ke kosong pas re-import/update rate.
+      ...(desc ? { description: desc } : {}),
       marginType: marginType || '',
       marginValue: marginValue !== '' && marginValue != null ? marginValue : null
     });
@@ -785,7 +789,7 @@ function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePe
   const product = createProduct({
     name: productName,
     category: category || 'Jasa Sosmed',
-    description: '',
+    description: desc,
     price: sellPrice,
     provider: 'indosmm',
     indosmmServiceId: String(serviceId),
@@ -804,8 +808,8 @@ function importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePe
 
 router.post('/indosmm/import', (req, res) => {
   try {
-    const { serviceId, productName, category, ratePer1000, min, max, marginType, marginValue } = req.body;
-    const result = importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, marginType, marginValue });
+    const { serviceId, productName, category, ratePer1000, min, max, description, marginType, marginValue } = req.body;
+    const result = importOrUpdateIndosmmProduct({ serviceId, productName, category, ratePer1000, min, max, description, marginType, marginValue });
     res.json({
       ok: true,
       created: result.created,
@@ -836,7 +840,8 @@ router.post('/indosmm/import-batch', async (req, res) => {
           category: item.category,
           ratePer1000: item.ratePer1000,
           min: item.min,
-          max: item.max
+          max: item.max,
+          description: item.description
         });
         if (result.created) created++; else updated++;
       } catch (err) {
