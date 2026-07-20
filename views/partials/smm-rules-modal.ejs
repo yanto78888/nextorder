@@ -1,0 +1,48 @@
+<%
+  /* Modal ketentuan order Jasa Sosmed -- isinya diringkas & disesuaikan dari ketentuan resmi
+     provider (link wajib benar, gak bisa dibatalkan, status Partial/Dibatalkan = auto refund,
+     kuota maksimal itu per akun bukan per order, dst). Sengaja gak nyebut nama provider (lihat
+     kebijakan sembunyikan nama provider di tempat lain), dan gak janjiin tombol self-service yang
+     belum ada (refill/speed up) -- itu diarahkan ke WhatsApp admin kalau nomornya sudah diisi.
+     Muncul sekali per browser (localStorage), bukan tiap buka halaman -- biar gak ganggu. */
+  const waRawSmm = ((typeof config !== 'undefined' && config.ownerWhatsapp) || '').replace(/[^0-9]/g, '');
+  const waNumberSmm = waRawSmm ? (waRawSmm.startsWith('0') ? '62' + waRawSmm.slice(1) : waRawSmm) : '';
+  const waLinkSmm = waNumberSmm ? ('https://wa.me/' + waNumberSmm + '?text=' + encodeURIComponent('Halo, saya mau tanya soal pesanan Jasa Sosmed.')) : '';
+%>
+<div class="smm-rules-overlay" id="smmRulesOverlay">
+  <div class="smm-rules-modal">
+    <div class="smm-rules-modal-header">
+      <i class="fa-solid fa-circle-info"></i>
+      <h3>Ketentuan Order Jasa Sosmed</h3>
+    </div>
+    <div class="smm-rules-modal-body">
+      <ol class="smm-rules-list">
+        <li><b>Pastikan link yang diinput sudah benar</b> sebelum checkout. Pesanan yang sudah diproses <b>tidak bisa dibatalkan</b>, dan kesalahan input dari pembeli bukan tanggung jawab kami.</li>
+        <li><b>Jangan order lebih dari 1x</b> untuk link/akun yang sama dalam waktu bersamaan. Ini tidak mempercepat proses — malah bisa bikin salah satu pesanan gak kehitung, dan tidak ada pengembalian dana untuk kasus ini.</li>
+        <li>Kalau akun/link diganti, di-private, atau dihapus <b>setelah</b> pesanan dibuat, pesanan otomatis dianggap selesai dan <b>tidak ada pengembalian dana</b>.</li>
+        <li>Status pesanan <b>"Sebagian Terkirim"</b> atau <b>"Dibatalkan"</b> → saldo otomatis dikembalikan ke akunmu, bisa langsung order ulang.</li>
+        <li><b>Jumlah maksimal</b> pada tiap layanan berlaku untuk 1 akun/link (bukan per 1x order) — kalau kapasitasnya sudah kepakai penuh, akun/link itu gak bisa ditambah lagi walau pakai layanan lain.</li>
+        <li>Estimasi waktu mulai &amp; kecepatan proses di halaman produk bisa berubah tergantung kondisi server, bukan patokan pasti.</li>
+        <li>Butuh refill (kalau layanannya bergaransi) atau pesanan macet lama? <% if (waLinkSmm) { %>Hubungi admin lewat <a href="<%= waLinkSmm %>" target="_blank" rel="noopener" style="color:var(--cyan); text-decoration:underline;">WhatsApp</a> dan sertakan No. Invoice.<% } else { %>Hubungi admin dan sertakan No. Invoice.<% } %></li>
+      </ol>
+    </div>
+    <div class="smm-rules-modal-footer">
+      <button type="button" class="btn solid" id="smmRulesAckBtn" style="width:100%;">Saya Mengerti &amp; Setuju</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var KEY = 'smmRulesAcked_v1';
+  var overlay = document.getElementById('smmRulesOverlay');
+  var btn = document.getElementById('smmRulesAckBtn');
+  if (!overlay || !btn) return;
+  var alreadyAcked = false;
+  try { alreadyAcked = !!localStorage.getItem(KEY); } catch (e) { /* localStorage gak tersedia, anggap belum di-ack biar tetap ke-tampil sekali */ }
+  if (!alreadyAcked) overlay.classList.add('open');
+  btn.addEventListener('click', function () {
+    overlay.classList.remove('open');
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+  });
+})();
+</script>
