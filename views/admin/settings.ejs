@@ -18,6 +18,7 @@
       const qris = config.qris || {};
       const telegram = config.telegram || {};
       const digiflazz = config.digiflazz || {};
+      const indosmm = config.indosmm || {};
       const seo = config.seo || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
@@ -100,6 +101,19 @@
           <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
             <button type="button" class="btn small ghost" id="cekSaldoDigiflazzBtn">Cek Saldo Digiflazz</button>
             <span id="saldoDigiflazzResult" class="helper-text"></span>
+          </div>
+
+          <div class="section-title"><h3>IndoSMM (Jasa Sosmed: Followers/Likes/Views)</h3><div class="line"></div></div>
+
+          <label class="check-row"><input type="checkbox" name="indosmmEnabled" <%= indosmm.enabled ? 'checked' : '' %>> Aktifkan Jasa Sosmed via IndoSMM</label>
+
+          <label>API Key</label>
+          <input type="password" name="indosmmApiKey" value="<%= indosmm.apiKey || '' %>" autocomplete="new-password">
+          <div class="helper-text">Ambil di dashboard IndoSMM (indosmm.id) &rarr; menu API. Setelah diisi dan disimpan, cari &amp; import layanan di halaman <a href="/admin/indosmm" style="color:#fff; text-decoration:underline;">Jasa Sosmed</a>.</div>
+
+          <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
+            <button type="button" class="btn small ghost" id="cekSaldoIndosmmBtn">Cek Saldo IndoSMM</button>
+            <span id="saldoIndosmmResult" class="helper-text"></span>
           </div>
 
           <div class="section-title"><h3>Banner Iklan & Teks Berjalan</h3><div class="line"></div></div>
@@ -248,6 +262,21 @@
         .then(function (data) {
           if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }
           result.textContent = 'Saldo: Rp ' + Number(data.deposit || 0).toLocaleString('id-ID');
+        })
+        .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
+    });
+  })();
+  (function () {
+    var btn = document.getElementById('cekSaldoIndosmmBtn');
+    var result = document.getElementById('saldoIndosmmResult');
+    if (!btn || !result) return;
+    btn.addEventListener('click', function () {
+      result.textContent = 'Mengecek...';
+      fetch('/admin/settings/indosmm/saldo')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }
+          result.textContent = 'Saldo: ' + Number(data.balance || 0).toLocaleString('id-ID') + ' ' + (data.currency || '');
         })
         .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
     });

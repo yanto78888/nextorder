@@ -28,6 +28,11 @@
 
           <label>ID Tujuan yang Perlu Diisi User</label>
           <% const currentPreset = editProduct ? (editProduct.gamePreset || 'none') : 'none'; %>
+          <% const isEditingIndosmmPreset = !!(editProduct && editProduct.provider === 'indosmm'); %>
+          <% if (isEditingIndosmmPreset) { %>
+            <input type="hidden" name="gamePreset" value="custom">
+            <div class="helper-text">Produk Jasa Sosmed pakai field <b>Link Target</b> otomatis (diatur pas import dari IndoSMM), tidak perlu diatur manual di sini.</div>
+          <% } else { %>
           <select name="gamePreset" id="gamePresetSelect">
             <% gamePresetList.forEach(gp => { %>
               <option value="<%= gp.key %>" <%= currentPreset === gp.key ? 'selected' : '' %>><%= gp.label %></option>
@@ -56,9 +61,11 @@
               <label class="check-row" style="margin-bottom:14px;"><input type="checkbox" name="customFieldRequired[]" value="<%= f.key || ('field' + (i+1)) %>" <%= (f.required !== false && f.key) ? 'checked' : '' %>> Wajib diisi</label>
             <% } %>
           </div>
+          <% } %>
 
           <div class="section-title"><h4>Sumber Pengiriman Produk</h4></div>
           <% const isEditingDigiflazz = !!(editProduct && editProduct.provider === 'digiflazz'); %>
+          <% const isEditingIndosmm = !!(editProduct && editProduct.provider === 'indosmm'); %>
           <% if (isEditingDigiflazz) { %>
             <input type="hidden" name="provider" value="digiflazz">
             <div class="alert" style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); color:var(--success);">
@@ -67,12 +74,17 @@
             <label class="mt-16">Template Customer No (opsional)</label>
             <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct.digiflazzCustomerNoTemplate %>">
             <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default otomatis: Mobile Legends digabung tanpa pemisah, Genshin/Honkai/Wuthering Waves dipisah <code>|</code>, game lain dipisah titik.</div>
+          <% } else if (isEditingIndosmm) { %>
+            <input type="hidden" name="provider" value="indosmm">
+            <div class="alert" style="background:rgba(52,152,219,0.1); border:1px solid rgba(52,152,219,0.35); color:var(--cyan);">
+              <i class="fa-solid fa-share-nodes"></i> Produk ini Jasa Sosmed via <b>IndoSMM</b> (Service ID: <code><%= editProduct.indosmmServiceId %></code>), margin terpisah dari Digiflazz/produk manual. Margin, rate, dan lepas-tautan dikelola khusus di halaman <a href="/admin/indosmm" style="color:#fff; text-decoration:underline;">Jasa Sosmed</a> — form ini cuma buat data pendukung (nama, kategori, foto).
+            </div>
           <% } else { %>
             <input type="hidden" name="provider" value="manual">
-            <div class="helper-text">Produk yang dibuat di sini otomatis jadi <b>Stok Manual</b>. Untuk produk auto top up Digiflazz (mis. Mobile Legends, Free Fire), cari &amp; import langsung dari halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dan tetap rapi per grup/folder.</div>
+            <div class="helper-text">Produk yang dibuat di sini otomatis jadi <b>Stok Manual</b>. Untuk produk auto top up Digiflazz (mis. Mobile Legends, Free Fire), cari &amp; import langsung dari halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dan tetap rapi per grup/folder. Untuk jasa sosmed (followers/likes/dll), import dari halaman <a href="/admin/indosmm" style="color:var(--cyan);">Jasa Sosmed</a>.</div>
           <% } %>
 
-          <% if (!isEditingDigiflazz) { %>
+          <% if (!isEditingDigiflazz && !isEditingIndosmm) { %>
           <label class="mt-16">Catatan Stok (internal, opsional)</label>
           <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
           <label>Harga Modal (Rp) <span class="helper-text">(opsional)</span></label>
@@ -106,17 +118,22 @@
       </div>
 
       <div class="card">
-        <% /* Halaman ini cuma buat produk Stok Manual. Produk Digiflazz punya halaman &amp; tabel */
-           /* sendiri di /admin/digiflazz — dipisah biar gak kegabung dan gak ada kolom Stok yang */
-           /* misleading (Digiflazz emang gak ada stok manual, dikirim otomatis oleh sistem). */ %>
-        <% const manualProducts = products.filter(p => p.provider !== 'digiflazz'); %>
-        <% const digiflazzCount = products.length - manualProducts.length; %>
+        <% /* Halaman ini cuma buat produk Stok Manual. Produk Digiflazz & IndoSMM punya halaman */
+           /* &amp; tabel sendiri masing-masing (/admin/digiflazz, /admin/indosmm) — dipisah biar */
+           /* gak kegabung dan gak ada kolom Stok yang misleading (keduanya dikirim otomatis oleh */
+           /* sistem, gak pakai stok manual). */ %>
+        <% const manualProducts = products.filter(p => p.provider !== 'digiflazz' && p.provider !== 'indosmm'); %>
+        <% const digiflazzCount = products.filter(p => p.provider === 'digiflazz').length; %>
+        <% const indosmmCount = products.filter(p => p.provider === 'indosmm').length; %>
 
         <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <h3 style="margin:0;">Daftar Produk Manual (<%= manualProducts.length %>)</h3>
-          <a href="/admin/digiflazz" class="btn small ghost"><i class="fa-solid fa-bolt"></i> Produk Digiflazz (<%= digiflazzCount %>)</a>
+          <div class="flex" style="gap:8px; flex-wrap:wrap;">
+            <a href="/admin/digiflazz" class="btn small ghost"><i class="fa-solid fa-bolt"></i> Produk Digiflazz (<%= digiflazzCount %>)</a>
+            <a href="/admin/indosmm" class="btn small ghost"><i class="fa-solid fa-share-nodes"></i> Jasa Sosmed (<%= indosmmCount %>)</a>
+          </div>
         </div>
-        <div class="helper-text">Produk auto top up Digiflazz dikelola terpisah di halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dengan stok manual di bawah ini.</div>
+        <div class="helper-text">Produk auto top up Digiflazz dan Jasa Sosmed (IndoSMM) dikelola terpisah di halamannya masing-masing supaya tidak tercampur dengan stok manual di bawah ini.</div>
 
         <% if (manualProducts.length === 0) { %>
           <div class="empty-state mt-16">Belum ada produk stok manual.</div>
@@ -151,7 +168,7 @@
       </div>
     </div>
 
-      <% if (editProduct && editProduct.provider !== 'digiflazz') { %>
+      <% if (editProduct && editProduct.provider !== 'digiflazz' && editProduct.provider !== 'indosmm') { %>
       <div class="card mt-24">
         <h3>Stok Otomatis: <%= editProduct.name %></h3>
         <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>

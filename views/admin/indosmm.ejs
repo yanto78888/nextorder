@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'indosmm' }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2>Jasa Sosmed (IndoSMM)</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% const sm = config.indosmm || {}; %>
+    <% if (!sm.enabled || !sm.apiKey) { %>
+      <div class="alert error">
+        IndoSMM belum aktif/lengkap. Isi API Key lalu centang "Aktifkan" di
+        <a href="/admin/settings" style="color:#fff; text-decoration:underline;">Pengaturan</a> dulu sebelum import layanan.
+      </div>
+    <% } %>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Margin Default</h3>
+        <p class="helper-text">Margin ini otomatis dipakai untuk semua layanan IndoSMM yang tidak punya margin sendiri (override). Rumus: Harga Jual per 1000 = Modal per 1000 + Margin.</p>
+        <form method="POST" action="/admin/indosmm/margin">
+          <div class="grid grid-2 form-mini-grid">
+            <div>
+              <label>Tipe Margin</label>
+              <select name="marginType">
+                <option value="percent" <%= (sm.marginType || 'percent') === 'percent' ? 'selected' : '' %>>Persentase (%)</option>
+                <option value="fixed" <%= sm.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp per 1000)</option>
+              </select>
+            </div>
+            <div>
+              <label>Nilai Margin</label>
+              <input type="number" step="0.01" name="marginValue" value="<%= (typeof sm.marginValue !== 'undefined' && sm.marginValue !== null) ? sm.marginValue : 30 %>">
+            </div>
+          </div>
+          <button class="btn solid mt-16" type="submit">Simpan Margin Default</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Ringkasan</h3>
+        <div class="detail-stats-row" style="margin:0;">
+          <div class="detail-stat">
+            <div class="detail-stat-val"><%= indosmmProducts.length %></div>
+            <div class="detail-stat-label">Layanan Terhubung</div>
+          </div>
+        </div>
+        <div class="helper-text mt-16">Harga jual layanan dihitung dari <b>rate per 1000</b> IndoSMM saat diimport. Kalau harga IndoSMM berubah, edit ulang rate-nya lewat "Edit" per layanan di bawah, atau import ulang layanan yang sama (rate otomatis diperbarui).</div>
+      </div>
+    </div>
+
+    <div class="card mt-24">
+      <h3>Cari &amp; Import Layanan dari IndoSMM</h3>
+      <div class="helper-text">Pilih Kategori dulu (opsional) biar hasil makin fokus, atau langsung ketik nama layanan. Centang hasil yang mau ditambah — judul tiap layanan bisa diedit dulu di kolom "Layanan" kalau mau pakai judul sendiri, lalu klik "Tambah Layanan Terpilih". <b>Catatan:</b> baru mendukung layanan tipe standar (link + jumlah) -- layanan custom comment/poll/subscription belum didukung.</div>
+
+      <div class="df-filter-row">
+        <select id="smCategorySelect">
+          <option value="">Semua Kategori</option>
+        </select>
+        <input type="text" id="smSearchInput" placeholder="Cari nama layanan...">
+        <button type="button" class="btn solid" id="smSearchBtn">Cari</button>
+      </div>
+
+      <div id="smBulkBar" class="df-bulk-bar" style="display:none;">
+        <label class="df-select-all"><input type="checkbox" id="smSelectAllChk"> Pilih semua</label>
+        <span id="smSelectedCount" class="helper-text">0 dipilih</span>
+        <button type="button" class="btn ghost small" id="smAddSelectedBtn" disabled><i class="fa-solid fa-plus"></i> Tambah Layanan Terpilih</button>
+      </div>
+
+      <div id="smSearchResults" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card mt-24">
+      <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0;">Layanan IndoSMM Terhubung (<%= indosmmProducts.length %>)</h3>
+        <a href="/admin/produk" class="btn small ghost"><i class="fa-solid fa-screwdriver-wrench"></i> Produk Stok Manual</a>
+      </div>
+      <% if (indosmmProducts.length === 0) { %>
+        <div class="empty-state mt-16">Belum ada layanan yang diimport dari IndoSMM.</div>
+      <% } else { %>
+        <% const catOrder = []; const catGroups = {}; %>
+        <% indosmmProducts.forEach(p => { const cat = p.category || 'Jasa Sosmed'; if (!catGroups[cat]) { catGroups[cat] = []; catOrder.push(cat); } catGroups[cat].push(p); }) %>
+        <% catOrder.sort().forEach(cat => { %>
+          <% const catProducts = catGroups[cat]; %>
+          <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catProducts.length %> layanan</span><div class="line"></div></div>
+          <table>
+            <thead><tr><th>Nama</th><th>Min/Maks</th><th>Modal /1000</th><th>Margin</th><th>Harga Jual /1000</th><th>Aksi</th></tr></thead>
+            <tbody>
+              <% catProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
+              <tr>
+                <td><%= p.name %></td>
+                <td class="mono"><%= (p.indosmmMin||0).toLocaleString('id-ID') %>-<%= (p.indosmmMax||0).toLocaleString('id-ID') %></td>
+                <td class="mono">Rp <%= (p.indosmmRatePer1000 || 0).toLocaleString('id-ID') %></td>
+                <td>
+                  <form method="POST" action="/admin/indosmm/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
+                    <select name="marginType" style="width:90px; font-size:12px;">
+                      <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
+                      <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                      <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                    </select>
+                    <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
+                    <button type="submit" class="btn small ghost">Set</button>
+                  </form>
+                </td>
+                <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                <td>
+                  <div class="flex" style="gap:6px; flex-wrap:wrap;">
+                    <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+                    <form method="POST" action="/admin/indosmm/<%= p.id %>/unlink" onsubmit="return confirm('Lepas layanan ini dari IndoSMM? Produk akan jadi produk manual biasa (checkout otomatis IndoSMM berhenti).')">
+                      <button class="btn small danger" type="submit">Lepas</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% }) %>
+      <% } %>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var searchBtn = document.getElementById('smSearchBtn');
+  var searchInput = document.getElementById('smSearchInput');
+  var categorySelect = document.getElementById('smCategorySelect');
+  var resultsBox = document.getElementById('smSearchResults');
+  var bulkBar = document.getElementById('smBulkBar');
+  var selectAllChk = document.getElementById('smSelectAllChk');
+  var selectedCountEl = document.getElementById('smSelectedCount');
+  var addSelectedBtn = document.getElementById('smAddSelectedBtn');
+  if (!searchBtn) return;
+
+  var lastResults = [];
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  fetch('/admin/indosmm/categories')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.ok) return;
+      data.categories.forEach(function (cat) {
+        var opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    })
+    .catch(function () {});
+
+  function doSearch() {
+    var q = searchInput.value.trim();
+    var category = categorySelect.value;
+    resultsBox.innerHTML = '<div class="helper-text">Mencari...</div>';
+    bulkBar.style.display = 'none';
+
+    fetch('/admin/indosmm/search?q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(category))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(data.error) + '</div>'; return; }
+        if (!data.results.length) { resultsBox.innerHTML = '<div class="helper-text">Tidak ada hasil.</div>'; return; }
+        lastResults = data.results;
+        renderResultsTable();
+      })
+      .catch(function (err) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(err.message) + '</div>'; });
+  }
+
+  function updateBulkBar() {
+    var boxes = resultsBox.querySelectorAll('.sm-row-chk');
+    var checked = resultsBox.querySelectorAll('.sm-row-chk:checked');
+    bulkBar.style.display = boxes.length > 0 ? '' : 'none';
+    selectedCountEl.textContent = checked.length + ' dipilih';
+    addSelectedBtn.disabled = checked.length === 0;
+    if (selectAllChk) selectAllChk.checked = boxes.length > 0 && checked.length === boxes.length;
+  }
+
+  function renderResultsTable() {
+    var table = document.createElement('table');
+    table.innerHTML = '<thead><tr><th style="width:28px;"></th><th>Layanan</th><th>Min/Maks</th><th>Rate /1000</th><th>Preview Jual /1000</th><th>Aksi</th></tr></thead>';
+    var tbody = document.createElement('tbody');
+
+    lastResults.forEach(function (item, idx) {
+      var tr = document.createElement('tr');
+      var rateStr = 'Rp ' + Number(item.rate || 0).toLocaleString('id-ID');
+      var sellStr = 'Rp ' + Number(item.sellPricePreview || 0).toLocaleString('id-ID');
+
+      var chkTd = document.createElement('td');
+      if (!item.alreadyImported) {
+        var chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'sm-row-chk';
+        chk.dataset.idx = idx;
+        chk.addEventListener('change', updateBulkBar);
+        chkTd.appendChild(chk);
+      }
+      tr.appendChild(chkTd);
+
+      var nameTd = document.createElement('td');
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'df-row-name';
+      nameInput.value = item.name;
+      nameInput.disabled = !!item.alreadyImported;
+      nameInput.style.marginBottom = '4px';
+      nameTd.appendChild(nameInput);
+      var catHint = document.createElement('div');
+      catHint.className = 'helper-text';
+      catHint.textContent = item.category || '';
+      nameTd.appendChild(catHint);
+      tr.appendChild(nameTd);
+
+      var minMaxTd = document.createElement('td');
+      minMaxTd.className = 'mono';
+      minMaxTd.textContent = Number(item.min || 0).toLocaleString('id-ID') + '-' + Number(item.max || 0).toLocaleString('id-ID');
+      tr.appendChild(minMaxTd);
+
+      var rateTd = document.createElement('td');
+      rateTd.className = 'mono';
+      rateTd.textContent = rateStr;
+      tr.appendChild(rateTd);
+
+      var sellTd = document.createElement('td');
+      sellTd.className = 'mono';
+      sellTd.style.color = 'var(--cyan)';
+      sellTd.textContent = sellStr;
+      tr.appendChild(sellTd);
+
+      var actionTd = document.createElement('td');
+      if (item.alreadyImported) {
+        var span = document.createElement('span');
+        span.className = 'badge completed';
+        span.textContent = 'Sudah diimport';
+        actionTd.appendChild(span);
+      } else {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn small solid';
+        btn.textContent = 'Import';
+        btn.addEventListener('click', function () { importSingle(item, nameInput.value.trim(), btn); });
+        actionTd.appendChild(btn);
+      }
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    resultsBox.innerHTML = '';
+    resultsBox.appendChild(table);
+    updateBulkBar();
+  }
+
+  function importSingle(item, productName, btn) {
+    if (!productName) { alert('Judul layanan tidak boleh kosong.'); return; }
+    btn.disabled = true;
+    btn.textContent = '...';
+    fetch('/admin/indosmm/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceId: item.service,
+        productName: productName,
+        category: item.category || 'Jasa Sosmed',
+        ratePer1000: item.rate,
+        min: item.min,
+        max: item.max
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { alert('Gagal: ' + data.error); btn.disabled = false; btn.textContent = 'Import'; return; }
+        item.alreadyImported = true;
+        renderResultsTable();
+      })
+      .catch(function (err) { alert('Gagal: ' + err.message); btn.disabled = false; btn.textContent = 'Import'; });
+  }
+
+  searchBtn.addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+  categorySelect.addEventListener('change', doSearch);
+
+  selectAllChk.addEventListener('change', function () {
+    resultsBox.querySelectorAll('.sm-row-chk').forEach(function (chk) { chk.checked = selectAllChk.checked; });
+    updateBulkBar();
+  });
+
+  addSelectedBtn.addEventListener('click', function () {
+    var checked = resultsBox.querySelectorAll('.sm-row-chk:checked');
+    if (!checked.length) return;
+    var items = [];
+    checked.forEach(function (chk) {
+      var item = lastResults[Number(chk.dataset.idx)];
+      var nameInput = chk.closest('tr').querySelector('.df-row-name');
+      var name = nameInput ? nameInput.value.trim() : item.name;
+      if (!name) return;
+      items.push({
+        serviceId: item.service,
+        productName: name,
+        category: item.category || 'Jasa Sosmed',
+        ratePer1000: item.rate,
+        min: item.min,
+        max: item.max
+      });
+    });
+    if (!items.length) { alert('Judul layanan tidak boleh kosong.'); return; }
+
+    addSelectedBtn.disabled = true;
+    addSelectedBtn.textContent = 'Menambahkan...';
+    fetch('/admin/indosmm/import-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
+        if (!data.ok) { alert('Gagal: ' + data.error); return; }
+        alert(data.message);
+        location.reload();
+      })
+      .catch(function (err) {
+        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
+        alert('Gagal: ' + err.message);
+      });
+  });
+})();
+</script>
+</body>
+</html>
