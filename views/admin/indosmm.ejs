@@ -273,7 +273,8 @@
         category: item.category || 'Jasa Sosmed',
         ratePer1000: item.rate,
         min: item.min,
-        max: item.max
+        max: item.max,
+        description: item.desc || ''
       })
     })
       .then(function (r) { return r.json(); })
@@ -309,7 +310,8 @@
         category: item.category || 'Jasa Sosmed',
         ratePer1000: item.rate,
         min: item.min,
-        max: item.max
+        max: item.max,
+        description: item.desc || ''
       });
     });
     if (!items.length) { alert('Judul layanan tidak boleh kosong.'); return; }
