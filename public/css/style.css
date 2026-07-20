@@ -1265,6 +1265,58 @@ input[type="file"]::file-selector-button {
   white-space: pre-line;
 }
 
+/* Modal ketentuan order Jasa Sosmed (muncul sekali per browser saat pertama buka /jasa-sosmed) */
+.smm-rules-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,8,15,0.82);
+  z-index: 999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.smm-rules-overlay.open { display: flex; }
+.smm-rules-modal {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+.smm-rules-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-glow);
+  color: var(--cyan);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.smm-rules-modal-header h3 { margin: 0; font-size: 15px; color: var(--text-main); }
+.smm-rules-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.smm-rules-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 11px; }
+.smm-rules-list li::marker { color: var(--cyan); font-weight: 700; }
+.smm-rules-list b { color: var(--text-main); }
+.smm-rules-modal-footer { padding: 16px 20px; border-top: 1px solid var(--border-glow); flex-shrink: 0; }
+
+@media (max-width: 520px) {
+  .smm-rules-modal { max-height: 90vh; }
+  .smm-rules-modal-body { font-size: 12.5px; }
+}
+
 /* Panduan cara membeli (produk auto top up Digiflazz) */
 .buy-guide-list {
   list-style: none;
