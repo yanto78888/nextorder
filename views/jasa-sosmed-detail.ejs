@@ -47,6 +47,13 @@
         </ol>
       </div>
 
+      <% if (product.description && product.description.trim()) { %>
+      <div class="detail-section">
+        <div class="detail-section-title">Detail &amp; Catatan Layanan</div>
+        <div class="detail-desc"><%= product.description %></div>
+      </div>
+      <% } %>
+
       <div class="detail-buy-box">
         <div class="detail-price-main">
           <% if (finalPrice < product.price) { %>
@@ -123,6 +130,7 @@
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
+<%- include('partials/smm-rules-modal', { config }) %>
 <script>
 (function(){
   var ratePer1000 = <%= finalPrice %>;
