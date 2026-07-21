@@ -4,7 +4,7 @@
   <%- include('partials/head') %>
   <style>
     .order-panel {
-      background: #1e222d; /* Warna background gelap yang elegan */
+      background: #1e222d;
       border: 1px solid #2a2e39;
       border-radius: 12px;
       padding: 20px;
@@ -152,6 +152,12 @@
                 <input type="text" id="linkInput" class="form-control" placeholder="Masukkan Link (Misal: https://instagram.com/p/...)" required>
             </div>
 
+            <!-- Kolom Catatan Tambahan (Otomatis muncul untuk layanan Custom Comments dsb) -->
+            <div class="form-group" id="catatanFormGroup" style="display: none;">
+                <label class="form-label">Catatan (Opsional)</label>
+                <textarea id="catatanInput" class="form-control" rows="3" placeholder="Masukkan catatan / komentar khusus jika dibutuhkan..."></textarea>
+            </div>
+
             <!-- Jumlah -->
             <div class="form-group">
                 <label class="form-label">Jumlah</label>
@@ -205,11 +211,13 @@
                 <input type="hidden" name="productId" id="formProductIdSaldo" value="">
                 <input type="hidden" name="qty" id="formQtySaldo" value="">
                 <input type="hidden" name="target_link" id="formLinkSaldo" value="">
+                <input type="hidden" name="target_custom" id="formCustomSaldo" value="">
             </form>
             <form method="POST" action="/order/qris-init" id="buyFormQris">
                 <input type="hidden" name="productId" id="formProductIdQris" value="">
                 <input type="hidden" name="qty" id="formQtyQris" value="">
                 <input type="hidden" name="target_link" id="formLinkQris" value="">
+                <input type="hidden" name="target_custom" id="formCustomQris" value="">
             </form>
 
             <button type="button" class="btn solid buy-main-btn" id="btnSubmit" style="width: 100%; padding: 14px; font-size: 15px;"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
@@ -226,7 +234,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inject Data Produk Secara Aman
     const smmData = <%- JSON.stringify(rows).replace(/</g, '\\u003c') %>;
     
     // Variabel DOM
@@ -240,13 +247,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const minText = document.getElementById('minText');
     const maxText = document.getElementById('maxText');
     const linkInput = document.getElementById('linkInput');
+    const catatanFormGroup = document.getElementById('catatanFormGroup');
+    const catatanInput = document.getElementById('catatanInput');
     const jumlahInput = document.getElementById('jumlahInput');
     const totalHarga = document.getElementById('totalHarga');
     
     let selectedProduct = null;
     let userSaldo = <%= user ? user.saldo : 0 %>;
     
-    // Format Uang
     function fmt(n) { return 'Rp ' + Math.ceil(n).toLocaleString('id-ID'); }
     
     // 1. Saat Kategori Dipilih
@@ -260,10 +268,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const category = smmData.find(c => c.category === catName);
         if(category && category.products) {
             category.products.forEach(p => {
+                const pId = p.service || p.id;
+                const pPrice = p.finalPrice || p.rate || 0;
+                
                 const opt = document.createElement('option');
-                opt.value = p.id;
-                // Format teks di dalam select layanan
-                opt.textContent = `${p.id} - ${p.name} - Rp ${p.finalPrice.toLocaleString('id-ID')}`;
+                opt.value = pId;
+                opt.textContent = `${pId} - ${p.name} - Rp ${parseFloat(pPrice).toLocaleString('id-ID')}`;
                 laySelect.appendChild(opt);
             });
         }
@@ -280,36 +290,59 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Cari Produk di dalam data
         for(const cat of smmData) {
-            const p = cat.products.find(x => x.id == pId);
+            const p = cat.products.find(x => x.id == pId || x.service == pId);
             if(p) { selectedProduct = p; break; }
         }
         
-        // Tampilkan Form Order
         if(selectedProduct) {
             serviceDetails.style.display = 'block';
-            serviceDesc.innerHTML = (selectedProduct.description || 'Tidak ada informasi / catatan tambahan untuk layanan ini.').replace(/\n/g, '<br>');
-            hargaRate.value = fmt(selectedProduct.finalPrice);
             
-            minText.textContent = selectedProduct.indosmmMin ? selectedProduct.indosmmMin.toLocaleString('id-ID') : 1;
-            maxText.textContent = selectedProduct.indosmmMax ? selectedProduct.indosmmMax.toLocaleString('id-ID') : 1;
+            // Catatan Otomatis (Deskripsi / Data JSON)
+            let catatanHTML = "<b>📌 Catatan Layanan:</b><br>";
+            if (selectedProduct.description) {
+                catatanHTML += selectedProduct.description.replace(/\n/g, '<br>');
+            } else {
+                catatanHTML += "• Tipe: <b>" + (selectedProduct.type || "Default") + "</b><br>";
+                catatanHTML += "• Garansi (Refill): <b>" + (selectedProduct.refill ? "✅ Ya" : "❌ Tidak") + "</b><br>";
+                catatanHTML += "• Bisa Dibatalkan (Cancel): <b>" + (selectedProduct.cancel ? "✅ Ya" : "❌ Tidak") + "</b>";
+            }
+            serviceDesc.innerHTML = catatanHTML;
+            
+            // Tampilkan Kolom Catatan Opsional jika tipenya "Custom"
+            if (selectedProduct.type && selectedProduct.type.toLowerCase().includes('custom')) {
+                catatanFormGroup.style.display = 'block';
+            } else {
+                catatanFormGroup.style.display = 'none';
+            }
+
+            // Hitung Harga dan Limit
+            let harga = selectedProduct.finalPrice || parseFloat(selectedProduct.rate) || 0;
+            hargaRate.value = fmt(harga);
+            
+            let minimal = selectedProduct.indosmmMin || selectedProduct.min || 1;
+            let maksimal = selectedProduct.indosmmMax || selectedProduct.max || 1;
+            
+            minText.textContent = parseInt(minimal).toLocaleString('id-ID');
+            maxText.textContent = parseInt(maksimal).toLocaleString('id-ID');
             
             // Reset input form
             jumlahInput.value = '';
             linkInput.value = '';
+            catatanInput.value = '';
             totalHarga.value = 'Rp 0';
             calculateTotal();
         }
     });
     
-    // 3. Saat Pencarian Diketik (Filter Semua Layanan)
+    // 3. Pencarian
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
         if(query.length === 0) {
-            katSelect.dispatchEvent(new Event('change')); // Kembalikan ke normal
+            katSelect.dispatchEvent(new Event('change'));
             return;
         }
         
-        katSelect.value = ""; // Kosongkan kategori
+        katSelect.value = ""; 
         laySelect.innerHTML = '<option value="">Pilih Layanan Hasil Pencarian...</option>';
         serviceDetails.style.display = 'none';
         
@@ -317,9 +350,12 @@ document.addEventListener('DOMContentLoaded', function() {
         smmData.forEach(cat => {
             cat.products.forEach(p => {
                 if(p.name.toLowerCase().includes(query)) {
+                    const pId = p.service || p.id;
+                    const pPrice = p.finalPrice || p.rate || 0;
+                    
                     const opt = document.createElement('option');
-                    opt.value = p.id;
-                    opt.textContent = `[${cat.category}] ${p.name} - Rp ${p.finalPrice.toLocaleString('id-ID')}`;
+                    opt.value = pId;
+                    opt.textContent = `[${cat.category}] ${p.name} - Rp ${parseFloat(pPrice).toLocaleString('id-ID')}`;
                     laySelect.appendChild(opt);
                     found++;
                 }
@@ -337,7 +373,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let q = parseInt(jumlahInput.value);
         if(isNaN(q) || q < 0) q = 0;
         
-        let total = (selectedProduct.finalPrice * q) / 1000;
+        let harga = selectedProduct.finalPrice || parseFloat(selectedProduct.rate) || 0;
+        let total = (harga * q) / 1000;
+        
         totalHarga.value = fmt(total);
         
         const warn = document.getElementById('saldoWarning');
@@ -353,9 +391,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if(!selectedProduct) return;
             
             const q = parseInt(jumlahInput.value);
-            const minQ = selectedProduct.indosmmMin || 1;
-            const maxQ = selectedProduct.indosmmMax || 1;
+            const minQ = selectedProduct.indosmmMin || selectedProduct.min || 1;
+            const maxQ = selectedProduct.indosmmMax || selectedProduct.max || 1;
             const link = linkInput.value.trim();
+            const note = catatanInput.value.trim();
             
             if(!link) {
                 alert('Silakan isi Link Target.');
@@ -373,23 +412,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Ambil metode bayar terpilih
             const radios = document.getElementsByName('payMethod');
             let method = 'saldo';
             for(let i=0; i<radios.length; i++) {
                 if(radios[i].checked) method = radios[i].value;
             }
             
-            // Eksekusi Form tersembunyi
+            const pId = selectedProduct.id || selectedProduct.service;
+
             if (method === 'saldo') {
-                document.getElementById('formProductIdSaldo').value = selectedProduct.id;
+                document.getElementById('formProductIdSaldo').value = pId;
                 document.getElementById('formQtySaldo').value = q;
                 document.getElementById('formLinkSaldo').value = link;
+                document.getElementById('formCustomSaldo').value = note;
                 document.getElementById('buyFormSaldo').submit();
             } else {
-                document.getElementById('formProductIdQris').value = selectedProduct.id;
+                document.getElementById('formProductIdQris').value = pId;
                 document.getElementById('formQtyQris').value = q;
                 document.getElementById('formLinkQris').value = link;
+                document.getElementById('formCustomQris').value = note;
                 document.getElementById('buyFormQris').submit();
             }
         });
