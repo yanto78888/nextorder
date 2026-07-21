@@ -9,7 +9,7 @@ import {
   getMembershipDiscount, upgradeMembership
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct, getProductCostPrice } from '../lib/products.js';
-import { getOrdersByUser, createOrder, getStats, getTotalSoldMap } from '../lib/orders.js';
+import { getOrdersByUser, createOrder, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
@@ -18,7 +18,10 @@ import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
-import { isIndosmmEnabled, placeOrder as placeIndosmmOrder, computeTotalForQty as computeIndosmmTotal } from '../lib/indosmm.js';
+import {
+  isIndosmmEnabled, placeOrder as placeIndosmmOrder, computeTotalForQty as computeIndosmmTotal,
+  getServices as getIndosmmServices, cancelOrder as cancelIndosmmOrder, requestRefill as requestIndosmmRefill
+} from '../lib/indosmm.js';
 import { genId } from '../lib/db.js';
 import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale } from '../lib/flashsale.js';
 
@@ -535,15 +538,93 @@ router.post('/order', requireLogin, async (req, res) => {
   res.redirect('/riwayat?success=' + encodeURIComponent(summarizeOrders(orders)));
 });
 
-router.get('/riwayat', requireLogin, (req, res) => {
+router.get('/riwayat', requireLogin, async (req, res) => {
   const orders = getOrdersByUser(req.session.user.id);
+  const sosmedOrdersRaw = orders.filter(o => o.provider === 'indosmm');
+  const otherOrders = orders.filter(o => o.provider !== 'indosmm');
+
+  // Cek flag refill/cancel per layanan (dari cache getServices(), TTL 3 menit) buat nentuin
+  // tombol Batalkan/Refill ditampilin atau nggak -- bukan semua layanan IndoSMM dukung keduanya.
+  // Kalau IndoSMM lagi nonaktif/error (mis. API key belum diisi), dibiarin diam-diam & tombol
+  // gak ditampilin sama sekali, JANGAN bikin halaman riwayat gagal load gara-gara ini.
+  let sosmedOrders = sosmedOrdersRaw;
+  if (sosmedOrdersRaw.length > 0 && isIndosmmEnabled()) {
+    try {
+      const services = await getIndosmmServices();
+      const metaByServiceId = Object.fromEntries(services.map(s => [String(s.service), s]));
+      sosmedOrders = sosmedOrdersRaw.map(o => {
+        const product = o.productId ? findProductById(o.productId) : null;
+        const meta = product ? metaByServiceId[String(product.indosmmServiceId)] : null;
+        return {
+          ...o,
+          canCancel: Boolean(meta && meta.cancel) && o.status === 'processing' && !!o.providerRefId,
+          canRefill: Boolean(meta && meta.refill) && o.status === 'completed' && !!o.providerRefId
+            && o.refillStatus !== 'processing'
+        };
+      });
+    } catch (err) {
+      console.error('[riwayat] Gagal ambil daftar layanan IndoSMM:', err.message);
+      sosmedOrders = sosmedOrdersRaw.map(o => ({ ...o, canCancel: false, canRefill: false }));
+    }
+  } else {
+    sosmedOrders = sosmedOrdersRaw.map(o => ({ ...o, canCancel: false, canRefill: false }));
+  }
+
   res.render('riwayat', {
-    orders,
+    sosmedOrders,
+    otherOrders,
     config: getConfig(),
     user: findUserById(req.session.user.id),
     success: req.query.success || null,
+    error: req.query.error || null,
     noindex: true
   });
+});
+
+// Batalkan order Jasa Sosmed (IndoSMM) yang masih "processing" -- saldo dikembalikan penuh kalau
+// IndoSMM konfirmasi batal berhasil. Layanan yang emang gak dukung cancel bakal ditolak API-nya
+// sendiri (lihat cancelOrder() di lib/indosmm.js), pesan errornya diteruskan apa adanya ke user.
+router.post('/riwayat/:id/batal-sosmed', requireLogin, async (req, res) => {
+  try {
+    const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+    if (!order) throw new Error('Order tidak ditemukan');
+    if (order.provider !== 'indosmm' || !order.providerRefId) {
+      throw new Error('Order ini bukan Jasa Sosmed atau tidak bisa dibatalkan lewat sini');
+    }
+    if (order.status !== 'processing') throw new Error('Order ini sudah tidak dalam status diproses');
+
+    await cancelIndosmmOrder(order.providerRefId);
+    addSaldo(order.userId, order.total);
+    updateOrderStatus(order.id, 'cancelled', 'Dibatalkan oleh pelanggan, saldo dikembalikan sepenuhnya.');
+    res.redirect('/riwayat?success=' + encodeURIComponent('Pesanan berhasil dibatalkan, saldo sudah dikembalikan.'));
+  } catch (err) {
+    res.redirect('/riwayat?error=' + encodeURIComponent(err.message));
+  }
+});
+
+// Minta refill order Jasa Sosmed (IndoSMM) yang sudah "completed" (mis. followers/likes berkurang).
+// Refill TIDAK otomatis langsung sukses -- cuma ngirim permintaan ke IndoSMM, hasilnya (Completed/
+// Rejected) baru kelihatan belakangan lewat job checkPendingIndosmmRefills() di server.js.
+router.post('/riwayat/:id/refill-sosmed', requireLogin, async (req, res) => {
+  try {
+    const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+    if (!order) throw new Error('Order tidak ditemukan');
+    if (order.provider !== 'indosmm' || !order.providerRefId) {
+      throw new Error('Order ini bukan Jasa Sosmed atau tidak bisa direfill lewat sini');
+    }
+    if (order.status !== 'completed') throw new Error('Refill cuma bisa buat pesanan yang sudah selesai');
+    if (order.refillStatus === 'processing') throw new Error('Permintaan refill sebelumnya masih diproses, mohon tunggu');
+
+    const result = await requestIndosmmRefill(order.providerRefId);
+    patchOrder(order.id, {
+      refillId: result.refillId,
+      refillStatus: 'processing',
+      refillRequestedAt: new Date().toISOString()
+    });
+    res.redirect('/riwayat?success=' + encodeURIComponent('Permintaan refill berhasil dikirim, mohon tunggu diproses.'));
+  } catch (err) {
+    res.redirect('/riwayat?error=' + encodeURIComponent(err.message));
+  }
 });
 
 // Invoice/struk 1 order, dipakai buat halaman detail setelah order berhasil maupun dilihat dari riwayat
