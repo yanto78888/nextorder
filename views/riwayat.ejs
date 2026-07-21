@@ -9,15 +9,69 @@
     <div class="topbar"><h2>Riwayat Order</h2></div>
 
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
+    <div class="section-title"><h3>Riwayat Jasa Sosmed</h3><div class="line"></div></div>
     <div class="card">
-      <% if (orders.length === 0) { %>
-        <div class="empty-state">Belum ada riwayat order.</div>
+      <% if (sosmedOrders.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat order Jasa Sosmed.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Layanan</th><th>Target</th><th>Qty</th><th>Total</th><th>Status</th><th>Refill</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% sosmedOrders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.productName %></td>
+            <td style="max-width:180px; font-size:12px; color:var(--text-dim); word-break:break-all;"><%= o.targetText || o.providerCustomerNo || '-' %></td>
+            <td><%= o.qty %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td>
+              <% if (o.refillStatus === 'processing') { %>
+                <span class="badge processing">diproses</span>
+              <% } else if (o.refillStatus === 'completed') { %>
+                <span class="badge completed">selesai</span>
+              <% } else if (o.refillStatus === 'rejected') { %>
+                <span class="badge cancelled">ditolak</span>
+              <% } else if (o.refillStatus === 'cancelled') { %>
+                <span class="badge cancelled">batal</span>
+              <% } else { %>
+                <span class="helper-text">-</span>
+              <% } %>
+            </td>
+            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <div class="flex" style="flex-wrap:wrap; gap:6px;">
+                <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
+                <% if (o.canCancel) { %>
+                <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" onsubmit="return confirm('Batalkan pesanan ini? Saldo akan dikembalikan sepenuhnya.')">
+                  <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
+                </form>
+                <% } %>
+                <% if (o.canRefill) { %>
+                <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" onsubmit="return confirm('Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.')">
+                  <button class="btn small magenta" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
+                </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+
+    <div class="section-title"><h3>Riwayat Produk &amp; Top Up</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (otherOrders.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat order produk/top up.</div>
       <% } else { %>
       <table>
         <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th><th>Aksi</th></tr></thead>
         <tbody>
-          <% orders.forEach(o => { %>
+          <% otherOrders.forEach(o => { %>
           <tr>
             <td class="mono"><%= o.id %></td>
             <td><%= o.productName %></td>
