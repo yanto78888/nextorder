@@ -8,7 +8,7 @@ import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
 import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
-import { checkPendingIndosmmOrders } from './lib/indosmm.js';
+import { checkPendingIndosmmOrders, checkPendingIndosmmRefills } from './lib/indosmm.js';
 import { scheduleAutoBackup } from './lib/backup.js';
 import { getActiveProducts } from './lib/products.js';
 
@@ -155,6 +155,11 @@ if (process.env.VERCEL !== '1') {
   // (bisa menitan-jaman), gak perlu se-sering itu dicek ulang.
   setInterval(() => {
     checkPendingIndosmmOrders().catch(err => console.error('[job] checkPendingIndosmmOrders error:', err.message));
+  }, 60000);
+
+  // Cek ulang status permintaan refill IndoSMM yang masih "processing" tiap 60 detik juga
+  setInterval(() => {
+    checkPendingIndosmmRefills().catch(err => console.error('[job] checkPendingIndosmmRefills error:', err.message));
   }, 60000);
 
   // Backup data (config/produk/order/user, dll) tiap 5 jam, dikirim ke Telegram lalu file zip-nya dihapus
