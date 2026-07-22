@@ -9,6 +9,12 @@
 
       <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
+      <% const googleLoginReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
+      <% if (googleLoginReady) { %>
+      <a href="/auth/google" class="btn google-btn" style="width:100%;"><i class="fa-brands fa-google"></i> Daftar dengan Google</a>
+      <div class="auth-divider"><span>atau</span></div>
+      <% } %>
+
       <form method="POST" action="/register">
         <label>Username</label>
         <input type="text" name="username" required autofocus>

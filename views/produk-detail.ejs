@@ -113,8 +113,44 @@
            Cuma kontrol pembelian (qty, data tujuan, metode bayar, tombol beli) yang wajib login. -->
       <div class="detail-buy-box">
 
+        <%
+          // Nomor urutan langkah beli dihitung dinamis. "Isi Data Tujuan" (ID game / Server-Zone ID)
+          // sekarang ditaruh PALING ATAS, sebelum pilih nominal -- user isi ID/Server dulu baru
+          // milih nominal & bayar, urutannya lebih natural buat top up game. Nomor cuma dimunculin
+          // kalau produk ini punya >1 varian nominal buat dipilih (sama kayak aturan sebelumnya).
+        %>
+        <% const numberSteps = !!(variants && variants.length > 1); %>
+        <% const hasTargetFields = !!(product.targetFields && product.targetFields.length > 0); %>
+        <% const targetFieldsLabel = (numberSteps && hasTargetFields) ? '1. ' : ''; %>
+        <% const variantLabel = numberSteps ? (hasTargetFields ? '2. ' : '1. ') : ''; %>
+        <% const qtyLabel = numberSteps ? (hasTargetFields ? '3. ' : '2. ') : ''; %>
+
+        <% if (user) { %>
+        <div id="targetFieldsWrap">
+        <% if (hasTargetFields) { %>
+        <div class="target-fields-box">
+          <div class="detail-method-title"><%= targetFieldsLabel %>Isi Data Tujuan</div>
+          <% product.targetFields.forEach(f => { %>
+            <label><%= f.label %><% if (f.required) { %> <span style="color:var(--cyan);">*</span><% } %></label>
+            <% if (f.type === 'select') { %>
+              <select class="target-field-input" data-key="<%= f.key %>" <%= f.required ? 'required' : '' %>>
+                <option value="">Pilih <%= f.label %></option>
+                <% (f.options || []).forEach(opt => { %>
+                  <option value="<%= opt.value %>"><%= opt.label %></option>
+                <% }) %>
+              </select>
+            <% } else { %>
+              <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
+            <% } %>
+          <% }) %>
+          <div class="helper-text">Pastikan data di atas benar. Kesalahan <%= product.targetFields.some(f => /zone/i.test(f.key)) ? 'ID/Zone' : 'data' %> bisa membuat pesanan gagal terkirim.</div>
+        </div>
+        <% } %>
+        </div>
+        <% } %>
+
         <% if (variants && variants.length > 1) { %>
-        <div class="detail-method-title" style="margin-top:0;">1. Pilih Nominal</div>
+        <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><%= variantLabel %>Pilih Nominal</div>
         <% if (user) { %>
         <div class="variant-grid" id="variantGrid">
           <% variants.forEach(v => { %>
@@ -149,35 +185,13 @@
 
         <% if (user) { %>
           <div class="detail-qty-row">
-            <label><%= variants && variants.length > 1 ? '2. ' : '' %>Jumlah:</label>
+            <label><%= qtyLabel %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
               <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? 10 : 99) %>">
               <button type="button" class="qty-btn" id="qtyPlus">+</button>
             </div>
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
-          </div>
-
-          <div id="targetFieldsWrap">
-          <% if (product.targetFields && product.targetFields.length > 0) { %>
-          <div class="target-fields-box">
-            <div class="detail-method-title"><%= variants && variants.length > 1 ? '3. ' : '' %>Isi Data Tujuan</div>
-            <% product.targetFields.forEach(f => { %>
-              <label><%= f.label %><% if (f.required) { %> <span style="color:var(--cyan);">*</span><% } %></label>
-              <% if (f.type === 'select') { %>
-                <select class="target-field-input" data-key="<%= f.key %>" <%= f.required ? 'required' : '' %>>
-                  <option value="">Pilih <%= f.label %></option>
-                  <% (f.options || []).forEach(opt => { %>
-                    <option value="<%= opt.value %>"><%= opt.label %></option>
-                  <% }) %>
-                </select>
-              <% } else { %>
-                <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
-              <% } %>
-            <% }) %>
-            <div class="helper-text">Pastikan data di atas benar. Kesalahan <%= product.targetFields.some(f => /zone/i.test(f.key)) ? 'ID/Zone' : 'data' %> bisa membuat pesanan gagal terkirim.</div>
-          </div>
-          <% } %>
           </div>
 
           <div class="detail-method-title">Metode Pembayaran</div>
@@ -288,6 +302,10 @@
   var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
   var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
+  // Isi Data Tujuan selalu di posisi PALING ATAS di box beli (lihat markup di atas), jadi kalau
+  // nomor langkah lagi dipakai (produk ini punya >1 varian nominal), section itu selalu "1."
+  // -- termasuk pas dimunculin ulang lewat JS ini waktu user ganti pilihan varian.
+  var numberSteps = <%- numberSteps ? 'true' : 'false' %>;
 
   // Qty stepper
   var unitPrice=<%= finalPrice %>;
@@ -313,7 +331,8 @@
     var wrap=document.getElementById('targetFieldsWrap');
     if(!wrap) return;
     if(!fields || fields.length===0){ wrap.innerHTML=''; return; }
-    var html='<div class="target-fields-box"><div class="detail-method-title">Isi Data Tujuan</div>';
+    var label = numberSteps ? '1. ' : '';
+    var html='<div class="target-fields-box"><div class="detail-method-title">'+label+'Isi Data Tujuan</div>';
     fields.forEach(function(f){
       html+='<label>'+f.label+(f.required?' <span style="color:var(--cyan);">*</span>':'')+'</label>';
       if(f.type==='select'){

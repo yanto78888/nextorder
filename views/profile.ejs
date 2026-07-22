@@ -85,16 +85,42 @@
       </div>
 
       <div class="card">
-        <h3>Ganti Password</h3>
+        <h3><%= user.password ? 'Ganti Password' : 'Buat Password' %></h3>
+        <% if (!user.password) { %>
+          <div class="helper-text" style="margin-top:0;">Akun kamu terdaftar lewat Google dan belum punya password lokal. Buat password di sini kalau mau juga bisa masuk pakai username &amp; password (opsional).</div>
+        <% } %>
         <form method="POST" action="/profile/password">
+          <% if (user.password) { %>
           <label>Password Lama</label>
           <input type="password" name="oldPassword" required>
+          <% } %>
           <label>Password Baru</label>
           <input type="password" name="newPassword" required minlength="6">
           <label>Konfirmasi Password Baru</label>
           <input type="password" name="newPassword2" required minlength="6">
-          <button class="btn magenta mt-24" type="submit">Update Password</button>
+          <button class="btn magenta mt-24" type="submit"><%= user.password ? 'Update Password' : 'Buat Password' %></button>
         </form>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Login Google</h3><div class="line"></div></div>
+    <% const googleReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
+    <div class="card">
+      <div class="connected-account-row">
+        <div class="connected-account-info">
+          <i class="fa-brands fa-google"></i>
+          <div>
+            <div style="font-weight:600;"><%= user.googleId ? 'Akun Google terhubung' : 'Akun Google belum terhubung' %></div>
+            <div class="helper-text" style="margin:2px 0 0;"><% if (user.googleId) { %>Kamu bisa masuk pakai tombol "Masuk dengan Google" di halaman login.<% } else if (googleReady) { %>Hubungkan supaya bisa masuk tanpa ketik username &amp; password.<% } else { %>Login Google belum diaktifkan oleh admin.<% } %></div>
+          </div>
+        </div>
+        <% if (user.googleId) { %>
+          <form method="POST" action="/profile/google/disconnect" onsubmit="return confirm('Putuskan akun Google dari profil ini? Kamu tetap bisa masuk pakai username &amp; password.');" style="margin:0;">
+            <button class="btn small ghost" type="submit">Putuskan</button>
+          </form>
+        <% } else if (googleReady) { %>
+          <a href="/auth/google" class="btn small solid">Hubungkan Google</a>
+        <% } %>
       </div>
     </div>
 
