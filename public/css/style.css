@@ -2216,3 +2216,48 @@ input[type="number"] {
     -moz-appearance: textfield; /* Khusus untuk browser Firefox */
 }
 
+
+/* ---------- GOOGLE LOGIN ---------- */
+.google-btn {
+  background: #ffffff;
+  color: #1f1f1f !important;
+  border: 1px solid #ffffff;
+}
+.google-btn:hover { background: #ececec; }
+.google-btn i { color: #4285F4; font-size: 15px; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 16px 0;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-glow);
+}
+.auth-divider span { padding: 0 12px; }
+
+/* Baris "akun terhubung" di halaman Profil (mis. status koneksi Google) */
+.connected-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.connected-account-row .connected-account-info { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.connected-account-row .connected-account-info i.fa-google { color: #4285F4; font-size: 16px; }
+.connected-account-row .connected-account-status { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.connected-account-row .connected-account-status.on { color: var(--success); }
+.connected-account-row .connected-account-status.off { color: var(--text-dim); }
