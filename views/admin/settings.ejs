@@ -19,6 +19,7 @@
       const telegram = config.telegram || {};
       const digiflazz = config.digiflazz || {};
       const indosmm = config.indosmm || {};
+      const google = config.google || {};
       const seo = config.seo || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
@@ -116,7 +117,23 @@
             <span id="saldoIndosmmResult" class="helper-text"></span>
           </div>
 
+          <div class="section-title"><h3>Login dengan Google</h3><div class="line"></div></div>
+
+          <label class="check-row"><input type="checkbox" name="googleEnabled" <%= google.enabled ? 'checked' : '' %>> Aktifkan tombol "Masuk dengan Google" di halaman Login & Register</label>
+
+          <label>Client ID</label>
+          <input type="text" name="googleClientId" placeholder="xxxxxxxxxx.apps.googleusercontent.com" value="<%= google.clientId || '' %>">
+
+          <label>Client Secret</label>
+          <input type="password" name="googleClientSecret" placeholder="<%= google.clientSecret ? '••••••••••••••••' : 'GOCSPX-...' %>" autocomplete="new-password">
+          <div class="helper-text">
+            Ambil Client ID &amp; Client Secret di <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:#fff; text-decoration:underline;">Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</a>, buat "OAuth client ID" tipe <b>Web application</b>. Kosongkan Client Secret kalau tidak mau menggantinya (yang lama tetap dipakai).<br><br>
+            Di bagian <b>Authorized redirect URIs</b> Google, wajib didaftarkan persis:<br>
+            <code style="color:var(--cyan); word-break:break-all;"><%= (seo.siteUrl || 'https://domainkamu.com') %>/auth/google/callback</code>
+          </div>
+
           <div class="section-title"><h3>Banner Iklan & Teks Berjalan</h3><div class="line"></div></div>
+
 
           <%# MARQUEE %>
           <label class="check-row mt-16"><input type="checkbox" name="marqueeEnabled" <%= (config.marquee && config.marquee.enabled !== false) ? 'checked' : '' %>> Aktifkan teks berjalan (notifikasi / promo)</label>
