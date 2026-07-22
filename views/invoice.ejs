@@ -55,6 +55,7 @@
           <div class="inv-status-sub">
             <% if (statusClass === 'completed') { %>Produk sudah dikirim ke akunmu
             <% } else if (statusClass === 'cancelled') { %><%= order.note || 'Pesanan dibatalkan, saldo dikembalikan jika ada pemotongan' %>
+            <% } else if (order.cancelRequestedAt) { %>Permintaan pembatalan sudah dikirim, menunggu konfirmasi dari provider (halaman ini update otomatis)
             <% } else if (order.provider === 'digiflazz' || order.provider === 'indosmm') { %>Sedang diproses otomatis oleh sistem, halaman ini akan update otomatis
             <% } else { %>Stok otomatis sedang habis, admin akan kirim manual secepatnya<% } %>
           </div>
