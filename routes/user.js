@@ -15,15 +15,15 @@ import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
-import { createReview, getReviewsByProduct, hasUserReviewed } from '../lib/reviews.js';
+import { createReview, getReviewsByProduct } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
-import { getGroupThumbnail } from '../lib/digiflazzGroups.js';
+import { getGroupThumbnail, getGroupThumbnails } from '../lib/digiflazzGroups.js';
 import {
   isIndosmmEnabled, placeOrder as placeIndosmmOrder, computeTotalForQty as computeIndosmmTotal,
   getServices as getIndosmmServices, cancelOrder as cancelIndosmmOrder, requestRefill as requestIndosmmRefill
 } from '../lib/indosmm.js';
 import { genId } from '../lib/db.js';
-import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale } from '../lib/flashsale.js';
+import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale, createPriceResolver } from '../lib/flashsale.js';
 
 const router = express.Router();
 
@@ -225,6 +225,7 @@ async function fulfillAndRecordOrders({ user, product, qty, targetData, targetTe
       provider: delivery.provider,
       providerRefId: delivery.providerRefId,
       providerCustomerNo: delivery.providerCustomerNo,
+      indosmmServiceId: product.indosmmServiceId || '',
       costPrice: getProductCostPrice(product),
       usedFlashPrice
     });
@@ -330,17 +331,40 @@ router.post('/profile/password', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const { oldPassword, newPassword, newPassword2 } = req.body;
 
-  if (!verifyPassword(user, oldPassword)) {
+  // Akun yang daftar/login lewat Google belum tentu punya password lokal (password: '') --
+  // di kondisi itu ini artinya "bikin password pertama kali", jadi field password lama dilewati
+  // (gak ada yang bisa dicocokkan). Akun yang udah punya password tetap wajib isi password lama
+  // dengan benar sebelum bisa diganti, seperti biasa.
+  const isCreatingFirstPassword = !user.password;
+  if (!isCreatingFirstPassword && !verifyPassword(user, oldPassword)) {
     return res.redirect('/profile?error=' + encodeURIComponent('Password lama salah'));
   }
   if (newPassword !== newPassword2) {
     return res.redirect('/profile?error=' + encodeURIComponent('Konfirmasi password baru tidak cocok'));
   }
-  if (newPassword.length < 6) {
+  if (!newPassword || newPassword.length < 6) {
     return res.redirect('/profile?error=' + encodeURIComponent('Password minimal 6 karakter'));
   }
   setPassword(user.id, newPassword);
-  res.redirect('/profile?success=' + encodeURIComponent('Password berhasil diubah'));
+  const msg = isCreatingFirstPassword
+    ? 'Password berhasil dibuat. Sekarang kamu juga bisa login pakai username & password, gak cuma lewat Google.'
+    : 'Password berhasil diubah';
+  res.redirect('/profile?success=' + encodeURIComponent(msg));
+});
+
+// Putuskan akun Google yang tersambung ke profil. Wajib sudah punya password lokal dulu --
+// kalau belum, akun ini SATU-SATUNYA cara login-nya ya lewat Google, jadi diputus di sini artinya
+// user bisa langsung terkunci dari akunnya sendiri.
+router.post('/profile/google/disconnect', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  if (!user.googleId) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Akun ini belum terhubung ke Google'));
+  }
+  if (!user.password) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Buat password login dulu sebelum memutuskan akun Google, supaya kamu tetap bisa login setelahnya'));
+  }
+  updateUser(user.id, { googleId: '' });
+  res.redirect('/profile?success=' + encodeURIComponent('Akun Google berhasil diputuskan dari profil ini'));
 });
 
 // Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo
@@ -357,6 +381,89 @@ router.post('/membership/upgrade', requireLogin, (req, res) => {
   }
 });
 
+// Kelompokkan produk per kategori ala row katalog Netflix (mis. "Umum" / "Membership" masing-
+// masing jadi 1 row), dipakai bareng oleh /produk dan /daftar-harga biar 2 halaman itu konsisten.
+//
+// Urutan & isi row ikutin Admin > Pengaturan > "Kategori yang Ditampilkan di Katalog"
+// (config.catalog.categories) KALAU field itu sudah diisi admin -- itu sesuai keterangan di
+// halaman Setting-nya sendiri ("Kategori di luar daftar ini tidak akan tampil"), tapi sebelum
+// perbaikan ini field-nya cuma kesimpen doang, gak pernah beneran dipakai buat nyusun katalog.
+// Kalau field itu KOSONG/belum pernah diisi admin, fallback ke urutan kemunculan pertama produk
+// (perilaku lama) -- biar situs yang belum sempat atur field ini gak mendadak kehilangan kategori
+// dari katalognya.
+function groupProductsByCategory(products, cfg) {
+  const configured = (cfg.catalog && Array.isArray(cfg.catalog.categories) ? cfg.catalog.categories : [])
+    .map(c => String(c).trim())
+    .filter(Boolean);
+
+  if (configured.length > 0) {
+    const buckets = new Map(); // nama kategori (persis tulisan admin) -> array produk
+    const displayNameByLower = new Map();
+    configured.forEach(cat => {
+      if (displayNameByLower.has(cat.toLowerCase())) return; // duplikat di field admin, dilewati
+      buckets.set(cat, []);
+      displayNameByLower.set(cat.toLowerCase(), cat);
+    });
+    products.forEach(p => {
+      const cat = p.category || 'Umum';
+      const display = displayNameByLower.get(cat.toLowerCase());
+      if (display) buckets.get(display).push(p); // kategori produk yg gak ada di daftar admin -> gak ditampilkan
+    });
+    return configured
+      .map(cat => displayNameByLower.get(cat.toLowerCase()))
+      .filter((cat, idx, arr) => cat && arr.indexOf(cat) === idx) // unik, jaga-jaga field admin ada duplikat
+      .map(cat => ({ category: cat, items: buckets.get(cat) }))
+      .filter(g => g.items.length > 0);
+  }
+
+  const order = [];
+  const grouped = {};
+  products.forEach(p => {
+    const cat = p.category || 'Umum';
+    if (!grouped[cat]) { grouped[cat] = []; order.push(cat); }
+    grouped[cat].push(p);
+  });
+  return order.map(cat => ({ category: cat, items: grouped[cat] }));
+}
+
+// Produk yang punya variantGroup sama (mis. semua nominal "Mobile Legends") digabung jadi
+// 1 kartu di katalog — biar gak numpuk satu-satu per nominal. Kartu gabungan nunjukin harga
+// termurah di grup itu ("mulai dari"), diklik langsung ke halaman produk yang otomatis nampilin
+// semua pilihan nominal di grup itu (lihat GET /produk/:id).
+// thumbByGroup: Map hasil getGroupThumbnails() yang diambil SEKALI di pemanggil -- dulu tiap
+// baris manggil getGroupThumbnail(variantGroup) sendiri-sendiri (baca file digiflazzGroups.json
+// berkali-kali per request), sekarang tinggal lookup dari map yang udah ada di memori.
+function collapseVariantGroups(list, thumbByGroup) {
+  const groupIndex = new Map(); // variantGroup -> index di hasil[]
+  const hasil = [];
+  list.forEach(p => {
+    if (!p.variantGroup) {
+      hasil.push(p);
+      return;
+    }
+    if (!groupIndex.has(p.variantGroup)) {
+      groupIndex.set(p.variantGroup, hasil.length);
+      hasil.push({
+        ...p,
+        name: p.variantGroup,
+        isVariantGroup: true,
+        variantCount: 1,
+        thumbnail: thumbByGroup.get(p.variantGroup) || p.thumbnail || ''
+      });
+    } else {
+      const rep = hasil[groupIndex.get(p.variantGroup)];
+      rep.variantCount += 1;
+      if (p.finalPrice < rep.finalPrice) {
+        rep.finalPrice = p.finalPrice;
+        rep.id = p.id; // link kartu ikut ke varian termurah biar konsisten sama harga yang ditampilkan
+      }
+      if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail; // fallback kalau grup belum ada foto folder sendiri
+      if ((p.totalSold || 0) > (rep.totalSold || 0)) rep.totalSold = p.totalSold; // pamer angka terjual paling ramai di grup
+    }
+  });
+  return hasil;
+}
+
 router.get('/produk', (req, res) => {
   // Beranda bisa dibuka tanpa login (mode tamu). Kalau sudah login, tampilkan saldo & diskon member.
   const user = req.session.user ? findUserById(req.session.user.id) : null;
@@ -367,62 +474,24 @@ router.get('/produk', (req, res) => {
   // counter tersimpan di produk -- lihat getTotalSoldMap() di lib/orders.js buat alasannya (bug
   // lama: order Digiflazz "Pending" yang belakangan gagal gak pernah ke-kurangi lagi dari counter).
   const soldMap = getTotalSoldMap();
+  // resolvePrice & thumbByGroup masing-masing baca file terkait SEKALI buat seluruh request ini
+  // (bukan per produk) -- lihat lib/flashsale.js createPriceResolver() & catatan di
+  // collapseVariantGroups() di atas. Ini yang paling kerasa mempercepat katalog kalau produknya
+  // banyak/variannya banyak.
+  const resolvePrice = createPriceResolver(user);
+  const thumbByGroup = new Map(Object.entries(getGroupThumbnails()));
   const products = getActiveProducts()
     .filter(p => p.provider !== 'indosmm') // Jasa Sosmed punya katalog terpisah di /jasa-sosmed
     .map(p => ({
       ...p,
       totalSold: soldMap[p.id] || 0,
-      finalPrice: getEffectivePrice(p, user),
+      finalPrice: resolvePrice(p),
       icon: getGameIcon(p.gamePreset)
     }));
 
-  // Produk yang punya variantGroup sama (mis. semua nominal "Mobile Legends") digabung jadi
-  // 1 kartu di katalog — biar gak numpuk satu-satu per nominal kayak sebelumnya. Kartu gabungan
-  // nunjukin harga termurah di grup itu ("mulai dari"), diklik langsung ke halaman produk yang
-  // otomatis nampilin semua pilihan nominal di grup itu (lihat GET /produk/:id).
-  function collapseVariantGroups(list) {
-    const groupIndex = new Map(); // variantGroup -> index di hasil[]
-    const hasil = [];
-    list.forEach(p => {
-      if (!p.variantGroup) {
-        hasil.push(p);
-        return;
-      }
-      if (!groupIndex.has(p.variantGroup)) {
-        groupIndex.set(p.variantGroup, hasil.length);
-        hasil.push({
-          ...p,
-          name: p.variantGroup,
-          isVariantGroup: true,
-          variantCount: 1,
-          thumbnail: getGroupThumbnail(p.variantGroup) || p.thumbnail || ''
-        });
-      } else {
-        const rep = hasil[groupIndex.get(p.variantGroup)];
-        rep.variantCount += 1;
-        if (p.finalPrice < rep.finalPrice) {
-          rep.finalPrice = p.finalPrice;
-          rep.id = p.id; // link kartu ikut ke varian termurah biar konsisten sama harga yang ditampilkan
-        }
-        if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail; // fallback kalau grup belum ada foto folder sendiri
-        if ((p.totalSold || 0) > (rep.totalSold || 0)) rep.totalSold = p.totalSold; // pamer angka terjual paling ramai di grup
-      }
-    });
-    return hasil;
-  }
-
-  // Kelompokkan produk per kategori ala row katalog Netflix (mis. "Digital" menampilkan semua produk digital)
-  const categoryOrder = [];
-  const grouped = {};
-  products.forEach(p => {
-    const cat = p.category || 'Umum';
-    if (!grouped[cat]) {
-      grouped[cat] = [];
-      categoryOrder.push(cat);
-    }
-    grouped[cat].push(p);
-  });
-  const rows = categoryOrder.map(cat => ({ category: cat, products: collapseVariantGroups(grouped[cat]) }));
+  const rows = groupProductsByCategory(products, cfg)
+    .map(g => ({ category: g.category, products: collapseVariantGroups(g.items, thumbByGroup) }));
+  const categoryOrder = rows.map(r => r.category);
 
   res.render('produk', {
     products,
@@ -464,23 +533,18 @@ router.get('/daftar-harga', (req, res) => {
   const cfg = getConfig();
   const discountPercent = user ? getMembershipDiscount(user) : 0;
 
+  const resolvePrice = createPriceResolver(user);
   const products = getActiveProducts()
     .filter(p => p.provider !== 'indosmm') // Jasa Sosmed harganya per 1000, beda format -- ada di /jasa-sosmed sendiri
     .map(p => ({
       ...p,
-      finalPrice: getEffectivePrice(p, user)
+      finalPrice: resolvePrice(p)
     }));
 
-  const categoryOrder = [];
-  const grouped = {};
-  products.forEach(p => {
-    const cat = p.category || 'Umum';
-    if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
-    grouped[cat].push(p);
-  });
   // Termurah ke termahal dalam tiap kategori biar enak dipindai matanya
-  categoryOrder.forEach(cat => grouped[cat].sort((a, b) => a.finalPrice - b.finalPrice));
-  const groups = categoryOrder.map(cat => ({ category: cat, products: grouped[cat] }));
+  const groups = groupProductsByCategory(products, cfg)
+    .map(g => ({ category: g.category, products: [...g.items].sort((a, b) => a.finalPrice - b.finalPrice) }));
+  const categoryOrder = groups.map(g => g.category);
 
   res.render('daftar-harga', {
     groups,
@@ -553,11 +617,16 @@ router.get('/riwayat', requireLogin, async (req, res) => {
       const services = await getIndosmmServices();
       const metaByServiceId = Object.fromEntries(services.map(s => [String(s.service), s]));
       sosmedOrders = sosmedOrdersRaw.map(o => {
+        // Order lama (dibuat sebelum field snapshot ini ada) belum punya o.indosmmServiceId --
+        // fallback ke produk terkait cuma buat order-order lama itu. Order baru SELALU pakai
+        // snapshot-nya sendiri, JANGAN ikut berubah kalau admin belakangan hapus/ubah produknya.
         const product = o.productId ? findProductById(o.productId) : null;
-        const meta = product ? metaByServiceId[String(product.indosmmServiceId)] : null;
+        const serviceId = o.indosmmServiceId || (product ? product.indosmmServiceId : '');
+        const meta = serviceId ? metaByServiceId[String(serviceId)] : null;
         return {
           ...o,
-          canCancel: Boolean(meta && meta.cancel) && o.status === 'processing' && !!o.providerRefId,
+          canCancel: Boolean(meta && meta.cancel) && o.status === 'processing' && !!o.providerRefId
+            && !o.cancelRequestedAt,
           canRefill: Boolean(meta && meta.refill) && o.status === 'completed' && !!o.providerRefId
             && o.refillStatus !== 'processing'
         };
@@ -581,24 +650,48 @@ router.get('/riwayat', requireLogin, async (req, res) => {
   });
 });
 
-// Batalkan order Jasa Sosmed (IndoSMM) yang masih "processing" -- saldo dikembalikan penuh kalau
-// IndoSMM konfirmasi batal berhasil. Layanan yang emang gak dukung cancel bakal ditolak API-nya
+// Batalkan order Jasa Sosmed (IndoSMM) yang masih "processing".
+//
+// PENTING (bekas bug): dulu di sini langsung addSaldo() + set status 'cancelled' begitu
+// cancelIndosmmOrder() sukses TANPA error. Padahal respons action=cancel dari IndoSMM cuma
+// berarti "permintaan batal DITERIMA/diantre" (mis. status "Awaiting"), BUKAN jaminan pesanan
+// sudah benar-benar batal saat itu juga di server IndoSMM -- pesanan masih bisa lanjut jalan,
+// kelar sebagian (partial), atau bahkan kelar penuh duluan sebelum permintaan batal sempat
+// diproses provider. Akibatnya toko bisa kepotong REFUND PENUH padahal followers/likes-nya
+// tetap terkirim di sisi IndoSMM (status lokal 'cancelled' tapi TIDAK SESUAI kondisi asli di
+// server provider) -- inilah bug "batal di sini tapi di server provider gak beneran batal".
+//
+// Perbaikan: begitu permintaan cancel DITERIMA (gak error), order TETAP 'processing' + ditandai
+// cancelRequestedAt, lalu dikonfirmasi belakangan oleh job checkPendingIndosmmOrders() (lihat
+// lib/indosmm.js) yang sudah benar membedakan hasil akhir completed/partial/canceled lewat
+// action=status -- refund/status final CUMA terjadi kalau IndoSMM beneran konfirmasi batal.
+// Layanan yang emang gak dukung cancel (atau order sudah gak valid) bakal ditolak API-nya
 // sendiri (lihat cancelOrder() di lib/indosmm.js), pesan errornya diteruskan apa adanya ke user.
+const cancelInFlight = new Set(); // guard sederhana anti double-submit (mis. klik 2x cepat)
 router.post('/riwayat/:id/batal-sosmed', requireLogin, async (req, res) => {
+  const orderId = req.params.id;
+  if (cancelInFlight.has(orderId)) {
+    return res.redirect('/riwayat?error=' + encodeURIComponent('Permintaan pembatalan sedang diproses, mohon tunggu sebentar.'));
+  }
+  cancelInFlight.add(orderId);
   try {
-    const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+    const order = getOrdersByUser(req.session.user.id).find(o => o.id === orderId);
     if (!order) throw new Error('Order tidak ditemukan');
     if (order.provider !== 'indosmm' || !order.providerRefId) {
       throw new Error('Order ini bukan Jasa Sosmed atau tidak bisa dibatalkan lewat sini');
     }
     if (order.status !== 'processing') throw new Error('Order ini sudah tidak dalam status diproses');
+    if (order.cancelRequestedAt) throw new Error('Permintaan pembatalan sebelumnya masih menunggu konfirmasi dari sistem');
 
     await cancelIndosmmOrder(order.providerRefId);
-    addSaldo(order.userId, order.total);
-    updateOrderStatus(order.id, 'cancelled', 'Dibatalkan oleh pelanggan, saldo dikembalikan sepenuhnya.');
-    res.redirect('/riwayat?success=' + encodeURIComponent('Pesanan berhasil dibatalkan, saldo sudah dikembalikan.'));
+    patchOrder(order.id, { cancelRequestedAt: new Date().toISOString() });
+    res.redirect('/riwayat?success=' + encodeURIComponent(
+      'Permintaan pembatalan sudah dikirim ke sistem. Status & saldo akan otomatis diperbarui begitu dikonfirmasi (biasanya dalam 1-2 menit) -- kalau ternyata pesanan sudah lebih dulu selesai diproses di sisi provider, pembatalan tidak akan mengubah status/saldo.'
+    ));
   } catch (err) {
     res.redirect('/riwayat?error=' + encodeURIComponent(err.message));
+  } finally {
+    cancelInFlight.delete(orderId);
   }
 });
 
@@ -763,30 +856,45 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
 // ==================== DETAIL PRODUK ====================
 router.get('/produk/:id', (req, res) => {
   const user = req.session.user ? findUserById(req.session.user.id) : null;
-  const product = findProductById(req.params.id);
-  if (!product || product.status !== 'active') {
+
+  // Ambil SEKALI aja daftar produk aktif, dipakai buat cari produk utama & susun daftar varian
+  // sekaligus. Sebelumnya route ini baca+normalize products.json DUA KALI per request (sekali
+  // implisit lewat findProductById, sekali lagi eksplisit buat varian) -- salah satu penyebab
+  // halaman ini kerasa lag, apalagi buat produk yang variannya banyak (mis. semua nominal 1 game).
+  const activeProducts = getActiveProducts();
+  const product = activeProducts.find(p => p.id === req.params.id);
+  if (!product) {
     return res.redirect('/produk?error=Produk tidak ditemukan');
   }
   if (product.provider === 'indosmm') {
     return res.redirect(`/jasa-sosmed/${product.id}`);
   }
-  const finalPrice = getEffectivePrice(product, user);
+
+  // resolvePrice baca config Flash Sale + daftar item Flash Sale SEKALI buat seluruh request ini,
+  // lalu dipakai ulang dari memori buat produk utama & tiap varian -- bukan baca ulang 2 file yang
+  // sama tiap kali getEffectivePrice() dipanggil (dulu: 1x produk utama + 1x per varian = bisa
+  // 20+ kali baca file kalau variannya banyak). Ini penyebab utama "lag"-nya.
+  const resolvePrice = createPriceResolver(user);
+  const finalPrice = resolvePrice(product);
   // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
   product.totalSold = getTotalSoldMap()[product.id] || 0;
   const reviews = getReviewsByProduct(product.id);
-  const hasReviewed = user ? hasUserReviewed(user.id, product.id) : false;
+  // hasReviewed dulu dicek lewat hasUserReviewed(user.id, product.id) terpisah, yang scan ULANG
+  // semua review dari disk -- padahal review produk ini baru aja diambil barusan di atas (`reviews`),
+  // jadi cukup dicek langsung dari situ (in-memory), gak perlu baca file yang sama dua kali.
+  const hasReviewed = user ? reviews.some(r => r.userId === user.id) : false;
   const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
 
   // Kalau produk ini punya variantGroup (mis. "Mobile Legends"), tampilkan juga produk lain
   // di grup yang sama sebagai pilihan nominal yang bisa diklik di halaman yang sama (tanpa reload).
   const variants = product.variantGroup
-    ? getActiveProducts()
+    ? activeProducts
         .filter(p => p.variantGroup === product.variantGroup)
         .map(p => ({
           id: p.id,
           name: p.name,
           price: p.price,
-          finalPrice: getEffectivePrice(p, user),
+          finalPrice: resolvePrice(p),
           thumbnail: p.thumbnail,
           targetFields: p.targetFields || [],
           stockCount: countStock(p),

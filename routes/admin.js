@@ -210,11 +210,14 @@ router.get('/', (req, res) => {
   const users = getAllUsers();
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const manualOrders = orders.filter(o => o.manualRequired && o.status === 'processing');
-  // Cuma produk Stok Manual yang relevan buat peringatan ini — produk Digiflazz dikirim otomatis
-  // oleh sistem via API (gak pernah nyimpen stockItems), jadi "stockItems kosong" itu normal buat
-  // Digiflazz dan BUKAN berarti kehabisan stok. Tanpa filter ini semua produk Digiflazz bakal selalu
-  // nongol di sini padahal gak ada masalah — makanya dipisah sama seperti di /admin/produk & /admin/digiflazz.
-  const emptyStockProducts = getAllProducts().filter(p => p.status === 'active' && p.provider !== 'digiflazz' && (!p.stockItems || p.stockItems.length === 0));
+  // Cuma produk Stok Manual yang relevan buat peringatan ini — produk Digiflazz & Jasa Sosmed
+  // (IndoSMM) dikirim otomatis oleh sistem lewat API provider (gak pernah nyimpen stockItems),
+  // jadi "stockItems kosong" itu normal buat keduanya dan BUKAN berarti kehabisan stok. Dulu di
+  // sini cuma provider !== 'digiflazz' yang di-exclude, providernya indosmm kelewatan gak
+  // ke-exclude juga -- akibatnya ratusan layanan Jasa Sosmed ikut numpuk di alert "stok kosong"
+  // dashboard, padahal bukan produk stok sama sekali. Sekarang pakai whitelist provider === 'manual'
+  // langsung, biar kalau nanti ada tipe provider baru lagi gak keulang bug yang sama.
+  const emptyStockProducts = getAllProducts().filter(p => p.status === 'active' && p.provider === 'manual' && (!p.stockItems || p.stockItems.length === 0));
 
   // Buat data grafik 7 hari terakhir
   const now = new Date();
@@ -1042,6 +1045,7 @@ router.post('/settings', (req, res) => {
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     indosmmEnabled, indosmmApiKey,
+    googleEnabled, googleClientId, googleClientSecret,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
     ownerWhatsapp,
     seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
@@ -1066,6 +1070,15 @@ router.post('/settings', (req, res) => {
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
     indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
+    // Client Secret: kalau field ini dikosongin pas nyimpen (mis. admin cuma mau ganti Client ID
+    // doang, gak pengen ngetik ulang secret-nya), JANGAN ditimpa jadi kosong -- pertahankan yang
+    // lama. Ini beda dari field lain karena secret gak pernah ditampilkan balik ke form (lihat
+    // renderSettings), jadi kalau field kosong = "gak diubah", bukan "dikosongin sengaja".
+    google: {
+      enabled: googleEnabled === 'on',
+      clientId: googleClientId || '',
+      clientSecret: googleClientSecret ? googleClientSecret : (getConfig().google || {}).clientSecret || ''
+    },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' }
