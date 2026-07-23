@@ -6,216 +6,275 @@
   <%- include('../partials/admin-sidebar', { active: 'produk' }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2>Kelola Produk</h2></div>
-
-    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
-
-    <div class="grid grid-2">
-      <div class="card">
-        <h3><%= editProduct ? 'Edit Produk' : 'Tambah Produk Baru' %></h3>
-        <form method="POST" action="<%= editProduct ? '/admin/produk/' + editProduct.id : '/admin/produk' %>" enctype="multipart/form-data" id="produkForm">
-          <label>Nama Produk</label>
-          <input type="text" name="name" required value="<%= editProduct ? editProduct.name : '' %>">
-          <label>Kategori</label>
-          <input type="text" name="category" placeholder="Games / E-Money / dll" value="<%= editProduct ? editProduct.category : 'Games' %>">
-          <label>Grup Varian (opsional)</label>
-          <input type="text" name="variantGroup" placeholder="mis. Mobile Legends" value="<%= editProduct ? editProduct.variantGroup : '' %>">
-          <div class="helper-text">Produk dengan Grup Varian yang sama (mis. semua nominal "Mobile Legends") akan tampil sebagai pilihan nominal yang bisa diklik di 1 halaman produk, kayak web topup lain. Kosongkan kalau produk ini berdiri sendiri.</div>
-          <label>Deskripsi</label>
-          <textarea name="description"><%= editProduct ? editProduct.description : '' %></textarea>
-          <label>Harga (Rp)</label>
-          <input type="number" name="price" required value="<%= editProduct ? editProduct.price : '' %>">
-
-          <label>ID Tujuan yang Perlu Diisi User</label>
-          <% const currentPreset = editProduct ? (editProduct.gamePreset || 'none') : 'none'; %>
-          <% const isEditingIndosmmPreset = !!(editProduct && editProduct.provider === 'indosmm'); %>
-          <% if (isEditingIndosmmPreset) { %>
-            <input type="hidden" name="gamePreset" value="custom">
-            <div class="helper-text">Produk Jasa Sosmed pakai field <b>Link Target</b> otomatis (diatur pas import dari IndoSMM), tidak perlu diatur manual di sini.</div>
-          <% } else { %>
-          <select name="gamePreset" id="gamePresetSelect">
-            <% gamePresetList.forEach(gp => { %>
-              <option value="<%= gp.key %>" <%= currentPreset === gp.key ? 'selected' : '' %>><%= gp.label %></option>
-            <% }) %>
-          </select>
-          <div class="helper-text">Pilih game yang sesuai supaya user diminta isi ID/Zone ID/UID yang pas (mis. Mobile Legends = User ID + Zone ID, Genshin = UID + Server). Pilih "Custom" kalau mau atur field sendiri, atau "Tanpa ID Tujuan" untuk produk yang tidak butuh ID (voucher/akun).</div>
-
-          <div id="customFieldsBox" style="<%= currentPreset === 'custom' ? '' : 'display:none;' %> margin-top:10px;">
-            <div class="section-title"><h4>Field Custom (maks 2)</h4></div>
-            <% const existingCustom = (editProduct && editProduct.gamePreset === 'custom') ? (editProduct.targetFields || []) : []; %>
-            <% for (let i = 0; i < 2; i++) { const f = existingCustom[i] || {}; %>
-              <div class="grid grid-3 form-mini-grid" style="margin-bottom:8px;">
-                <div>
-                  <label>Key #<%= i+1 %> <span class="helper-text">(tanpa spasi)</span></label>
-                  <input type="text" name="customFieldKey[]" placeholder="mis. userId" value="<%= f.key || '' %>">
-                </div>
-                <div>
-                  <label>Label #<%= i+1 %></label>
-                  <input type="text" name="customFieldLabel[]" placeholder="mis. User ID" value="<%= f.label || '' %>">
-                </div>
-                <div>
-                  <label>Placeholder #<%= i+1 %></label>
-                  <input type="text" name="customFieldPlaceholder[]" placeholder="mis. Contoh: 12345" value="<%= f.placeholder || '' %>">
-                </div>
-              </div>
-              <label class="check-row" style="margin-bottom:14px;"><input type="checkbox" name="customFieldRequired[]" value="<%= f.key || ('field' + (i+1)) %>" <%= (f.required !== false && f.key) ? 'checked' : '' %>> Wajib diisi</label>
-            <% } %>
-          </div>
-          <% } %>
-
-          <div class="section-title"><h4>Sumber Pengiriman Produk</h4></div>
-          <% const isEditingDigiflazz = !!(editProduct && editProduct.provider === 'digiflazz'); %>
-          <% const isEditingIndosmm = !!(editProduct && editProduct.provider === 'indosmm'); %>
-          <% if (isEditingDigiflazz) { %>
-            <input type="hidden" name="provider" value="digiflazz">
-            <div class="alert" style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); color:var(--success);">
-              <i class="fa-solid fa-bolt"></i> Produk ini auto top up via <b>Digiflazz</b> (SKU: <code><%= editProduct.digiflazzSku %></code>). Margin, sinkron harga, dan lepas-tautan dikelola khusus di halaman <a href="/admin/digiflazz" style="color:#fff; text-decoration:underline;">Produk Digiflazz</a> — form ini cuma buat data pendukung (nama, kategori, ID tujuan, foto).
-            </div>
-            <label class="mt-16">Template Customer No (opsional)</label>
-            <input type="text" name="digiflazzCustomerNoTemplate" placeholder="mis. {userId}{zoneId}" value="<%= editProduct.digiflazzCustomerNoTemplate %>">
-            <div class="helper-text">Gunakan placeholder sesuai key ID Tujuan di atas, contoh <code>{userId}{zoneId}</code>. Kosongkan untuk pakai default otomatis: Mobile Legends digabung tanpa pemisah, Genshin/Honkai/Wuthering Waves dipisah <code>|</code>, game lain dipisah titik.</div>
-          <% } else if (isEditingIndosmm) { %>
-            <input type="hidden" name="provider" value="indosmm">
-            <div class="alert" style="background:rgba(52,152,219,0.1); border:1px solid rgba(52,152,219,0.35); color:var(--cyan);">
-              <i class="fa-solid fa-share-nodes"></i> Produk ini Jasa Sosmed via <b>IndoSMM</b> (Service ID: <code><%= editProduct.indosmmServiceId %></code>), margin terpisah dari Digiflazz/produk manual. Margin, rate, dan lepas-tautan dikelola khusus di halaman <a href="/admin/indosmm" style="color:#fff; text-decoration:underline;">Jasa Sosmed</a> — form ini cuma buat data pendukung (nama, kategori, foto).
-            </div>
-          <% } else { %>
-            <input type="hidden" name="provider" value="manual">
-            <div class="helper-text">Produk yang dibuat di sini otomatis jadi <b>Stok Manual</b>. Untuk produk auto top up Digiflazz (mis. Mobile Legends, Free Fire), cari &amp; import langsung dari halaman <a href="/admin/digiflazz" style="color:var(--cyan);">Produk Digiflazz</a> supaya tidak tercampur dan tetap rapi per grup/folder. Untuk jasa sosmed (followers/likes/dll), import dari halaman <a href="/admin/indosmm" style="color:var(--cyan);">Jasa Sosmed</a>.</div>
-          <% } %>
-
-          <% if (!isEditingDigiflazz && !isEditingIndosmm) { %>
-          <label class="mt-16">Catatan Stok (internal, opsional)</label>
-          <input type="text" name="stockNote" placeholder="Contoh: stok 5 akun" value="<%= editProduct ? editProduct.stockNote : '' %>">
-          <label>Harga Modal (Rp) <span class="helper-text">(opsional)</span></label>
-          <input type="number" name="costPrice" placeholder="0" value="<%= (editProduct && editProduct.costPrice) ? editProduct.costPrice : '' %>">
-          <div class="helper-text">Modal/harga beli produk ini (bukan harga jual). Dipakai buat menghitung Pendapatan Bersih di grafik Dashboard. Kosongkan/isi 0 kalau belum tahu/belum mau dihitung -- Pendapatan Bersih akan dianggap sama dengan Pendapatan Kotor untuk produk ini.</div>
-          <label>Tambah Stok Otomatis</label>
-          <textarea name="stockItems" placeholder="1 akun: boleh banyak baris (email, password, PIN, dll)&#10;Banyak akun sekaligus: pisahkan tiap akun pakai karakter | (pipe)&#10;Contoh: akun1@mail.com:pass1|akun2@mail.com:pass2|akun3@mail.com:pass3"></textarea>
-          <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. Tanpa tanda <code>|</code>, seluruh isian (boleh banyak baris) dihitung sebagai <b>1 stok</b>. Mau tambah banyak stok sekaligus? Pisahkan tiap stok dengan tanda <code>|</code> -- tiap potongan jadi 1 stok terpisah. Jika stok habis, order masuk notifikasi manual admin.</div>
-          <label>Cara Menggunakan Produk <span class="helper-text">(opsional)</span></label>
-          <textarea name="usageInstructions" placeholder="Contoh: 1. Login pakai email &amp; password di atas&#10;2. Jangan ganti email/nomor HP yang terdaftar&#10;3. Garansi 7 hari kalau akun kena banned"><%= editProduct ? editProduct.usageInstructions : '' %></textarea>
-          <div class="helper-text">Ditampilkan 1x di invoice setelah pesanan selesai, terpisah dari kode/akun yang dikirim -- <b>tidak</b> ikut terduplikat walau user beli banyak (qty berapa pun tetap tampil 1x). Kosongkan jika tidak perlu.</div>
-          <% } %>
-          <label>Foto Produk</label>
-          <% if (editProduct && editProduct.thumbnail) { %>
-          <div class="thumb-preview">
-            <img src="<%= editProduct.thumbnail %>" alt="Foto saat ini">
-            <span class="helper-text">Foto saat ini. Upload file baru untuk menggantinya.</span>
-          </div>
-          <% } %>
-          <input type="file" name="thumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
-          <div class="helper-text">Upload foto dari galeri/kamera. Format JPG/PNG/WEBP/GIF, maks 3MB.<% if (editProduct) { %> Kosongkan jika tidak ingin mengubah foto.<% } %></div>
-          <% if (editProduct) { %>
-          <label>Status</label>
-          <select name="status">
-            <option value="active" <%= editProduct.status === 'active' ? 'selected' : '' %>>Aktif</option>
-            <option value="inactive" <%= editProduct.status === 'inactive' ? 'selected' : '' %>>Nonaktif</option>
-          </select>
-          <% } %>
-          <div class="flex mt-24">
-            <button class="btn solid" type="submit"><%= editProduct ? 'Simpan Perubahan' : 'Tambah Produk' %></button>
-            <% if (editProduct) { %><a href="/admin/produk" class="btn ghost">Batal</a><% } %>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <% /* Halaman ini cuma buat produk Stok Manual. Produk Digiflazz & IndoSMM punya halaman */
-           /* &amp; tabel sendiri masing-masing (/admin/digiflazz, /admin/indosmm) — dipisah biar */
-           /* gak kegabung dan gak ada kolom Stok yang misleading (keduanya dikirim otomatis oleh */
-           /* sistem, gak pakai stok manual). */ %>
-        <% const manualProducts = products.filter(p => p.provider !== 'digiflazz' && p.provider !== 'indosmm'); %>
-        <% const digiflazzCount = products.filter(p => p.provider === 'digiflazz').length; %>
-        <% const indosmmCount = products.filter(p => p.provider === 'indosmm').length; %>
-
-        <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <h3 style="margin:0;">Daftar Produk Manual (<%= manualProducts.length %>)</h3>
-          <div class="flex" style="gap:8px; flex-wrap:wrap;">
-            <a href="/admin/digiflazz" class="btn small ghost"><i class="fa-solid fa-bolt"></i> Produk Digiflazz (<%= digiflazzCount %>)</a>
-            <a href="/admin/indosmm" class="btn small ghost"><i class="fa-solid fa-share-nodes"></i> Jasa Sosmed (<%= indosmmCount %>)</a>
-          </div>
-        </div>
-        <div class="helper-text">Produk auto top up Digiflazz dan Jasa Sosmed (IndoSMM) dikelola terpisah di halamannya masing-masing supaya tidak tercampur dengan stok manual di bawah ini.</div>
-
-        <% if (manualProducts.length === 0) { %>
-          <div class="empty-state mt-16">Belum ada produk stok manual.</div>
-        <% } else { %>
-          <% const catOrder = []; const catGroups = {}; %>
-          <% manualProducts.forEach(p => { const cat = p.category || 'Umum'; if (!catGroups[cat]) { catGroups[cat] = []; catOrder.push(cat); } catGroups[cat].push(p); }) %>
-          <% catOrder.forEach(cat => { %>
-            <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catGroups[cat].length %> produk</span><div class="line"></div></div>
-            <table>
-              <thead><tr><th>Nama</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
-              <tbody>
-                <% catGroups[cat].forEach(p => { %>
-                <tr>
-                  <td><%= p.name %><br><span class="helper-text"><% if (p.gamePreset && p.gamePreset !== 'none') { %><i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } else { %>&nbsp;<% } %></span></td>
-                  <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
-                  <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
-                  <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
-                  <td>
-                    <div class="flex">
-                      <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
-                      <form method="POST" action="/admin/produk/<%= p.id %>/hapus" onsubmit="return confirm('Hapus produk ini?')">
-                        <button class="btn small danger" type="submit">Hapus</button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          <% }) %>
-        <% } %>
-      </div>
+    
+    <div class="admin-header-modern">
+      <h2><i class="fa-solid fa-boxes-stacked" style="color: var(--primary-color);"></i> Kelola Produk</h2>
     </div>
 
-      <% if (editProduct && editProduct.provider !== 'digiflazz' && editProduct.provider !== 'indosmm') { %>
-      <div class="card mt-24">
-        <h3>Stok Otomatis: <%= editProduct.name %></h3>
-        <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>
-        <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock">
-          <label>Tambah Stok Baru</label>
-          <textarea name="stockItems" placeholder="1 akun: boleh banyak baris. Banyak akun sekaligus: pisahkan tiap akun pakai tanda | (pipe)" required></textarea>
-          <div class="helper-text">Tanpa tanda <code>|</code> = 1 stok (boleh banyak baris). Pakai tanda <code>|</code> buat pisah banyak stok dalam sekali submit, mis. <code>akun1|akun2|akun3</code>.</div>
-          <button class="btn solid mt-16" type="submit">+ Add Stock</button>
-        </form>
+    <% if (success) { %><div class="alert success"><i class="fa-solid fa-circle-check"></i> <%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div><% } %>
 
-        <div class="section-title"><h3>Daftar Stok (<%= editProduct.stockItems ? editProduct.stockItems.length : 0 %>)</h3><div class="line"></div></div>
-        <% if (!editProduct.stockItems || editProduct.stockItems.length === 0) { %>
-          <div class="alert error">Stok otomatis habis. Jika user beli produk ini, sistem akan menunggu admin kirim manual dan menampilkan notifikasi.</div>
-        <% } else { %>
-          <table>
-            <thead><tr><th>Isi Stok</th><th>Dibuat</th><th>Aksi</th></tr></thead>
-            <tbody>
-              <% editProduct.stockItems.forEach(item => { %>
+    <!-- Form Tambah Produk Manual -->
+    <div class="card card-modern mb-24">
+      <h3 class="card-title-modern"><i class="fa-solid fa-circle-plus"></i> Tambah Produk Manual</h3>
+      <p class="helper-text-modern mb-16">Produk otomatis (Digiflazz/IndoSMM) sebaiknya ditambahkan melalui menu integrasi masing-masing di sidebar.</p>
+      
+      <form method="POST" action="/admin/produk" enctype="multipart/form-data" class="mt-16">
+        <div class="grid grid-2">
+          
+          <!-- Kolom Kiri: Info Dasar -->
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-group-modern">
+              <label>Kategori (Games / Layanan)</label>
+              <input type="text" name="category" class="input-modern" placeholder="Contoh: Mobile Legends" required list="categoryList">
+              <datalist id="categoryList">
+                <% categories.forEach(cat => { %>
+                  <option value="<%= cat %>">
+                <% }) %>
+              </datalist>
+            </div>
+            
+            <div class="form-group-modern">
+              <label>Nama Produk / Layanan</label>
+              <input type="text" name="name" class="input-modern" placeholder="Contoh: 86 Diamonds" required>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Stok Awal</label>
+              <input type="number" name="stockCount" class="input-modern" min="0" value="100" required>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Foto / Ikon Produk (Opsional)</label>
+              <input type="file" name="thumbnailFile" class="input-modern" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp,image/gif">
+            </div>
+          </div>
+
+          <!-- Kolom Kanan: Harga & Provider -->
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="grid grid-2 form-mini-grid">
+              <div class="form-group-modern">
+                <label>Harga Reguler (Rp)</label>
+                <input type="number" name="price" class="input-modern" min="0" placeholder="0" required>
+              </div>
+              <div class="form-group-modern">
+                <label>Harga Gold (Rp)</label>
+                <input type="number" name="priceGold" class="input-modern" min="0" placeholder="0">
+              </div>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Harga Platinum (Rp)</label>
+              <input type="number" name="pricePlatinum" class="input-modern" min="0" placeholder="0">
+            </div>
+
+            <div class="form-group-modern">
+              <label>Tipe Target / Form</label>
+              <select name="targetType" class="input-modern">
+                <option value="id">User ID & Zone ID (Standard Games)</option>
+                <option value="link">Link / URL (Sosmed / Voucher)</option>
+                <option value="custom">Data Custom (Notes)</option>
+              </select>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Tipe Provider</label>
+              <select name="provider" class="input-modern bg-gray" style="pointer-events: none;">
+                <option value="manual" selected>Manual (Diproses Sendiri)</option>
+              </select>
+              <div class="helper-text-modern mt-1" style="font-size: 11px;">Tambahan provider otomatis via menu integrasi.</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-modern solid mt-24" type="submit" style="width: 100%;"><i class="fa-solid fa-floppy-disk"></i> Simpan Produk Manual</button>
+      </form>
+    </div>
+
+    <!-- Tabel Semua Produk -->
+    <div class="card card-modern">
+      <div class="flex-between-modern mb-16">
+        <h3 class="card-title-modern mb-0"><i class="fa-solid fa-list-ol"></i> Daftar Semua Produk (<%= products.length %>)</h3>
+        
+        <!-- Toolbar Filter -->
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <select id="filterCategory" class="input-modern mini" onchange="filterProducts()">
+            <option value="">Semua Kategori</option>
+            <% categories.forEach(cat => { %>
+              <option value="<%= cat %>"><%= cat %></option>
+            <% }) %>
+          </select>
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="searchProduct" class="input-modern mini" placeholder="Cari nama produk..." onkeyup="filterProducts()">
+          </div>
+        </div>
+      </div>
+
+      <% if (products.length === 0) { %>
+        <div class="empty-state-modern">
+          <i class="fa-solid fa-box-open empty-icon"></i>
+          <div>Belum ada produk satupun. Tambahkan di atas atau via integrasi.</div>
+        </div>
+      <% } else { %>
+        <div class="table-responsive-modern">
+          <table class="table-modern" id="productsTable">
+            <thead>
               <tr>
-                <td class="mono" style="white-space:pre-wrap; max-width:520px;"><%= item.value %></td>
-                <td><%= new Date(item.createdAt).toLocaleString('id-ID') %></td>
+                <th style="width: 50px;">Img</th>
+                <th>Nama Produk & Kategori</th>
+                <th>Tipe & Target</th>
+                <th>Harga Jual (Reg)</th>
+                <th>Stok</th>
+                <th class="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% products.forEach(p => { %>
+              <tr class="product-row" data-category="<%= p.category %>" data-name="<%= p.name.toLowerCase() %>">
                 <td>
-                  <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock/<%= item.id %>/hapus" onsubmit="return confirm('Hapus stok ini?')">
-                    <button class="btn small danger" type="submit">Del Stock</button>
-                  </form>
+                  <div class="table-thumb">
+                    <% if (p.thumbnail) { %>
+                      <img src="<%= p.thumbnail %>" alt="Img" loading="lazy">
+                    <% } else { %>
+                      <div class="placeholder"><%= (p.name.charAt(0) || '?').toUpperCase() %></div>
+                    <% } %>
+                  </div>
+                </td>
+                <td>
+                  <div class="font-medium"><%= p.name %></div>
+                  <div class="helper-text-modern" style="font-size: 11px;"><i class="fa-solid fa-tag"></i> <%= p.category %></div>
+                </td>
+                <td>
+                  <% if (p.provider === 'digiflazz') { %>
+                    <span class="badge-modern df">Digiflazz</span>
+                  <% } else if (p.provider === 'indosmm') { %>
+                    <span class="badge-modern is">IndoSMM</span>
+                  <% } else { %>
+                    <span class="badge-modern neutral">Manual</span>
+                  <% } %>
+                  <div class="helper-text-modern mt-1" style="font-size: 11px;">Target: <%= p.targetType || 'id' %></div>
+                </td>
+                <td class="font-mono text-primary font-bold">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                <td>
+                  <% if (p.provider === 'manual') { %>
+                    <span class="badge-modern <%= p.stockCount > 0 ? 'completed' : 'danger' %>"><%= p.stockCount %> pcs</span>
+                  <% } else { %>
+                    <span class="badge-modern auto"><i class="fa-solid fa-bolt"></i> Auto</span>
+                  <% } %>
+                </td>
+                <td class="text-right">
+                  <div class="action-buttons-modern">
+                    <a href="/admin/produk/<%= p.id %>/edit" class="btn-modern outline small">Edit</a>
+                    <form method="POST" action="/admin/produk/<%= p.id %>/hapus" onsubmit="return confirm('Hapus produk ini secara permanen?')">
+                      <button class="btn-modern danger small icon-only" type="submit" title="Hapus Produk"><i class="fa-solid fa-trash-can"></i></button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               <% }) %>
             </tbody>
           </table>
-        <% } %>
-      </div>
+        </div>
       <% } %>
+    </div>
   </div>
 </div>
+
+<style>
+  /* ADMIN PRODUK MODERN CSS STYLES */
+  .admin-header-modern { margin-bottom: 24px; }
+  .admin-header-modern h2 { font-size: 24px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; margin: 0; }
+  
+  .card-modern { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow-sm); }
+  .card-title-modern { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 10px; margin: 0 0 8px 0; }
+  
+  .helper-text-modern { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .mt-1 { margin-top: 4px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  
+  .form-group-modern { display: flex; flex-direction: column; gap: 6px; }
+  .form-group-modern label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  
+  .input-modern { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--bg-color); color: var(--text-dark); transition: 0.2s; outline: none; width: 100%; box-sizing: border-box; }
+  .input-modern:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); background: var(--card-bg); }
+  .input-modern.mini { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+  .bg-gray { background-color: #f1f5f9; color: #64748b; }
+  
+  .search-input-wrapper { position: relative; }
+  .search-input-wrapper i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+  .search-input-wrapper input { padding-left: 32px !important; }
+  
+  .btn-modern { padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; text-decoration: none; }
+  .btn-modern.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-modern.solid { background: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
+  .btn-modern.solid:hover { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-modern.outline { background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); }
+  .btn-modern.outline:hover { background: rgba(0,123,255,0.05); }
+  .btn-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .btn-modern.danger:hover { background: #ef4444; color: #fff; }
+  .btn-modern.icon-only { padding: 6px; width: 30px; height: 30px; border-radius: 6px; }
+  
+  .table-responsive-modern { overflow-x: auto; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); }
+  .table-modern { width: 100%; border-collapse: collapse; text-align: left; background: var(--card-bg); font-size: 13px; }
+  .table-modern th { background: var(--bg-color); padding: 14px 16px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+  .table-modern td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+  .table-modern tr:last-child td { border-bottom: none; }
+  .table-modern tr:hover { background: rgba(0,0,0,0.01); }
+  
+  .table-thumb { width: 40px; height: 40px; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid var(--border-color); flex-shrink: 0; }
+  .table-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .table-thumb .placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #fff; background: var(--primary-color); }
+  
+  .font-mono { font-family: monospace; }
+  .font-medium { font-weight: 600; color: var(--text-dark); }
+  .font-bold { font-weight: 700; }
+  .text-primary { color: var(--primary-color); }
+  .text-right { text-align: right !important; }
+  
+  .badge-modern { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .badge-modern.neutral { background: var(--bg-color); color: var(--text-muted); border: 1px solid var(--border-color); }
+  .badge-modern.completed { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+  .badge-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .badge-modern.auto { background: rgba(14, 165, 233, 0.1); color: #0284c7; }
+  .badge-modern.df { background: rgba(249, 115, 22, 0.1); color: #ea580c; border: 1px dashed rgba(249, 115, 22, 0.3); }
+  .badge-modern.is { background: rgba(139, 92, 246, 0.1); color: #7c3aed; border: 1px dashed rgba(139, 92, 246, 0.3); }
+  
+  .action-buttons-modern { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+  .flex-between-modern { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  
+  .empty-state-modern { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: var(--bg-color); border-radius: 12px; border: 1px dashed var(--border-color); }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; color: #cbd5e1; }
+  
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+
 <script>
-  (function () {
-    var select = document.getElementById('gamePresetSelect');
-    var box = document.getElementById('customFieldsBox');
-    if (!select || !box) return;
-    select.addEventListener('change', function () {
-      box.style.display = select.value === 'custom' ? '' : 'none';
+  // Filter ringan di sisi klien (Client-side filtering)
+  function filterProducts() {
+    const category = document.getElementById('filterCategory').value.toLowerCase();
+    const search = document.getElementById('searchProduct').value.toLowerCase();
+    const rows = document.querySelectorAll('.product-row');
+
+    rows.forEach(row => {
+      const rowCat = row.getAttribute('data-category').toLowerCase();
+      const rowName = row.getAttribute('data-name');
+      
+      const matchCategory = category === "" || rowCat === category;
+      const matchSearch = search === "" || rowName.includes(search);
+
+      if (matchCategory && matchSearch) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
     });
-  })();
+  }
 </script>
 </body>
 </html>

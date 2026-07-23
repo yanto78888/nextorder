@@ -6,130 +6,272 @@
   <%- include('../partials/admin-sidebar', { active: 'flashsale' }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2><i class="fa-solid fa-bolt"></i> Flash Sale</h2></div>
-
-    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
-    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
-
-    <div class="card" style="padding:16px; margin-bottom:16px;">
-      <div class="helper-text" style="margin-top:0; margin-bottom:12px;">
-        <i class="fa-solid fa-circle-info"></i> Harga Flash Sale <b style="color:var(--text-main);">berlaku sama buat semua role member</b> (reguler/gold/platinum) selama section ini aktif dan belum lewat batas waktu -- diskon membership normal otomatis gak dipakai buat produk yang lagi Flash Sale.
-      </div>
-
-      <div class="section-title" style="margin-top:0;"><h3>Pengaturan Section</h3><div class="line"></div></div>
-      <form method="POST" action="/admin/flashsale/settings" style="display:flex; flex-direction:column; gap:10px;">
-        <label class="check-row"><input type="checkbox" name="fsEnabled" <%= settings.enabled ? 'checked' : '' %>> Aktifkan Flash Sale di beranda</label>
-
-        <label>Judul Section</label>
-        <input type="text" name="fsTitle" value="<%= settings.title %>" placeholder="Flash Sale">
-
-        <label>Berakhir Pada <span style="opacity:.6;">(opsional, jam WIB/GMT+7)</span></label>
-        <input type="datetime-local" name="fsEndsAt" value="<%= endsAtLocal %>">
-        <div class="helper-text" style="margin-top:0;">Ini yang jadi hitung mundur di kartu Flash Sale, waktunya WIB. Kosongkan kalau mau Flash Sale nyala terus tanpa hitung mundur.</div>
-
-        <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Simpan Pengaturan</button>
-      </form>
+    
+    <div class="admin-header-modern">
+      <h2><i class="fa-solid fa-bolt" style="color: #eab308;"></i> Flash Sale</h2>
     </div>
 
-    <div class="card" style="padding:16px; margin-bottom:16px;">
-      <div class="section-title" style="margin-top:0;"><h3>Produk Flash Sale (<%= items.length %>)</h3><div class="line"></div></div>
+    <% if (success) { %><div class="alert success"><i class="fa-solid fa-circle-check"></i> <%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div><% } %>
+
+    <div class="alert" style="background: rgba(0, 123, 255, 0.1); border: 1px solid rgba(0, 123, 255, 0.3); color: var(--primary-color);">
+      <i class="fa-solid fa-circle-info"></i> <strong>Info:</strong> Harga Flash Sale berlaku sama untuk semua role member (reguler/gold/platinum) selama section ini aktif dan belum melewati batas waktu. Diskon membership normal otomatis diabaikan[span_3](start_span)[span_3](end_span).
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Pengaturan Section -->
+      <div class="card card-modern">
+        <h3 class="card-title-modern"><i class="fa-solid fa-sliders"></i> Pengaturan Section</h3>
+        <div class="line mb-16"></div>
+        <form method="POST" action="/admin/flashsale/settings" style="display:flex; flex-direction:column; gap:12px;">
+          
+          <label class="check-row-modern">
+            <input type="checkbox" name="fsEnabled" <%= settings.enabled ? 'checked' : '' %>> 
+            <span>Aktifkan Flash Sale di Beranda</span>
+          </label>
+
+          <div class="form-group-modern">
+            <label>Judul Section</label>
+            <input type="text" name="fsTitle" class="input-modern" value="<%= settings.title %>" placeholder="Contoh: Flash Sale Mingguan">
+          </div>
+
+          <div class="form-group-modern">
+            <label>Berakhir Pada <span style="opacity:.6; font-weight: 400;">(Opsional, Jam WIB/GMT+7)</span></label>
+            <input type="datetime-local" name="fsEndsAt" class="input-modern" value="<%= endsAtLocal %>">
+            <div class="helper-text-modern mt-1">Waktu ini digunakan untuk hitung mundur di kartu Flash Sale. Kosongkan jika ingin Flash Sale menyala terus tanpa hitung mundur[span_4](start_span)[span_4](end_span).</div>
+          </div>
+
+          <button type="submit" class="btn-modern solid mt-16" style="width:100%;"><i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan</button>
+        </form>
+      </div>
+
+      <!-- Tambah Produk ke Flash Sale -->
+      <div class="card card-modern">
+        <h3 class="card-title-modern"><i class="fa-solid fa-cart-plus"></i> Tambah Produk</h3>
+        <div class="line mb-16"></div>
+        
+        <% if (availableProducts.length === 0) { %>
+          <div class="empty-state-modern">
+            <i class="fa-solid fa-box-open empty-icon"></i>
+            <div>Semua produk aktif sudah masuk Flash Sale, atau belum ada produk aktif di Kelola Produk[span_5](start_span)[span_5](end_span).</div>
+          </div>
+        <% } else { %>
+          <form method="POST" action="/admin/flashsale/add" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px;">
+            
+            <div class="form-group-modern">
+              <label>Kategori</label>
+              <select id="fsCategorySelect" class="input-modern">
+                <option value="">-- Semua Kategori --</option>
+                <% categories.forEach(cat => { %>
+                  <option value="<%= cat %>"><%= cat %></option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Pilih Game / Produk</label>
+              <select name="productId" id="fsProductSelect" class="input-modern" required>
+                <option value="">-- Pilih Produk --</option>
+                <% availableProducts.forEach(p => { %>
+                  <option value="<%= p.id %>" data-category="<%= p.category || 'Umum' %>">
+                    <%= (p.variantGroup || p.name) + ' — Rp ' + p.price.toLocaleString('id-ID') + ' [' + (p.provider === 'digiflazz' ? '⚡ Auto' : '🛠️ Manual') + ']' %>
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="grid grid-2 form-mini-grid">
+              <div class="form-group-modern">
+                <label>Harga Flash Sale (Rp)</label>
+                <input type="number" name="flashPrice" class="input-modern" min="0" step="500" placeholder="Contoh: 15000" required>
+              </div>
+              <div class="form-group-modern">
+                <label>Badge <span style="opacity:.6; font-weight: 400;">(Opsional)</span></label>
+                <input type="text" name="badge" class="input-modern" placeholder="Contoh: Promo" maxlength="24">
+              </div>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Kuota Flash Sale <span style="opacity:.6; font-weight: 400;">(Opsional)</span></label>
+              <input type="number" name="quota" class="input-modern" min="0" placeholder="Contoh: 10">
+              <div class="helper-text-modern mt-1">Kosongkan/isi 0 jika tanpa batas kuota[span_6](start_span)[span_6](end_span).</div>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Foto Custom <span style="opacity:.6; font-weight: 400;">(Opsional)</span></label>
+              <input type="file" name="fsThumbnailFile" class="input-modern" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp,image/gif">
+            </div>
+
+            <button type="submit" class="btn-modern solid mt-16" style="width:100%;"><i class="fa-solid fa-plus"></i> Tambahkan ke Flash Sale</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Daftar Produk Flash Sale -->
+    <div class="card card-modern mt-24">
+      <div class="flex-between-modern mb-16">
+        <h3 class="card-title-modern mb-0"><i class="fa-solid fa-list-ol"></i> Produk Flash Sale (<%= items.length %>)</h3>
+      </div>
+      <p class="helper-text-modern mb-16"><i class="fa-solid fa-arrows-up-down"></i> Tahan dan geser (drag) ikon <i class="fa-solid fa-grip-vertical"></i> untuk mengatur urutan tampil produk di carousel beranda[span_7](start_span)[span_7](end_span).</p>
 
       <% if (items.length === 0) { %>
-        <p style="color:var(--text-dim); font-size:13px;">Belum ada produk di Flash Sale. Tambah lewat form di bawah.</p>
+        <div class="empty-state-modern">
+          <i class="fa-solid fa-bolt-slash empty-icon"></i>
+          <div>Belum ada produk di Flash Sale. Tambahkan melalui form di atas[span_8](start_span)[span_8](end_span).</div>
+        </div>
       <% } else { %>
-        <div class="helper-text" style="margin-top:0;"><i class="fa-solid fa-arrows-up-down"></i> Geser (drag) pakai ikon <i class="fa-solid fa-grip-vertical"></i> buat atur urutan tampil di carousel.</div>
-        <div class="fs-adm-list" id="fsAdmList">
+        <div class="fs-adm-list-modern" id="fsAdmList">
           <% items.forEach(item => { %>
-            <div class="fs-adm-row" draggable="true" data-id="<%= item.id %>">
-              <span class="fs-adm-drag" title="Geser buat urutan"><i class="fa-solid fa-grip-vertical"></i></span>
-              <% if (item.thumbnail) { %>
-                <img class="fs-adm-thumb" src="<%= item.thumbnail %>" alt="">
-              <% } else { %>
-                <div class="fs-adm-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:10px;">No img</div>
-              <% } %>
-              <div class="fs-adm-info">
-                <div class="fs-adm-name"><%= item.name %><% if (!item.active) { %> <span style="color:var(--text-dim); font-weight:400;">(nonaktif)</span><% } %></div>
-                <div class="fs-adm-meta">Harga asli Rp <%= item.originalPrice.toLocaleString('id-ID') %> &middot; <%= item.isAuto ? 'Stok otomatis' : ('Stok ' + item.stockCount) %></div>
-                <% if (item.quota > 0) { %>
-                  <div class="fs-stock" style="max-width:220px;">
-                    <span class="badge <%= item.quotaReached ? 'cancelled' : 'pending' %>" style="font-size:9.5px; padding:2px 7px;">
-                      <%= item.quotaReached ? 'Kuota habis' : (item.soldCount + ' / ' + item.quota + ' terjual') %>
-                    </span>
-                    <span class="fs-stock-bar"><span class="fs-stock-fill" style="width:<%= Math.min(100, Math.round((item.soldCount / item.quota) * 100)) %>%"></span></span>
-                  </div>
-                <% } else if (item.soldCount > 0) { %>
-                  <div class="helper-text" style="margin:2px 0 0;">Terjual: <%= item.soldCount %> (tanpa batas kuota)</div>
+            <div class="fs-adm-row-modern" draggable="true" data-id="<%= item.id %>">
+              <div class="fs-adm-drag-modern" title="Geser buat urutan"><i class="fa-solid fa-grip-vertical"></i></div>
+              
+              <div class="fs-adm-thumb-wrapper">
+                <% if (item.thumbnail) { %>
+                  <img src="<%= item.thumbnail %>" alt="">
+                <% } else { %>
+                  <div class="placeholder">No Img</div>
                 <% } %>
               </div>
-              <form method="POST" action="/admin/flashsale/<%= item.id %>/update" class="fs-adm-editform" enctype="multipart/form-data">
-                <input type="number" name="flashPrice" value="<%= item.flashPrice %>" min="0" step="500" title="Harga Flash Sale">
-                <input type="text" name="badge" value="<%= item.badge %>" placeholder="Badge (mis. Promo)" maxlength="24" title="Teks badge">
-                <input type="number" name="quota" value="<%= item.quota || '' %>" min="0" placeholder="Kuota (0=tanpa batas)" title="Kuota Flash Sale">
-                <input type="file" name="fsThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif" title="Ganti foto (opsional)">
-                <label class="check-row small" style="white-space:nowrap;"><input type="checkbox" name="active" <%= item.active ? 'checked' : '' %>> Aktif</label>
-                <% if (item.soldCount > 0) { %>
-                  <label class="check-row small" style="white-space:nowrap;"><input type="checkbox" name="resetSold"> Reset terjual</label>
+
+              <div class="fs-adm-info-modern">
+                <div class="fs-adm-name">
+                  <%= item.name %> 
+                  <% if (!item.active) { %> <span class="badge-modern danger ml-1">Nonaktif</span><% } %>
+                </div>
+                <div class="fs-adm-meta">
+                  Harga Asli: Rp <%= item.originalPrice.toLocaleString('id-ID') %> &middot; <%= item.isAuto ? 'Stok otomatis' : ('Stok ' + item.stockCount) %>
+                </div>
+                
+                <% if (item.quota > 0) { %>
+                  <div class="fs-stock-modern mt-1">
+                    <div class="fs-stock-labels">
+                      <span class="stock-text"><%= item.quotaReached ? 'Kuota habis' : (item.soldCount + ' / ' + item.quota + ' terjual') %></span>
+                    </div>
+                    <div class="fs-stock-bar-bg">
+                      <div class="fs-stock-fill <%= item.quotaReached ? 'full' : '' %>" style="width:<%= Math.min(100, Math.round((item.soldCount / item.quota) * 100)) %>%"></div>
+                    </div>
+                  </div>
+                <% } else if (item.soldCount > 0) { %>
+                  <div class="helper-text-modern mt-1" style="font-size: 11px;">Terjual: <b><%= item.soldCount %></b> (tanpa batas kuota)[span_9](start_span)[span_9](end_span)</div>
                 <% } %>
-                <button type="submit" class="btn small">Simpan</button>
-              </form>
-              <form method="POST" action="/admin/flashsale/<%= item.id %>/hapus" onsubmit="return confirm('Hapus produk ini dari Flash Sale?')">
-                <button type="submit" class="btn small danger">Hapus</button>
-              </form>
+              </div>
+
+              <div class="fs-adm-actions-modern">
+                <form method="POST" action="/admin/flashsale/<%= item.id %>/update" class="fs-edit-form-modern" enctype="multipart/form-data">
+                  <div class="inputs-row">
+                    <input type="number" name="flashPrice" class="input-modern mini" value="<%= item.flashPrice %>" min="0" step="500" title="Harga Flash Sale" style="width: 90px;">
+                    <input type="text" name="badge" class="input-modern mini" value="<%= item.badge %>" placeholder="Badge" maxlength="24" title="Teks badge" style="width: 80px;">
+                    <input type="number" name="quota" class="input-modern mini" value="<%= item.quota || '' %>" min="0" placeholder="Kuota" title="Kuota (0 = Tanpa Batas)" style="width: 70px;">
+                  </div>
+                  <div class="inputs-row align-center">
+                    <input type="file" name="fsThumbnailFile" class="input-modern mini" accept="image/png,image/jpeg,image/webp,image/gif" title="Ganti foto" style="width: 150px; padding: 4px;">
+                    <label class="check-row-modern small">
+                      <input type="checkbox" name="active" <%= item.active ? 'checked' : '' %>> <span>Aktif</span>
+                    </label>
+                    <% if (item.soldCount > 0) { %>
+                      <label class="check-row-modern small">
+                        <input type="checkbox" name="resetSold"> <span>Reset Terjual</span>
+                      </label>
+                    <% } %>
+                    <button type="submit" class="btn-modern primary small ml-auto"><i class="fa-solid fa-check"></i> Simpan</button>
+                  </div>
+                </form>
+
+                <form method="POST" action="/admin/flashsale/<%= item.id %>/hapus" onsubmit="return confirm('Hapus produk ini dari Flash Sale?')">
+                  <button type="submit" class="btn-modern danger small icon-only" title="Hapus dari Flash Sale"><i class="fa-solid fa-trash-can"></i></button>
+                </form>
+              </div>
             </div>
           <% }) %>
         </div>
       <% } %>
     </div>
-
-    <div class="card" style="padding:16px; margin-bottom:16px;">
-      <div class="section-title" style="margin-top:0;"><h3>+ Tambah Produk ke Flash Sale</h3><div class="line"></div></div>
-      <% if (availableProducts.length === 0) { %>
-        <p style="color:var(--text-dim); font-size:13px;">Semua produk aktif udah masuk Flash Sale, atau belum ada produk aktif sama sekali di Kelola Produk.</p>
-      <% } else { %>
-        <form method="POST" action="/admin/flashsale/add" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:10px;">
-          <label>Kategori</label>
-          <select id="fsCategorySelect">
-            <option value="">-- Semua Kategori --</option>
-            <% categories.forEach(cat => { %>
-              <option value="<%= cat %>"><%= cat %></option>
-            <% }) %>
-          </select>
-          <div class="helper-text" style="margin-top:0;">Pilih kategori dulu biar daftar produk di bawah lebih pendek dan gampang dicari, terutama kalau produknya udah banyak.</div>
-
-          <label>Pilih Game / Produk</label>
-          <select name="productId" id="fsProductSelect" required>
-            <option value="">-- pilih produk --</option>
-            <% availableProducts.forEach(p => { %>
-              <option value="<%= p.id %>" data-category="<%= p.category || 'Umum' %>">
-                <%= (p.variantGroup || p.name) + ' — Rp ' + p.price.toLocaleString('id-ID') + ' [' + (p.provider === 'digiflazz' ? '⚡ Auto' : '🛠️ Manual') + ']' %>
-              </option>
-            <% }) %>
-          </select>
-          <div class="helper-text" style="margin-top:0;">Nama produk ditampilkan lengkap tanpa dipotong. Tanda <b>⚡ Auto</b> = produk Digiflazz (game top up otomatis), <b>🛠️ Manual</b> = Stok Manual.</div>
-
-          <label>Harga Flash Sale (Rp)</label>
-          <input type="number" name="flashPrice" min="0" step="500" placeholder="mis. 15000" required>
-          <div class="helper-text" style="margin-top:0;">Harga ini yang berlaku buat SEMUA orang selama Flash Sale aktif, gak ditambah/dikurangi diskon membership lagi.</div>
-
-          <label>Badge <span style="opacity:.6;">(opsional)</span></label>
-          <input type="text" name="badge" placeholder="mis. Promo" maxlength="24">
-
-          <label>Kuota Flash Sale <span style="opacity:.6;">(opsional)</span></label>
-          <input type="number" name="quota" min="0" placeholder="Contoh: 10">
-          <div class="helper-text" style="margin-top:0;">Contoh: isi <b>10</b> kalau mau Flash Sale ini cuma buat 10 pembeli pertama -- begitu yang beli udah tembus 10, produk ini otomatis hilang dari Flash Sale (harga balik normal). Kosongkan/isi 0 kalau tanpa batas.</div>
-
-          <label>Foto Custom <span style="opacity:.6;">(opsional)</span></label>
-          <input type="file" name="fsThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
-          <div class="helper-text" style="margin-top:0;">Upload foto khusus buat kartu Flash Sale ini (mis. banner promo). Kosongkan buat pakai foto produk aslinya. Format JPG/PNG/WEBP/GIF, maks 3MB.</div>
-
-          <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Tambahkan</button>
-        </form>
-      <% } %>
-    </div>
   </div>
 </div>
 
+<style>
+  /* ADMIN FLASHSALE MODERN CSS STYLES */
+  .admin-header-modern { margin-bottom: 24px; }
+  .admin-header-modern h2 { font-size: 24px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; margin: 0; }
+  
+  .card-modern { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow-sm); }
+  .card-title-modern { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 10px; margin: 0 0 8px 0; }
+  
+  .helper-text-modern { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .mt-1 { margin-top: 4px; }
+  .mb-16 { margin-bottom: 16px; }
+  .ml-1 { margin-left: 4px; }
+  .ml-auto { margin-left: auto; }
+  
+  .line { height: 1px; background: var(--border-color); width: 100%; }
+  
+  .form-group-modern { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .form-group-modern label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  
+  .input-modern { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--bg-color); color: var(--text-dark); transition: 0.2s; outline: none; }
+  .input-modern:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); background: var(--card-bg); }
+  .input-modern.mini { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+  
+  .btn-modern { padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; }
+  .btn-modern.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-modern.solid, .btn-modern.primary { background: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
+  .btn-modern.solid:hover, .btn-modern.primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .btn-modern.danger:hover { background: #ef4444; color: #fff; }
+  .btn-modern.icon-only { padding: 6px; width: 30px; height: 30px; border-radius: 6px; }
+  
+  .check-row-modern { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dark); }
+  .check-row-modern input { width: 16px; height: 16px; accent-color: var(--primary-color); cursor: pointer; }
+  .check-row-modern.small { font-size: 12px; }
+  
+  .badge-modern { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; line-height: 1; display: inline-block; }
+  .badge-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  
+  .empty-state-modern { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: var(--bg-color); border-radius: 12px; border: 1px dashed var(--border-color); }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; color: #cbd5e1; }
+  
+  /* Drag and Drop List */
+  .fs-adm-list-modern { display: flex; flex-direction: column; gap: 12px; }
+  .fs-adm-row-modern { display: flex; align-items: stretch; gap: 16px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 12px; transition: 0.2s; }
+  .fs-adm-row-modern.dragging { opacity: 0.5; background: #fff; box-shadow: var(--shadow-md); }
+  .fs-adm-row-modern.drag-over { border: 2px dashed var(--primary-color); }
+  
+  .fs-adm-drag-modern { display: flex; align-items: center; justify-content: center; width: 24px; cursor: grab; color: #94a3b8; font-size: 16px; transition: 0.2s; }
+  .fs-adm-drag-modern:hover { color: var(--text-dark); }
+  .fs-adm-drag-modern:active { cursor: grabbing; }
+  
+  .fs-adm-thumb-wrapper { width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid var(--border-color); flex-shrink: 0; }
+  .fs-adm-thumb-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+  .fs-adm-thumb-wrapper .placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  
+  .fs-adm-info-modern { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .fs-adm-name { font-weight: 700; color: var(--text-dark); font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; }
+  .fs-adm-meta { font-size: 12px; color: var(--text-muted); }
+  
+  /* Progress Bar */
+  .fs-stock-modern { width: 100%; max-width: 220px; }
+  .fs-stock-labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--primary-color); margin-bottom: 4px; }
+  .fs-stock-bar-bg { width: 100%; height: 6px; background: rgba(0, 123, 255, 0.1); border-radius: 10px; overflow: hidden; }
+  .fs-stock-fill { height: 100%; background: var(--primary-color); border-radius: 10px; transition: width 0.3s ease; }
+  .fs-stock-fill.full { background: #ef4444; }
+  
+  /* Edit Form inside Row */
+  .fs-adm-actions-modern { display: flex; gap: 12px; align-items: center; }
+  .fs-edit-form-modern { display: flex; flex-direction: column; gap: 8px; background: var(--card-bg); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); }
+  .inputs-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .inputs-row.align-center { align-items: center; }
+  
+  @media (max-width: 992px) {
+    .fs-adm-row-modern { flex-direction: column; }
+    .fs-adm-actions-modern { width: 100%; justify-content: space-between; }
+    .fs-edit-form-modern { width: 100%; }
+    .fs-adm-drag-modern { transform: rotate(90deg); margin: 0 auto; width: 100%; height: 20px; }
+  }
+</style>
+
 <script>
+// Logic Category Select
 (function () {
   var categorySelect = document.getElementById('fsCategorySelect');
   var productSelect = document.getElementById('fsProductSelect');
@@ -144,15 +286,15 @@
     });
   }
 })();
-</script>
-<script>
+
+// Logic Drag and Drop[span_10](start_span)[span_10](end_span)
 (function () {
   var list = document.getElementById('fsAdmList');
   if (!list) return;
   var dragged = null;
 
   list.addEventListener('dragstart', function (e) {
-    var row = e.target.closest('.fs-adm-row');
+    var row = e.target.closest('.fs-adm-row-modern');
     if (!row) return;
     dragged = row;
     row.classList.add('dragging');
@@ -161,27 +303,36 @@
 
   list.addEventListener('dragend', function () {
     if (dragged) dragged.classList.remove('dragging');
-    list.querySelectorAll('.fs-adm-row').forEach(function (r) { r.classList.remove('drag-over'); });
+    list.querySelectorAll('.fs-adm-row-modern').forEach(function (r) { r.classList.remove('drag-over'); });
     dragged = null;
     persistOrder();
   });
 
   list.addEventListener('dragover', function (e) {
     e.preventDefault();
-    var row = e.target.closest('.fs-adm-row');
+    var row = e.target.closest('.fs-adm-row-modern');
     if (!row || row === dragged) return;
     var rect = row.getBoundingClientRect();
     var before = (e.clientY - rect.top) < rect.height / 2;
     list.insertBefore(dragged, before ? row : row.nextSibling);
+    
+    // Visual feedback
+    list.querySelectorAll('.fs-adm-row-modern').forEach(r => r.classList.remove('drag-over'));
+    row.classList.add('drag-over');
+  });
+
+  list.addEventListener('dragleave', function (e) {
+    var row = e.target.closest('.fs-adm-row-modern');
+    if (row) row.classList.remove('drag-over');
   });
 
   function persistOrder() {
-    var ids = Array.prototype.map.call(list.querySelectorAll('.fs-adm-row'), function (r) { return r.dataset.id; });
+    var ids = Array.prototype.map.call(list.querySelectorAll('.fs-adm-row-modern'), function (r) { return r.dataset.id; });
     fetch('/admin/flashsale/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderedIds: ids })
-    }).catch(function () { /* diem-diem gagal aja, urutan re-load dari server tetep yg lama */ });
+    }).catch(function () { /* Silent fail */ });
   }
 })();
 </script>

@@ -6,127 +6,247 @@
   <%- include('../partials/admin-sidebar', { active: 'indosmm' }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2>Jasa Sosmed (IndoSMM)</h2></div>
+    
+    <div class="admin-header-modern">
+      <h2><i class="fa-solid fa-share-nodes" style="color: var(--primary-color);"></i> Jasa Sosmed (IndoSMM)</h2>
+    </div>
 
-    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
-    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+    <% if (success) { %><div class="alert success"><i class="fa-solid fa-circle-check"></i> <%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div><% } %>
 
     <% const sm = config.indosmm || {}; %>
     <% if (!sm.enabled || !sm.apiKey) { %>
-      <div class="alert error">
-        IndoSMM belum aktif/lengkap. Isi API Key lalu centang "Aktifkan" di
-        <a href="/admin/settings" style="color:#fff; text-decoration:underline;">Pengaturan</a> dulu sebelum import layanan.
+      <div class="alert error" style="display: flex; gap: 10px; align-items: center;">
+        <i class="fa-solid fa-circle-xmark" style="font-size: 24px;"></i>
+        <div>
+          <strong>IndoSMM belum aktif/lengkap.</strong><br> 
+          Isi API Key lalu centang "Aktifkan" di <a href="/admin/settings" style="color:#fff; text-decoration:underline; font-weight: bold;">Pengaturan</a> terlebih dahulu sebelum mengimpor layanan.
+        </div>
       </div>
     <% } %>
 
     <div class="grid grid-2">
-      <div class="card">
-        <h3>Margin Default</h3>
-        <p class="helper-text">Margin ini otomatis dipakai untuk semua layanan IndoSMM yang tidak punya margin sendiri (override). Rumus: Harga Jual per 1000 = Modal per 1000 + Margin.</p>
-        <form method="POST" action="/admin/indosmm/margin">
+      <!-- Pengaturan Margin -->
+      <div class="card card-modern">
+        <h3 class="card-title-modern"><i class="fa-solid fa-percent"></i> Margin Default</h3>
+        <p class="helper-text-modern">Margin ini otomatis dipakai untuk semua layanan IndoSMM yang tidak memiliki margin khusus.<br><em>Rumus: Harga Jual per 1000 = Modal per 1000 + Margin.</em></p>
+        <form method="POST" action="/admin/indosmm/margin" class="mt-16">
           <div class="grid grid-2 form-mini-grid">
-            <div>
+            <div class="form-group-modern">
               <label>Tipe Margin</label>
-              <select name="marginType">
+              <select name="marginType" class="input-modern">
                 <option value="percent" <%= (sm.marginType || 'percent') === 'percent' ? 'selected' : '' %>>Persentase (%)</option>
-                <option value="fixed" <%= sm.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp per 1000)</option>
+                <option value="fixed" <%= sm.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp /1000)</option>
               </select>
             </div>
-            <div>
+            <div class="form-group-modern">
               <label>Nilai Margin</label>
-              <input type="number" step="0.01" name="marginValue" value="<%= (typeof sm.marginValue !== 'undefined' && sm.marginValue !== null) ? sm.marginValue : 30 %>">
+              <input type="number" step="0.01" name="marginValue" class="input-modern" value="<%= (typeof sm.marginValue !== 'undefined' && sm.marginValue !== null) ? sm.marginValue : 30 %>">
             </div>
           </div>
-          <button class="btn solid mt-16" type="submit">Simpan Margin Default</button>
+          <button class="btn-modern solid mt-16" type="submit" style="width: 100%;"><i class="fa-solid fa-floppy-disk"></i> Simpan Margin</button>
         </form>
       </div>
 
-      <div class="card">
-        <h3>Ringkasan</h3>
-        <div class="detail-stats-row" style="margin:0;">
-          <div class="detail-stat">
-            <div class="detail-stat-val"><%= indosmmProducts.length %></div>
-            <div class="detail-stat-label">Layanan Terhubung</div>
-          </div>
+      <!-- Ringkasan -->
+      <div class="card card-modern">
+        <h3 class="card-title-modern"><i class="fa-solid fa-chart-pie"></i> Ringkasan</h3>
+        <div class="stat-box-modern">
+          <div class="stat-value"><%= indosmmProducts.length %></div>
+          <div class="stat-label">Layanan Terhubung</div>
         </div>
-        <div class="helper-text mt-16">Harga jual layanan dihitung dari <b>rate per 1000</b> IndoSMM saat diimport. Kalau harga IndoSMM berubah, edit ulang rate-nya lewat "Edit" per layanan di bawah, atau import ulang layanan yang sama (rate otomatis diperbarui).</div>
+        <div class="helper-text-modern mt-16" style="font-size: 12px; text-align: center;">
+          Harga jual layanan dihitung dari <b>rate per 1000</b> IndoSMM saat diimport. Kalau harga berubah, edit ulang rate-nya lewat "Edit" per layanan, atau import ulang layanan yang sama.
+        </div>
       </div>
     </div>
 
-    <div class="card mt-24">
-      <h3>Cari &amp; Import Layanan dari IndoSMM</h3>
-      <div class="helper-text">Pilih Kategori dulu (opsional) biar hasil makin fokus, atau langsung ketik nama layanan. Centang hasil yang mau ditambah — judul tiap layanan bisa diedit dulu di kolom "Layanan" kalau mau pakai judul sendiri, lalu klik "Tambah Layanan Terpilih". <b>Catatan:</b> baru mendukung layanan tipe standar (link + jumlah) -- layanan custom comment/poll/subscription belum didukung.</div>
+    <!-- Area Pencarian & Import -->
+    <div class="card card-modern mt-24">
+      <h3 class="card-title-modern"><i class="fa-solid fa-cloud-arrow-down"></i> Cari &amp; Import Layanan</h3>
+      <p class="helper-text-modern" style="margin-bottom: 20px;">
+        Pilih Kategori lalu ketik nama layanan. Centang hasil yang ingin ditambahkan. <b>Catatan:</b> Baru mendukung layanan tipe standar (link + jumlah), layanan custom belum didukung.
+      </p>
 
-      <div class="df-filter-row">
-        <select id="smCategorySelect">
-          <option value="">Semua Kategori</option>
-        </select>
-        <input type="text" id="smSearchInput" placeholder="Cari nama layanan...">
-        <button type="button" class="btn solid" id="smSearchBtn">Cari</button>
+      <div class="df-toolbar-modern">
+        <select id="smCategorySelect" class="input-modern"><option value="">Semua Kategori</option></select>
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="smSearchInput" class="input-modern" placeholder="Ketik nama layanan...">
+        </div>
+        <button type="button" class="btn-modern solid" id="smSearchBtn">Cari</button>
       </div>
 
-      <div id="smBulkBar" class="df-bulk-bar" style="display:none;">
-        <label class="df-select-all"><input type="checkbox" id="smSelectAllChk"> Pilih semua</label>
-        <span id="smSelectedCount" class="helper-text">0 dipilih</span>
-        <button type="button" class="btn ghost small" id="smAddSelectedBtn" disabled><i class="fa-solid fa-plus"></i> Tambah Layanan Terpilih</button>
+      <div id="smBulkBar" class="df-bulk-bar-modern" style="display:none;">
+        <label class="df-select-all-modern">
+          <input type="checkbox" id="smSelectAllChk"> <span>Pilih semua di halaman ini</span>
+        </label>
+        <span id="smSelectedCount" class="badge-modern neutral">0 dipilih</span>
+        <button type="button" class="btn-modern primary small" id="smAddSelectedBtn" disabled>
+          <i class="fa-solid fa-plus"></i> Import Terpilih
+        </button>
       </div>
 
-      <div id="smSearchResults" style="margin-top:14px;"></div>
+      <div id="smSearchResults" class="table-responsive-modern mt-16"></div>
     </div>
 
-    <div class="card mt-24">
-      <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h3 style="margin:0;">Layanan IndoSMM Terhubung (<%= indosmmProducts.length %>)</h3>
-        <a href="/admin/produk" class="btn small ghost"><i class="fa-solid fa-screwdriver-wrench"></i> Produk Stok Manual</a>
+    <!-- Daftar Layanan Terhubung -->
+    <div class="card card-modern mt-24">
+      <div class="flex-between-modern">
+        <h3 class="card-title-modern mb-0"><i class="fa-solid fa-link"></i> Layanan Terhubung (<%= indosmmProducts.length %>)</h3>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="btnBulkUnlink" class="btn-modern danger small" style="display:none;" onclick="processBulkUnlink()">
+            <i class="fa-solid fa-link-slash"></i> Lepas Terpilih
+          </button>
+          <a href="/admin/produk" class="btn-modern ghost small"><i class="fa-solid fa-screwdriver-wrench"></i> Kelola Stok Manual</a>
+        </div>
       </div>
+      
       <% if (indosmmProducts.length === 0) { %>
-        <div class="empty-state mt-16">Belum ada layanan yang diimport dari IndoSMM.</div>
+        <div class="empty-state-modern mt-24">
+          <i class="fa-solid fa-box-open empty-icon"></i>
+          <div>Belum ada layanan yang diimport dari IndoSMM.</div>
+        </div>
       <% } else { %>
         <% const catOrder = []; const catGroups = {}; %>
         <% indosmmProducts.forEach(p => { const cat = p.category || 'Jasa Sosmed'; if (!catGroups[cat]) { catGroups[cat] = []; catOrder.push(cat); } catGroups[cat].push(p); }) %>
+        
         <% catOrder.sort().forEach(cat => { %>
           <% const catProducts = catGroups[cat]; %>
-          <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catProducts.length %> layanan</span><div class="line"></div></div>
-          <table>
-            <thead><tr><th>Nama</th><th>Min/Maks</th><th>Modal /1000</th><th>Margin</th><th>Harga Jual /1000</th><th>Aksi</th></tr></thead>
-            <tbody>
-              <% catProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
-              <tr>
-                <td><%= p.name %></td>
-                <td class="mono"><%= (p.indosmmMin||0).toLocaleString('id-ID') %>-<%= (p.indosmmMax||0).toLocaleString('id-ID') %></td>
-                <td class="mono">Rp <%= (p.indosmmRatePer1000 || 0).toLocaleString('id-ID') %></td>
-                <td>
-                  <form method="POST" action="/admin/indosmm/<%= p.id %>/margin" class="flex" style="gap:4px; flex-wrap:nowrap;">
-                    <select name="marginType" style="width:90px; font-size:12px;">
-                      <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
-                      <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
-                      <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
-                    </select>
-                    <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" style="width:70px; font-size:12px;">
-                    <button type="submit" class="btn small ghost">Set</button>
-                  </form>
-                </td>
-                <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
-                <td>
-                  <div class="flex" style="gap:6px; flex-wrap:wrap;">
-                    <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
-                    <form method="POST" action="/admin/indosmm/<%= p.id %>/unlink" onsubmit="return confirm('Lepas layanan ini dari IndoSMM? Produk akan jadi produk manual biasa (checkout otomatis IndoSMM berhenti).')">
-                      <button class="btn small danger" type="submit">Lepas</button>
+          
+          <div class="section-divider-modern">
+            <h4><%= cat %></h4>
+            <span class="badge-modern neutral"><%= catProducts.length %> layanan</span>
+            <div class="line"></div>
+          </div>
+
+          <div class="table-responsive-modern mb-24">
+            <table class="table-modern">
+              <thead>
+                <tr>
+                  <th style="width: 30px;"><input type="checkbox" onchange="toggleTableUnlink(this)" title="Pilih Semua"></th>
+                  <th>Nama Layanan</th>
+                  <th>Min/Maks</th>
+                  <th>Modal /1000</th>
+                  <th>Margin</th>
+                  <th>Harga Jual /1000</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% catProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
+                <tr>
+                  <td><input type="checkbox" class="sm-unlink-chk" value="<%= p.id %>" onchange="updateBulkUnlinkBtn()"></td>
+                  <td class="font-medium"><%= p.name %></td>
+                  <td class="font-mono text-dim"><%= (p.indosmmMin||0).toLocaleString('id-ID') %> - <%= (p.indosmmMax||0).toLocaleString('id-ID') %></td>
+                  <td class="font-mono text-dim">Rp <%= (p.indosmmRatePer1000 || 0).toLocaleString('id-ID') %></td>
+                  <td>
+                    <form method="POST" action="/admin/indosmm/<%= p.id %>/margin" class="inline-flex-form">
+                      <select name="marginType" class="input-modern mini">
+                        <option value="" <%= !p.marginType ? 'selected' : '' %>>Def</option>
+                        <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                        <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                      </select>
+                      <input type="number" step="0.01" name="marginValue" value="<%= p.marginValue !== null ? p.marginValue : '' %>" placeholder="-" class="input-modern mini w-70">
+                      <button type="submit" class="btn-modern ghost small box-btn" title="Simpan Margin"><i class="fa-solid fa-check"></i></button>
                     </form>
-                  </div>
-                </td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
+                  </td>
+                  <td class="font-mono text-primary font-bold">Rp <%= p.price.toLocaleString('id-ID') %></td>
+                  <td class="text-right">
+                    <div class="action-buttons-modern">
+                      <a href="/admin/produk/<%= p.id %>/edit" class="btn-modern outline small">Edit</a>
+                      <form method="POST" action="/admin/indosmm/<%= p.id %>/unlink" onsubmit="return confirm('Lepas layanan ini dari IndoSMM? Checkout otomatis akan berhenti.')">
+                        <button class="btn-modern danger small icon-only" type="submit" title="Lepas Tautan"><i class="fa-solid fa-link-slash"></i></button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
         <% }) %>
       <% } %>
     </div>
-
   </div>
 </div>
 
+<style>
+  /* ADMIN INDOSMM MODERN CSS STYLES (Sama dengan Digiflazz) */
+  .admin-header-modern { margin-bottom: 24px; }
+  .admin-header-modern h2 { font-size: 24px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; margin: 0; }
+  
+  .card-modern { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow-sm); }
+  .card-title-modern { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 10px; margin: 0 0 8px 0; }
+  .card-title-modern i { color: var(--primary-color); opacity: 0.8; }
+  
+  .helper-text-modern { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  
+  .stat-box-modern { background: rgba(0, 123, 255, 0.05); border: 1px dashed rgba(0, 123, 255, 0.3); border-radius: 12px; padding: 20px; text-align: center; margin-top: 16px; }
+  .stat-box-modern .stat-value { font-size: 32px; font-weight: 900; color: var(--primary-color); line-height: 1; margin-bottom: 5px; }
+  .stat-box-modern .stat-label { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  
+  .df-toolbar-modern { display: flex; flex-wrap: wrap; gap: 12px; background: var(--bg-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .search-input-wrapper { flex: 1; min-width: 200px; position: relative; }
+  .search-input-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+  .search-input-wrapper input { width: 100%; padding-left: 40px !important; }
+  .input-modern { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--card-bg); color: var(--text-dark); transition: 0.2s; outline: none; }
+  .input-modern:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+  .input-modern.mini { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+  .w-70 { width: 70px; }
+  
+  .btn-modern { padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; text-decoration: none; }
+  .btn-modern.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-modern.solid { background: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
+  .btn-modern.solid:hover { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-modern.outline { background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); }
+  .btn-modern.outline:hover { background: rgba(0,123,255,0.05); }
+  .btn-modern.ghost { background: transparent; color: var(--text-muted); }
+  .btn-modern.ghost:hover { background: var(--bg-color); color: var(--text-dark); }
+  .btn-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .btn-modern.danger:hover { background: #ef4444; color: #fff; }
+  .btn-modern.box-btn { padding: 6px; width: 30px; height: 30px; border-radius: 6px; background: var(--bg-color); }
+  .btn-modern.icon-only { padding: 6px; width: 30px; height: 30px; border-radius: 6px; }
+  
+  .table-responsive-modern { overflow-x: auto; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); }
+  .table-modern { width: 100%; border-collapse: collapse; text-align: left; background: var(--card-bg); font-size: 13px; }
+  .table-modern th { background: var(--bg-color); padding: 14px 16px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+  .table-modern td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+  .table-modern tr:last-child td { border-bottom: none; }
+  .table-modern tr:hover { background: rgba(0,0,0,0.01); }
+  
+  .font-mono { font-family: monospace; }
+  .font-medium { font-weight: 600; color: var(--text-dark); }
+  .font-bold { font-weight: 700; }
+  .text-dim { color: var(--text-muted); }
+  .text-primary { color: var(--primary-color); }
+  .text-right { text-align: right !important; }
+  .action-buttons-modern { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+  .inline-flex-form { display: flex; gap: 6px; align-items: center; }
+  
+  .badge-modern { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; line-height: 1; display: inline-block; }
+  .badge-modern.neutral { background: var(--bg-color); color: var(--text-muted); border: 1px solid var(--border-color); }
+  .badge-modern.completed { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+  
+  .flex-between-modern { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .section-divider-modern { display: flex; align-items: center; gap: 12px; margin: 32px 0 16px; }
+  .section-divider-modern h4 { font-size: 16px; font-weight: 800; color: var(--text-dark); margin: 0; }
+  .section-divider-modern .line { flex: 1; height: 1px; background: var(--border-color); }
+  
+  .df-bulk-bar-modern { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: rgba(0,123,255,0.05); border: 1px dashed rgba(0,123,255,0.3); border-radius: 12px; margin-top: 16px; }
+  .df-select-all-modern { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--text-dark); }
+  input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary-color); }
+  
+  .empty-state-modern { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: var(--bg-color); border-radius: 12px; border: 1px dashed var(--border-color); }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; color: #cbd5e1; }
+  
+  @media (max-width: 768px) {
+    .df-toolbar-modern select, .df-toolbar-modern .search-input-wrapper { min-width: 100%; flex: 100%; }
+  }
+</style>
+
 <script>
+// ===== PENCARIAN & IMPORT INDOSMM =====
 (function () {
   var searchBtn = document.getElementById('smSearchBtn');
   var searchInput = document.getElementById('smSearchInput');
@@ -161,24 +281,24 @@
   function doSearch() {
     var q = searchInput.value.trim();
     var category = categorySelect.value;
-    resultsBox.innerHTML = '<div class="helper-text">Mencari...</div>';
+    resultsBox.innerHTML = '<div class="empty-state-modern"><i class="fa-solid fa-spinner fa-spin empty-icon"></i><div>Mencari data...</div></div>';
     bulkBar.style.display = 'none';
 
     fetch('/admin/indosmm/search?q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(category))
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data.ok) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(data.error) + '</div>'; return; }
-        if (!data.results.length) { resultsBox.innerHTML = '<div class="helper-text">Tidak ada hasil.</div>'; return; }
+        if (!data.ok) { resultsBox.innerHTML = '<div class="alert error">' + esc(data.error) + '</div>'; return; }
+        if (!data.results.length) { resultsBox.innerHTML = '<div class="empty-state-modern"><i class="fa-solid fa-magnifying-glass empty-icon"></i><div>Tidak ada hasil ditemukan.</div></div>'; return; }
         lastResults = data.results;
         renderResultsTable();
       })
-      .catch(function (err) { resultsBox.innerHTML = '<div class="helper-text">Gagal: ' + esc(err.message) + '</div>'; });
+      .catch(function (err) { resultsBox.innerHTML = '<div class="alert error">' + esc(err.message) + '</div>'; });
   }
 
   function updateBulkBar() {
     var boxes = resultsBox.querySelectorAll('.sm-row-chk');
     var checked = resultsBox.querySelectorAll('.sm-row-chk:checked');
-    bulkBar.style.display = boxes.length > 0 ? '' : 'none';
+    bulkBar.style.display = boxes.length > 0 ? 'flex' : 'none';
     selectedCountEl.textContent = checked.length + ' dipilih';
     addSelectedBtn.disabled = checked.length === 0;
     if (selectAllChk) selectAllChk.checked = boxes.length > 0 && checked.length === boxes.length;
@@ -186,7 +306,8 @@
 
   function renderResultsTable() {
     var table = document.createElement('table');
-    table.innerHTML = '<thead><tr><th style="width:28px;"></th><th>Layanan</th><th>Min/Maks</th><th>Rate /1000</th><th>Preview Jual /1000</th><th>Aksi</th></tr></thead>';
+    table.className = 'table-modern';
+    table.innerHTML = '<thead><tr><th style="width:28px;"></th><th>Layanan</th><th>Min/Maks</th><th>Rate /1000</th><th>Preview Jual</th><th>Aksi</th></tr></thead>';
     var tbody = document.createElement('tbody');
 
     lastResults.forEach(function (item, idx) {
@@ -208,44 +329,45 @@
       var nameTd = document.createElement('td');
       var nameInput = document.createElement('input');
       nameInput.type = 'text';
-      nameInput.className = 'df-row-name';
+      nameInput.className = 'input-modern mini';
       nameInput.value = item.name;
       nameInput.disabled = !!item.alreadyImported;
-      nameInput.style.marginBottom = '4px';
+      nameInput.style.marginBottom = '6px';
+      nameInput.style.width = '100%';
       nameTd.appendChild(nameInput);
       var catHint = document.createElement('div');
-      catHint.className = 'helper-text';
+      catHint.className = 'helper-text-modern';
+      catHint.style.fontSize = '11px';
       catHint.textContent = item.category || '';
       nameTd.appendChild(catHint);
       tr.appendChild(nameTd);
 
       var minMaxTd = document.createElement('td');
-      minMaxTd.className = 'mono';
+      minMaxTd.className = 'font-mono text-dim';
       minMaxTd.textContent = Number(item.min || 0).toLocaleString('id-ID') + '-' + Number(item.max || 0).toLocaleString('id-ID');
       tr.appendChild(minMaxTd);
 
       var rateTd = document.createElement('td');
-      rateTd.className = 'mono';
+      rateTd.className = 'font-mono text-dim';
       rateTd.textContent = rateStr;
       tr.appendChild(rateTd);
 
       var sellTd = document.createElement('td');
-      sellTd.className = 'mono';
-      sellTd.style.color = 'var(--cyan)';
+      sellTd.className = 'font-mono text-primary font-bold';
       sellTd.textContent = sellStr;
       tr.appendChild(sellTd);
 
       var actionTd = document.createElement('td');
       if (item.alreadyImported) {
         var span = document.createElement('span');
-        span.className = 'badge completed';
-        span.textContent = 'Sudah diimport';
+        span.className = 'badge-modern completed';
+        span.innerHTML = '<i class="fa-solid fa-check"></i> Sudah diimport';
         actionTd.appendChild(span);
       } else {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn small solid';
-        btn.textContent = 'Import';
+        btn.className = 'btn-modern solid small';
+        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Import';
         btn.addEventListener('click', function () { importSingle(item, nameInput.value.trim(), btn); });
         actionTd.appendChild(btn);
       }
@@ -279,11 +401,11 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data.ok) { alert('Gagal: ' + data.error); btn.disabled = false; btn.textContent = 'Import'; return; }
+        if (!data.ok) { alert('Gagal: ' + data.error); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Import'; return; }
         item.alreadyImported = true;
         renderResultsTable();
       })
-      .catch(function (err) { alert('Gagal: ' + err.message); btn.disabled = false; btn.textContent = 'Import'; });
+      .catch(function (err) { alert('Gagal: ' + err.message); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Import'; });
   }
 
   searchBtn.addEventListener('click', doSearch);
@@ -301,7 +423,7 @@
     var items = [];
     checked.forEach(function (chk) {
       var item = lastResults[Number(chk.dataset.idx)];
-      var nameInput = chk.closest('tr').querySelector('.df-row-name');
+      var nameInput = chk.closest('tr').querySelector('.input-modern.mini');
       var name = nameInput ? nameInput.value.trim() : item.name;
       if (!name) return;
       items.push({
@@ -317,7 +439,7 @@
     if (!items.length) { alert('Judul layanan tidak boleh kosong.'); return; }
 
     addSelectedBtn.disabled = true;
-    addSelectedBtn.textContent = 'Menambahkan...';
+    addSelectedBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menambahkan...';
     fetch('/admin/indosmm/import-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -325,17 +447,68 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
+        addSelectedBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Import Terpilih';
         if (!data.ok) { alert('Gagal: ' + data.error); return; }
         alert(data.message);
         location.reload();
       })
       .catch(function (err) {
-        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
+        addSelectedBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Import Terpilih';
         alert('Gagal: ' + err.message);
       });
   });
 })();
+
+// ===== BULK UNLINK INDOSMM =====
+function toggleTableUnlink(headerCheckbox) {
+  var table = headerCheckbox.closest('table');
+  var checkboxes = table.querySelectorAll('.sm-unlink-chk');
+  checkboxes.forEach(function(chk) { 
+    chk.checked = headerCheckbox.checked; 
+  });
+  updateBulkUnlinkBtn();
+}
+
+function updateBulkUnlinkBtn() {
+  var checkedCount = document.querySelectorAll('.sm-unlink-chk:checked').length;
+  var btn = document.getElementById('btnBulkUnlink');
+  if (checkedCount > 0) {
+    btn.style.display = 'inline-flex';
+    btn.innerHTML = '<i class="fa-solid fa-link-slash"></i> Lepas Terpilih (' + checkedCount + ')';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function processBulkUnlink() {
+  var checkboxes = document.querySelectorAll('.sm-unlink-chk:checked');
+  if (checkboxes.length === 0) return;
+  
+  if (!confirm('Apakah Anda yakin ingin melepas ' + checkboxes.length + ' layanan terpilih dari IndoSMM? (Checkout otomatis akan berhenti)')) {
+    return;
+  }
+
+  var btn = document.getElementById('btnBulkUnlink');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+
+  var promises = Array.from(checkboxes).map(function(chk) {
+    return fetch('/admin/indosmm/' + chk.value + '/unlink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  });
+
+  Promise.all(promises)
+    .then(function() {
+      alert(checkboxes.length + ' layanan berhasil dilepas!');
+      location.reload();
+    })
+    .catch(function(err) {
+      alert('Terjadi kesalahan saat memproses sebagian data. Halaman akan dimuat ulang.');
+      location.reload();
+    });
+}
 </script>
 </body>
 </html>

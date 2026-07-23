@@ -6,94 +6,198 @@
   <%- include('../partials/admin-sidebar', { active: 'users' }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2>Kelola User</h2></div>
-
-    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
-    <% if (typeof success !== 'undefined' && success) { %>
-      <div class="alert" style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.35); color:var(--success);"><%= success %></div>
-    <% } %>
-
-    <div class="card" style="margin-bottom:14px;">
-      <input type="text" id="userSearchInput" placeholder="Cari username atau email..." style="width:100%;">
+    
+    <div class="admin-header-modern">
+      <h2><i class="fa-solid fa-users" style="color: var(--primary-color);"></i> Kelola Pengguna</h2>
     </div>
-    <div id="userSearchEmpty" class="card empty-state" style="display:none;">User "<span id="userSearchEmptyTerm"></span>" tidak ditemukan.</div>
 
-    <div class="card">
-      <table>
-        <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Member</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% users.forEach(u => { %>
-          <tr data-user-row data-username="<%= u.username.toLowerCase() %>" data-email="<%= (u.email || '').toLowerCase() %>">
-            <td><%= u.username %></td>
-            <td><%= u.email || '-' %></td>
-            <td class="mono">Rp <%= u.saldo.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= u.role %>"><%= u.role %></span></td>
-            <td><span class="badge member-<%= u.membership || 'reguler' %>"><%= (u.membership || 'reguler') %></span></td>
-            <td><span class="badge <%= u.status === 'active' ? 'active' : 'cancelled' %>"><%= u.status %></span></td>
-            <td>
-              <div class="flex" style="flex-wrap:wrap;">
-                <form method="POST" action="/admin/users/<%= u.id %>/saldo" class="flex">
-                  <input type="number" name="amount" placeholder="+/- saldo" style="width:110px;">
-                  <button class="btn small solid" type="submit">Set</button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/status">
-                  <input type="hidden" name="status" value="<%= u.status === 'active' ? 'banned' : 'active' %>">
-                  <button class="btn small <%= u.status === 'active' ? 'danger' : 'ghost' %>" type="submit">
-                    <%= u.status === 'active' ? 'Blokir' : 'Aktifkan' %>
-                  </button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/role">
-                  <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
-                  <button class="btn small ghost" type="submit">
-                    Jadikan <%= u.role === 'admin' ? 'User' : 'Admin' %>
-                  </button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/membership" class="flex">
-                  <select name="membership" style="width:110px;">
-                    <% membershipList.forEach(t => { %>
-                      <option value="<%= t.key %>" <%= (u.membership || 'reguler') === t.key ? 'selected' : '' %>><%= t.label %></option>
-                    <% }) %>
-                  </select>
-                  <button class="btn small magenta" type="submit">Set Member</button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/password" class="flex" style="gap:4px;"
-                      onsubmit="return confirm('Ganti password <%= u.username %>?');">
-                  <input type="password" name="newPassword" placeholder="Password baru" minlength="6" style="width:100px;" required>
-                  <input type="password" name="newPassword2" placeholder="Ulangi" minlength="6" style="width:90px;" required>
-                  <button class="btn small ghost" type="submit">Ganti Password</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
+    <% if (success) { %><div class="alert success"><i class="fa-solid fa-circle-check"></i> <%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div><% } %>
+
+    <!-- Statistik Singkat (Opsional) -->
+    <div class="grid grid-2 mb-24">
+      <div class="card card-modern" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 123, 255, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+          <div class="helper-text-modern" style="margin-bottom: 4px;">Total Member</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-dark);"><%= users.length %> User</div>
+        </div>
+      </div>
+      <div class="card card-modern" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(34, 197, 94, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+          <div class="helper-text-modern" style="margin-bottom: 4px;">Total Saldo Member</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-dark);">
+            Rp <%= users.reduce((total, u) => total + (u.saldo || 0), 0).toLocaleString('id-ID') %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabel Daftar Pengguna -->
+    <div class="card card-modern">
+      <div class="flex-between-modern mb-16">
+        <h3 class="card-title-modern mb-0"><i class="fa-solid fa-list-ul"></i> Daftar Member</h3>
+        
+        <!-- Search Bar -->
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchUser" class="input-modern mini" placeholder="Cari username/email..." onkeyup="filterUsers()" style="width: 250px;">
+        </div>
+      </div>
+
+      <% if (users.length === 0) { %>
+        <div class="empty-state-modern">
+          <i class="fa-solid fa-users-slash empty-icon"></i>
+          <div>Belum ada pengguna yang terdaftar di sistem.</div>
+        </div>
+      <% } else { %>
+        <div class="table-responsive-modern">
+          <table class="table-modern" id="usersTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Informasi Akun</th>
+                <th>Membership</th>
+                <th>Saldo Saat Ini</th>
+                <th class="text-right">Aksi / Update Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% users.forEach(user => { %>
+              <tr class="user-row" data-name="<%= user.username.toLowerCase() %>" data-email="<%= (user.email || '').toLowerCase() %>">
+                <td class="font-mono text-dim" style="font-size: 11px;">#<%= user.id %></td>
+                <td>
+                  <div class="font-medium" style="font-size: 14px;"><%= user.username %></div>
+                  <div class="helper-text-modern" style="font-size: 12px;"><i class="fa-solid fa-envelope" style="opacity:0.7; margin-right:4px;"></i> <%= user.email || '-' %></div>
+                </td>
+                <td>
+                  <% if (user.role === 'admin') { %>
+                    <span class="badge-modern admin"><i class="fa-solid fa-crown"></i> Admin</span>
+                  <% } else if (user.role === 'platinum') { %>
+                    <span class="badge-modern platinum"><i class="fa-solid fa-medal"></i> Platinum</span>
+                  <% } else if (user.role === 'gold') { %>
+                    <span class="badge-modern gold"><i class="fa-solid fa-star"></i> Gold</span>
+                  <% } else { %>
+                    <span class="badge-modern neutral">Reguler</span>
+                  <% } %>
+                </td>
+                <td class="font-mono text-primary font-bold">Rp <%= user.saldo.toLocaleString('id-ID') %></td>
+                
+                <td class="text-right">
+                  <% if (user.role !== 'admin') { %>
+                    <form method="POST" action="/admin/users/<%= user.id %>/update" class="inline-flex-form" style="justify-content: flex-end; gap: 8px;">
+                      
+                      <!-- Update Role -->
+                      <select name="role" class="input-modern mini" style="width: 110px;" title="Ubah Role">
+                        <option value="reguler" <%= user.role === 'reguler' ? 'selected' : '' %>>Reguler</option>
+                        <option value="gold" <%= user.role === 'gold' ? 'selected' : '' %>>Gold</option>
+                        <option value="platinum" <%= user.role === 'platinum' ? 'selected' : '' %>>Platinum</option>
+                      </select>
+
+                      <!-- Update Saldo -->
+                      <input type="number" name="saldoAksi" class="input-modern mini" placeholder="Nominal" title="Nominal Saldo (Kosongkan jika tidak ingin ubah saldo)" style="width: 110px;">
+                      
+                      <select name="saldoTipe" class="input-modern mini" style="width: 60px; padding: 6px;" title="Tipe Update Saldo">
+                        <option value="tambah">+</option>
+                        <option value="kurang">-</option>
+                        <option value="set">=</option>
+                      </select>
+
+                      <button type="submit" class="btn-modern primary box-btn" title="Simpan Perubahan"><i class="fa-solid fa-floppy-disk"></i></button>
+                    </form>
+                  <% } else { %>
+                    <span class="badge-modern neutral" style="opacity: 0.5;">Aksi dinonaktifkan (Admin)</span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
     </div>
   </div>
 </div>
 
-<script>
-(function () {
-  var input = document.getElementById('userSearchInput');
-  if (!input) return;
-  var rows = document.querySelectorAll('[data-user-row]');
-  var emptyBox = document.getElementById('userSearchEmpty');
-  var emptyTerm = document.getElementById('userSearchEmptyTerm');
+<style>
+  /* ADMIN USERS MODERN CSS STYLES */
+  .admin-header-modern { margin-bottom: 24px; }
+  .admin-header-modern h2 { font-size: 24px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; margin: 0; }
+  
+  .card-modern { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow-sm); }
+  .card-title-modern { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 10px; margin: 0; }
+  
+  .helper-text-modern { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  
+  .input-modern { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--bg-color); color: var(--text-dark); transition: 0.2s; outline: none; }
+  .input-modern:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); background: var(--card-bg); }
+  .input-modern.mini { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  
+  .search-input-wrapper { position: relative; }
+  .search-input-wrapper i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+  .search-input-wrapper input { padding-left: 32px !important; }
+  
+  .btn-modern { font-weight: 600; cursor: pointer; transition: 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; }
+  .btn-modern.primary { background: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
+  .btn-modern.primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-modern.box-btn { padding: 6px; width: 32px; height: 32px; border-radius: 6px; font-size: 14px; }
+  
+  .table-responsive-modern { overflow-x: auto; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); }
+  .table-modern { width: 100%; border-collapse: collapse; text-align: left; background: var(--card-bg); font-size: 13px; }
+  .table-modern th { background: var(--bg-color); padding: 14px 16px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+  .table-modern td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+  .table-modern tr:last-child td { border-bottom: none; }
+  .table-modern tr:hover { background: rgba(0,0,0,0.01); }
+  
+  .font-mono { font-family: monospace; }
+  .font-medium { font-weight: 600; color: var(--text-dark); }
+  .font-bold { font-weight: 700; }
+  .text-dim { color: var(--text-muted); }
+  .text-primary { color: var(--primary-color); }
+  .text-right { text-align: right !important; }
+  
+  .badge-modern { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .badge-modern.neutral { background: var(--bg-color); color: var(--text-muted); border: 1px solid var(--border-color); }
+  .badge-modern.admin { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .badge-modern.gold { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+  .badge-modern.platinum { background: rgba(14, 165, 233, 0.1); color: #0284c7; }
+  
+  .inline-flex-form { display: flex; align-items: center; flex-wrap: wrap; }
+  .flex-between-modern { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  
+  .empty-state-modern { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: var(--bg-color); border-radius: 12px; border: 1px dashed var(--border-color); }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; color: #cbd5e1; }
+  
+  @media (max-width: 992px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .inline-flex-form { justify-content: flex-start; margin-top: 8px; }
+  }
+</style>
 
-  input.addEventListener('input', function () {
-    var q = input.value.trim().toLowerCase();
-    var visible = 0;
-    rows.forEach(function (row) {
-      var match = !q || row.dataset.username.includes(q) || row.dataset.email.includes(q);
-      row.style.display = match ? '' : 'none';
-      if (match) visible++;
+<script>
+  // Filter ringan di sisi klien (Client-side filtering)
+  function filterUsers() {
+    const search = document.getElementById('searchUser').value.toLowerCase();
+    const rows = document.querySelectorAll('.user-row');
+
+    rows.forEach(row => {
+      const rowName = row.getAttribute('data-name');
+      const rowEmail = row.getAttribute('data-email');
+      
+      if (search === "" || rowName.includes(search) || rowEmail.includes(search)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
     });
-    if (emptyBox) {
-      emptyBox.style.display = (q && visible === 0) ? '' : 'none';
-      if (emptyTerm) emptyTerm.textContent = input.value.trim();
-    }
-  });
-})();
+  }
 </script>
 </body>
 </html>
