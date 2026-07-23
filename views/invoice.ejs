@@ -102,6 +102,13 @@
           </div>
         <% } %>
 
+        <% if (order.status === 'completed' && usageInstructions) { %>
+          <div class="inv-detail-box">
+            <div class="inv-detail-title"><i class="fa-solid fa-circle-info"></i> Cara Menggunakan</div>
+            <div class="inv-detail-content"><%= usageInstructions %></div>
+          </div>
+        <% } %>
+
         <div class="inv-barcode">* * * * * <%= order.id %> * * * * *</div>
 
         <div class="inv-actions">

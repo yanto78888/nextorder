@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %>
+<style>
+.rs-amount { font-weight: 700; white-space: nowrap; }
+.rs-amount.masuk { color: var(--success); }
+.rs-amount.keluar { color: var(--danger); }
+.rs-ref { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'riwayat-saldo', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar">
+      <h2>Riwayat Saldo</h2>
+      <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+    </div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="grid grid-2">
+      <div class="card stat-card success">
+        <div class="label">Total Saldo Masuk</div>
+        <div class="value">Rp <%= totalMasuk.toLocaleString('id-ID') %></div>
+      </div>
+      <div class="card stat-card danger">
+        <div class="label">Total Saldo Keluar</div>
+        <div class="value">Rp <%= totalKeluar.toLocaleString('id-ID') %></div>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Mutasi Saldo</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (entries.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat mutasi saldo. Yuk <a href="/topup" style="color:var(--cyan)">top up saldo</a> pertamamu.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Jenis</th><th>Jumlah</th><th>Saldo Akhir</th></tr></thead>
+        <tbody>
+          <% entries.forEach(e => { %>
+          <tr>
+            <td style="white-space:nowrap;"><%= new Date(e.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <%= e.reason %>
+              <% if (e.refType === 'order' && e.refId) { %>
+                <div class="rs-ref">
+                  <a href="/riwayat/<%= e.refId %>" style="color:var(--cyan);"><%= e.refId %></a>
+                </div>
+              <% } else if (e.refType === 'deposit' && e.refId) { %>
+                <div class="rs-ref mono"><%= e.refId %></div>
+              <% } %>
+            </td>
+            <td>
+              <span class="badge <%= e.type === 'masuk' ? 'completed' : 'cancelled' %>">
+                <%= e.type === 'masuk' ? 'Masuk' : 'Keluar' %>
+              </span>
+            </td>
+            <td class="mono rs-amount <%= e.type %>">
+              <%= e.type === 'masuk' ? '+' : '-' %> Rp <%= e.amount.toLocaleString('id-ID') %>
+            </td>
+            <td class="mono">Rp <%= e.balanceAfter.toLocaleString('id-ID') %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+</body>
+</html>

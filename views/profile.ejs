@@ -33,7 +33,10 @@
       <div class="card stat-card">
         <div class="label">Saldo Aktif</div>
         <div class="value">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
-        <a href="/topup" class="btn small solid" style="align-self:flex-start;">+ Top Up</a>
+        <div class="flex" style="gap:8px;">
+          <a href="/topup" class="btn small solid">+ Top Up</a>
+          <a href="/riwayat-saldo" class="btn small ghost">Riwayat Saldo</a>
+        </div>
       </div>
       <div class="card stat-card magenta">
         <div class="label">Total Order</div>
