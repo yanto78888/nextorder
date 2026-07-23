@@ -91,8 +91,11 @@
           <input type="number" name="costPrice" placeholder="0" value="<%= (editProduct && editProduct.costPrice) ? editProduct.costPrice : '' %>">
           <div class="helper-text">Modal/harga beli produk ini (bukan harga jual). Dipakai buat menghitung Pendapatan Bersih di grafik Dashboard. Kosongkan/isi 0 kalau belum tahu/belum mau dihitung -- Pendapatan Bersih akan dianggap sama dengan Pendapatan Kotor untuk produk ini.</div>
           <label>Tambah Stok Otomatis</label>
-          <textarea name="stockItems" placeholder="Boleh banyak baris (misal data akun lengkap: email, password, PIN, dll). Semua isian ini akan dihitung sebagai 1 stok."></textarea>
-          <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. 1x tambah = 1 stok (isi boleh banyak baris). Jika stok habis, order masuk notifikasi manual admin.</div>
+          <textarea name="stockItems" placeholder="1 akun: boleh banyak baris (email, password, PIN, dll)&#10;Banyak akun sekaligus: pisahkan tiap akun pakai karakter | (pipe)&#10;Contoh: akun1@mail.com:pass1|akun2@mail.com:pass2|akun3@mail.com:pass3"></textarea>
+          <div class="helper-text">Dipakai kalau sumber produk "Stok Manual". Stok ini akan dikirim otomatis ke user setelah pembayaran/saldo terpotong. Tanpa tanda <code>|</code>, seluruh isian (boleh banyak baris) dihitung sebagai <b>1 stok</b>. Mau tambah banyak stok sekaligus? Pisahkan tiap stok dengan tanda <code>|</code> -- tiap potongan jadi 1 stok terpisah. Jika stok habis, order masuk notifikasi manual admin.</div>
+          <label>Cara Menggunakan Produk <span class="helper-text">(opsional)</span></label>
+          <textarea name="usageInstructions" placeholder="Contoh: 1. Login pakai email &amp; password di atas&#10;2. Jangan ganti email/nomor HP yang terdaftar&#10;3. Garansi 7 hari kalau akun kena banned"><%= editProduct ? editProduct.usageInstructions : '' %></textarea>
+          <div class="helper-text">Ditampilkan 1x di invoice setelah pesanan selesai, terpisah dari kode/akun yang dikirim -- <b>tidak</b> ikut terduplikat walau user beli banyak (qty berapa pun tetap tampil 1x). Kosongkan jika tidak perlu.</div>
           <% } %>
           <label>Foto Produk</label>
           <% if (editProduct && editProduct.thumbnail) { %>
@@ -174,7 +177,8 @@
         <p class="helper-text">Tambah stok akun/kode digital di sini. Sistem mengambil stok paling atas saat user membeli. Hapus stok jika sudah tidak valid.</p>
         <form method="POST" action="/admin/produk/<%= editProduct.id %>/stock">
           <label>Tambah Stok Baru</label>
-          <textarea name="stockItems" placeholder="Boleh banyak baris, semua isian ini dihitung sebagai 1 stok" required></textarea>
+          <textarea name="stockItems" placeholder="1 akun: boleh banyak baris. Banyak akun sekaligus: pisahkan tiap akun pakai tanda | (pipe)" required></textarea>
+          <div class="helper-text">Tanpa tanda <code>|</code> = 1 stok (boleh banyak baris). Pakai tanda <code>|</code> buat pisah banyak stok dalam sekali submit, mis. <code>akun1|akun2|akun3</code>.</div>
           <button class="btn solid mt-16" type="submit">+ Add Stock</button>
         </form>
 
