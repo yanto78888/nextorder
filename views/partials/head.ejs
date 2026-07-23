@@ -1,92 +1,83 @@
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link rel="stylesheet" href="/css/style.css">
-<%
-  // ---------- Meta SEO & Open Graph ----------
-  // Semua halaman otomatis dapat title/description/OG yang masuk akal dari config.siteName +
-  // config.seo (diisi di Admin > Setting), TANPA harus di-set manual satu-satu per halaman.
-  // Halaman yang mau override cukup kirim local ini pas res.render(...):
-  //   pageTitle       - judul spesifik halaman (kalau kosong: "{siteName} - {siteTagline}")
-  //   pageDescription - deskripsi spesifik (kalau kosong: config.seo.metaDescription)
-  //   pageImage       - path/URL gambar buat og:image (relatif otomatis digabung ke siteOrigin)
-  //   noindex         - true buat halaman privat/admin (dashboard, riwayat, panel admin, dst)
-  const cfg = typeof config !== 'undefined' && config ? config : {};
-  const seo = cfg.seo || {};
-  const siteName = cfg.siteName || 'NEXORDER';
-  const siteTagline = cfg.siteTagline || '';
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title><%= typeof title !== 'undefined' ? title + ' - ' + (config.siteName || 'TOPUP SHOP') : (config.siteName || 'TOPUP SHOP') %></title>
+<meta name="description" content="<%= typeof description !== 'undefined' ? description : (config.siteTagline || 'Layanan top up game & produk digital otomatis, aman, dan terpercaya.') %>">
+<meta name="theme-color" content="#007bff"> <!-- Ganti hex color sesuai dengan --primary-color di bawah -->
 
-  const metaTitle = (typeof pageTitle !== 'undefined' && pageTitle)
-    ? pageTitle
-    : (siteTagline ? `${siteName} - ${siteTagline}` : siteName);
+<!-- Favicon -->
+<link rel="icon" href="<%= (typeof config !== 'undefined' && config.favicon) ? config.favicon : '/assets/favicon.ico' %>" type="image/x-icon">
+<link rel="shortcut icon" href="<%= (typeof config !== 'undefined' && config.favicon) ? config.favicon : '/assets/favicon.ico' %>" type="image/x-icon">
 
-  const rawDescription = (typeof pageDescription !== 'undefined' && pageDescription)
-    ? pageDescription
-    : (seo.metaDescription || siteTagline || `Top up game & produk digital di ${siteName}, proses cepat dan aman.`);
-  const metaDescription = String(rawDescription).replace(/\s+/g, ' ').trim().slice(0, 160);
+<!-- Google Fonts: Menggunakan 'Inter' untuk tampilan bersih, modern, dan profesional -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-  const origin = typeof siteOrigin !== 'undefined' && siteOrigin ? siteOrigin : '';
-  const pagePath = typeof currentPath !== 'undefined' && currentPath ? currentPath : '/';
-  const canonicalUrl = origin ? origin + pagePath : '';
+<!-- FontAwesome untuk Icon -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  const rawImage = (typeof pageImage !== 'undefined' && pageImage) ? pageImage : (seo.ogImage || '');
-  const absoluteImage = rawImage
-    ? (/^https?:\/\//i.test(rawImage) ? rawImage : origin + (rawImage.startsWith('/') ? rawImage : '/' + rawImage))
-    : '';
-
-  const isNoindex = typeof noindex !== 'undefined' && noindex;
-%>
-<title><%= metaTitle %></title>
-<meta name="description" content="<%= metaDescription %>">
-<% if (seo.metaKeywords) { %><meta name="keywords" content="<%= seo.metaKeywords %>"><% } %>
-<meta name="robots" content="<%= isNoindex ? 'noindex, nofollow' : 'index, follow' %>">
-<% if (canonicalUrl) { %><link rel="canonical" href="<%= canonicalUrl %>"><% } %>
-
-<!-- Open Graph -->
-<meta property="og:type" content="<%= typeof ogType !== 'undefined' ? ogType : 'website' %>">
-<meta property="og:site_name" content="<%= siteName %>">
-<meta property="og:locale" content="id_ID">
-<meta property="og:title" content="<%= metaTitle %>">
-<meta property="og:description" content="<%= metaDescription %>">
-<% if (canonicalUrl) { %><meta property="og:url" content="<%= canonicalUrl %>"><% } %>
-<% if (absoluteImage) { %><meta property="og:image" content="<%= absoluteImage %>">
-<meta property="og:image:secure_url" content="<%= absoluteImage %>"><% } %>
-
-<!-- Twitter Card (dibaca juga oleh X/Twitter; WhatsApp & Telegram cukup pakai tag Open Graph di atas) -->
-<meta name="twitter:card" content="<%= absoluteImage ? 'summary_large_image' : 'summary' %>">
-<meta name="twitter:title" content="<%= metaTitle %>">
-<meta name="twitter:description" content="<%= metaDescription %>">
-<% if (absoluteImage) { %><meta name="twitter:image" content="<%= absoluteImage %>"><% } %>
-
-<!-- Efek salju jatuh (tema aksen biru), site-wide. Jumlah kepingnya disesuaikan lebar layar
-     biar gak berat di HP. Aman dipasang di <head> karena nunggu DOMContentLoaded dulu. -->
-<script>
-(function () {
-  function initSnow() {
-    if (document.querySelector('.snow-layer')) return;
-    var layer = document.createElement('div');
-    layer.className = 'snow-layer';
-    layer.setAttribute('aria-hidden', 'true');
-    var count = window.innerWidth < 520 ? 28 : 45;
-    for (var i = 0; i < count; i++) {
-      var flake = document.createElement('span');
-      flake.className = 'snowflake';
-      var size = (Math.random() * 3 + 2).toFixed(1);
-      flake.style.width = size + 'px';
-      flake.style.height = size + 'px';
-      flake.style.left = (Math.random() * 100).toFixed(2) + '%';
-      flake.style.opacity = (Math.random() * 0.5 + 0.35).toFixed(2);
-      flake.style.animationDuration = (Math.random() * 8 + 8).toFixed(2) + 's';
-      flake.style.animationDelay = (Math.random() * -16).toFixed(2) + 's';
-      flake.style.setProperty('--drift', (Math.random() * 60 - 30).toFixed(0) + 'px');
-      layer.appendChild(flake);
-    }
-    document.body.appendChild(layer);
+<!-- Global CSS & Variables -->
+<style>
+  :root {
+    /* 
+      TEMA WARNA UTAMA 
+      Ubah --primary-color di bawah ini, maka seluruh warna tombol, border aktif, 
+      dan teks utama di website akan otomatis berubah menyesuaikan!
+    */
+    --primary-color: #007bff;     /* Warna Utama (Biru Codashop) */
+    --primary-hover: #0056b3;     /* Warna saat tombol di-hover (Biru Gelap) */
+    
+    /* Warna Background & Elemen */
+    --bg-color: #f4f7f9;          /* Latar belakang halaman */
+    --card-bg: #ffffff;           /* Latar belakang kartu/kontainer */
+    
+    /* Warna Teks */
+    --text-dark: #1e293b;         /* Teks utama (Hitam keabu-abuan) */
+    --text-muted: #64748b;        /* Teks sekunder/keterangan (Abu-abu) */
+    
+    /* Border & Bayangan (Shadow) */
+    --border-color: #e2e8f0;      /* Garis tepi */
+    --border-radius: 16px;        /* Kelengkungan sudut seragam */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSnow);
-  } else {
-    initSnow();
+
+  /* Reset CSS & Base Styles */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
-})();
-</script>
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-dark);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar Kustom agar terlihat lebih rapi di Desktop */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-color);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Container Utama untuk membatasi lebar maksimal di layar besar */
+  .app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+  }
+</style>
