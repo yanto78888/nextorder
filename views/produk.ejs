@@ -107,7 +107,6 @@
                   <% if (p.isVariantGroup) { %>
                     <span class="nf-stock-tag ok"><%= p.variantCount %> pilihan</span>
                   <% } else { %>
-                    <% /* Produk Digiflazz dikirim otomatis oleh sistem, jadi selalu dianggap tersedia — gak ngandelin stockItems manual yang memang sengaja kosong. */ %>
                     <% const isAuto = p.provider === 'digiflazz'; %>
                     <% const stockCount = p.stockItems ? p.stockItems.length : 0; %>
                     <% const available = isAuto || stockCount > 0; %>
@@ -182,7 +181,6 @@
     d.addEventListener('click', function () { goTo(parseInt(d.dataset.idx)); resetAuto(); });
   });
 
-  // Touch swipe
   var startX = 0;
   track.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, { passive: true });
   track.addEventListener('touchend', function (e) {
@@ -193,7 +191,7 @@
   resetAuto();
 })();
 
-// ===== TAB KATEGORI (filter produk per kategori, tanpa reload) =====
+// ===== TAB KATEGORI =====
 (function () {
   var tabs = document.querySelectorAll('.cat-tab');
   var rows = document.querySelectorAll('[data-row]');
@@ -205,7 +203,6 @@
       tabs.forEach(function (t) { t.classList.remove('active'); });
       tab.classList.add('active');
 
-      // Pindah tab = mulai dari tampilan bersih, biar gak ketimpa sisa filter search sebelumnya
       if (searchInput) searchInput.value = '';
       var emptyBox = document.getElementById('produkSearchEmpty');
       if (emptyBox) emptyBox.style.display = 'none';
@@ -214,7 +211,6 @@
       rows.forEach(function (row) {
         row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none';
         row.querySelectorAll('.nf-card').forEach(function (card) { card.style.display = ''; });
-        // Balik ke kondisi terlipat tiap ganti tab, biar konsisten kayak baru buka halaman
         row.classList.remove('expanded');
         var moreBtn = row.querySelector('.nf-row-more');
         if (moreBtn) {
@@ -227,7 +223,7 @@
   });
 })();
 
-// ===== SEARCH PRODUK (live filter, tanpa reload) =====
+// ===== SEARCH PRODUK =====
 (function () {
   var input = document.getElementById('produkSearchInput');
   if (!input) return;
@@ -242,7 +238,6 @@
     var q = input.value.trim().toLowerCase();
     var totalVisible = 0;
 
-    // Lagi ngetik cari = jelajah lintas kategori, jadi tab balik ke "Semua"
     if (q && tabs.length) {
       tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.cat === 'all'); });
     }
@@ -257,8 +252,6 @@
       });
       row.style.display = visibleInRow > 0 ? '' : 'none';
 
-      // Lagi search = buka semua lipatan biar produk yang ketutup fold ikut ketemu;
-      // pas kotak pencarian dikosongkan lagi, balik ke kondisi terlipat (default) lagi.
       row.classList.toggle('expanded', !!q);
       var moreBtn = row.querySelector('.nf-row-more');
       if (moreBtn) {
@@ -277,7 +270,7 @@
   });
 })();
 
-// ===== LIPAT / TAMPILKAN SEMUA per kategori (3 kolom x 3 baris dulu) =====
+// ===== LIPAT / TAMPILKAN SEMUA =====
 (function () {
   var moreButtons = document.querySelectorAll('.nf-row-more');
   moreButtons.forEach(function (btn) {
@@ -288,7 +281,6 @@
       var textEl = btn.querySelector('.nf-row-more-text');
       if (textEl) textEl.textContent = expanded ? 'Tampilkan Lebih Sedikit' : ('Lihat Semua (' + btn.dataset.total + ')');
       if (!expanded) {
-        // Balik ke tampilan rapi: scroll dikit ke atas biar user gak "kehilangan" posisi row ini
         row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
