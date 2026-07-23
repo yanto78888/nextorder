@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .value, .mono { color: var(--cyan) !important; }
+  </style>
+</head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'profile' }) %>

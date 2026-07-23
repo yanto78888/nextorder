@@ -1,34 +1,35 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %>
-<style>
-.inv-wrap { max-width: 460px; margin: 0 auto; padding: 20px 16px 100px; }
-.inv-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; overflow: hidden; }
-.inv-status-band { padding: 20px; text-align: center; }
-.inv-status-band.completed { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(46,204,113,0.05)); }
-.inv-status-band.processing { background: linear-gradient(135deg, rgba(245,197,24,0.18), rgba(245,197,24,0.05)); }
-.inv-status-band.cancelled { background: linear-gradient(135deg, rgba(229,9,20,0.18), rgba(229,9,20,0.05)); }
-.inv-status-icon { font-size: 46px; margin-bottom: 8px; }
-.inv-status-icon.completed { color: #2ecc71; }
-.inv-status-icon.processing { color: #f5c518; }
-.inv-status-icon.cancelled { color: var(--danger); }
-.inv-status-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
-.inv-status-sub { font-size: 12px; color: var(--text-dim); }
-.inv-body { padding: 20px; }
-.inv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-glow); font-size: 13px; gap: 12px; }
-.inv-row:last-child { border-bottom: none; }
-.inv-row .inv-label { color: var(--text-dim); flex-shrink: 0; }
-.inv-row .inv-value { text-align: right; font-weight: 600; word-break: break-word; }
-.inv-row .inv-value.mono { font-family: 'Courier New', monospace; }
-.inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--bg-panel-2); }
-.inv-total-label { font-size: 13px; color: var(--text-dim); font-weight: 700; }
-.inv-total-value { font-size: 20px; font-weight: 800; color: var(--cyan); }
-.inv-detail-box { margin: 0 20px 20px; padding: 14px; background: var(--bg-panel-2); border-radius: 10px; border: 1px solid var(--border-glow); }
-.inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
-.inv-detail-content { font-size: 13px; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
-.inv-actions { display: flex; gap: 8px; padding: 0 20px 20px; }
-.inv-barcode { text-align: center; padding: 0 20px 20px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; font-family: 'Courier New', monospace; }
-</style>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .inv-total-value, .mono { color: var(--cyan) !important; }
+    .inv-wrap { max-width: 460px; margin: 0 auto; padding: 20px 16px 100px; }
+    .inv-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; overflow: hidden; }
+    .inv-status-band { padding: 20px; text-align: center; }
+    .inv-status-band.completed { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(46,204,113,0.05)); }
+    .inv-status-band.processing { background: linear-gradient(135deg, rgba(245,197,24,0.18), rgba(245,197,24,0.05)); }
+    .inv-status-band.cancelled { background: linear-gradient(135deg, rgba(229,9,20,0.18), rgba(229,9,20,0.05)); }
+    .inv-status-icon { font-size: 46px; margin-bottom: 8px; }
+    .inv-status-icon.completed { color: #2ecc71; }
+    .inv-status-icon.processing { color: #f5c518; }
+    .inv-status-icon.cancelled { color: var(--danger); }
+    .inv-status-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+    .inv-status-sub { font-size: 12px; color: var(--text-dim); }
+    .inv-body { padding: 20px; }
+    .inv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-glow); font-size: 13px; gap: 12px; }
+    .inv-row:last-child { border-bottom: none; }
+    .inv-row .inv-label { color: var(--text-dim); flex-shrink: 0; }
+    .inv-row .inv-value { text-align: right; font-weight: 600; word-break: break-word; }
+    .inv-row .inv-value.mono { font-family: 'Courier New', monospace; }
+    .inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--bg-panel-2); }
+    .inv-total-label { font-size: 13px; color: var(--text-dim); font-weight: 700; }
+    .inv-detail-box { margin: 0 20px 20px; padding: 14px; background: var(--bg-panel-2); border-radius: 10px; border: 1px solid var(--border-glow); }
+    .inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
+    .inv-detail-content { font-size: 13px; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
+    .inv-actions { display: flex; gap: 8px; padding: 0 20px 20px; }
+    .inv-barcode { text-align: center; padding: 0 20px 20px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -120,14 +121,5 @@
     </div>
   </div>
 </div>
-
-<% if (order.status === 'processing') { %>
-<script>
-(function () {
-  // Auto-refresh tiap 8 detik selama order masih diproses, biar user lihat update status tanpa refresh manual
-  setTimeout(function () { window.location.reload(); }, 8000);
-})();
-</script>
-<% } %>
 </body>
 </html>

@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %>
-<style>
-.rs-amount { font-weight: 700; white-space: nowrap; }
-.rs-amount.masuk { color: var(--success); }
-.rs-amount.keluar { color: var(--danger); }
-.rs-ref { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-</style>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .value, .mono, .user-chip { color: var(--cyan) !important; }
+    .rs-amount { font-weight: 700; white-space: nowrap; }
+    .rs-amount.masuk { color: var(--success); }
+    .rs-amount.keluar { color: var(--danger); }
+    .rs-ref { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  </style>
 </head>
 <body>
 <div class="app-shell">

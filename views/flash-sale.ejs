@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .fs-price-now, .mono { color: var(--cyan) !important; }
+  </style>
+</head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
 
   <div class="main no-bottom-nav">
-
     <div class="topbar" style="margin-bottom: 12px;">
       <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-bolt"></i> <%= settings.title || 'Flash Sale' %></h2>
     </div>

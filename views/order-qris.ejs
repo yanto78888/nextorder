@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %>
-<style>
-.qris-wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 100px; }
-.qris-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; padding: 24px 20px; text-align: center; }
-.qris-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
-.qris-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
-.qris-img { width: 220px; height: 220px; border-radius: 12px; border: 2px solid var(--border-glow); object-fit: contain; background: #fff; margin: 0 auto 18px; display: block; }
-.qris-amount { font-size: 26px; font-weight: 700; color: var(--cyan); margin-bottom: 4px; }
-.qris-note { font-size: 11px; color: var(--text-dim); margin-bottom: 18px; }
-.qris-status { padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
-.qris-status.pending { background: rgba(245,197,24,0.1); border: 1px solid rgba(245,197,24,0.3); color: #f5c518; }
-.qris-status.paid { background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); color: #2ecc71; }
-.qris-status.expired { background: rgba(229,9,20,0.1); border: 1px solid rgba(229,9,20,0.3); color: var(--cyan); }
-.qris-timer { font-size: 20px; font-weight: 700; color: var(--magenta); margin-bottom: 6px; }
-.qris-product-info { background: var(--bg-panel-2); border-radius: 8px; padding: 12px; margin-bottom: 18px; text-align: left; }
-.qris-product-info .pname { font-weight: 700; font-size: 14px; }
-.qris-product-info .pqty { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-</style>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    .qris-amount, .qris-timer, .mono { color: var(--cyan) !important; }
+    .qris-wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 100px; }
+    .qris-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; padding: 24px 20px; text-align: center; }
+    .qris-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+    .qris-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+    .qris-img { width: 220px; height: 220px; border-radius: 12px; border: 2px solid var(--border-glow); object-fit: contain; background: #fff; margin: 0 auto 18px; display: block; }
+    .qris-note { font-size: 11px; color: var(--text-dim); margin-bottom: 18px; }
+    .qris-status { padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+    .qris-status.pending { background: rgba(245,197,24,0.1); border: 1px solid rgba(245,197,24,0.3); color: #f5c518; }
+    .qris-status.paid { background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); color: #2ecc71; }
+    .qris-status.expired { background: rgba(229,9,20,0.1); border: 1px solid rgba(229,9,20,0.3); color: var(--cyan); }
+    .qris-product-info { background: var(--bg-panel-2); border-radius: 8px; padding: 12px; margin-bottom: 18px; text-align: left; }
+    .qris-product-info .pname { font-weight: 700; font-size: 14px; }
+    .qris-product-info .pqty { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -51,55 +51,5 @@
     </div>
   </div>
 </div>
-
-<script>
-(function () {
-  var trxid = '<%= deposit.trxid %>';
-  var expiredAt = new Date('<%= deposit.expiredAt %>').getTime();
-  var statusEl = document.getElementById('statusEl');
-  var timerEl = document.getElementById('timerEl');
-  var redirected = false;
-
-  function updateTimer() {
-    var now = Date.now();
-    var diff = Math.max(0, expiredAt - now);
-    var m = Math.floor(diff / 60000);
-    var s = Math.floor((diff % 60000) / 1000);
-    if (timerEl) timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-    if (diff <= 0 && !redirected) {
-      redirected = true;
-      if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
-      clearInterval(timerInterval);
-      clearInterval(pollInterval);
-    }
-  }
-  updateTimer();
-  var timerInterval = setInterval(updateTimer, 1000);
-
-  function pollStatus() {
-    fetch('/api/topup/status/' + trxid)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.status === 'paid') {
-          clearInterval(pollInterval);
-          clearInterval(timerInterval);
-          redirected = true;
-          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pembayaran diterima! Memproses pesanan...'; statusEl.className = 'qris-status paid'; }
-          // saldo sudah ditambah oleh deposit handler, sekarang buat order via redirect
-          setTimeout(function () {
-            window.location.href = '/order/qris-confirm?trxid=' + trxid;
-          }, 1500);
-        } else if (data.status === 'expired' || data.status === 'cancelled') {
-          clearInterval(pollInterval);
-          clearInterval(timerInterval);
-          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
-        }
-      })
-      .catch(function() {});
-  }
-
-  var pollInterval = setInterval(pollStatus, 5000);
-})();
-</script>
 </body>
 </html>

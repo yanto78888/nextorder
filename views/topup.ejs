@@ -1,9 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head>
+  <%- include('partials/head') %>
+  <style>
+    /* Mengubah angka dan teks khusus/mono menjadi cyan */
+    .mono, .user-chip, #qr-timer, .qr-box .qr-timer {
+      color: var(--cyan) !important;
+    }
+  </style>
+</head>
 <body>
 <div class="app-shell">
-  <%- include('partials/user-sidebar', { active: 'topup' }) %>
+  <%- include('partials/user-sidebar', { active: 'topup', user, config }) %>
 
   <div class="main no-bottom-nav">
     <div class="topbar">
