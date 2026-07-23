@@ -3,7 +3,12 @@
 <head>
   <%- include('partials/head') %>
   <style>
-    .value, .mono { color: var(--cyan) !important; }
+    /* Style yang spesifik HANYA untuk layout profil */
+    .avatar-card-preview { width: 80px; height: 80px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; overflow: hidden; margin-right: 20px; flex-shrink: 0; }
+    .avatar-card-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-input { width: 100%; padding: 14px; border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; transition: 0.3s; background: #fff; }
+    .profile-input:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px; }
   </style>
 </head>
 <body>
@@ -11,148 +16,73 @@
   <%- include('partials/user-sidebar', { active: 'profile' }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2>Profil Saya</h2></div>
+    <div class="detail-section-title"><i class="fa-solid fa-user-gear"></i> Profil Saya</div>
 
-    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
-    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error" style="margin-bottom: 20px;"><%= error %></div><% } %>
+    <% if (success) { %><div style="background:#f0fdf4; color:#059669; padding:15px; border-radius:8px; border: 1px solid #a7f3d0; margin-bottom: 20px;"><i class="fa-solid fa-circle-check"></i> <%= success %></div><% } %>
 
-    <div class="card avatar-card">
+    <div class="card" style="display: flex; align-items: center;">
       <div class="avatar-card-preview">
         <% if (user.avatar) { %>
           <img src="<%= user.avatar %>" alt="<%= user.username %>">
         <% } else { %>
-          <span class="avatar-initial"><%= (user.username || '?').charAt(0).toUpperCase() %></span>
+          <%= (user.username || '?').charAt(0).toUpperCase() %>
         <% } %>
       </div>
-      <div class="avatar-card-form">
-        <h3 style="margin-bottom:2px;">Foto Profil</h3>
-        <div class="helper-text" style="margin-top:0;">JPG, PNG, WEBP, atau GIF, maksimal 2MB. Foto ini tampil bulat di pojok kanan atas.</div>
-        <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="avatar-form">
-          <input type="file" name="avatarFile" accept="image/jpeg,image/png,image/webp,image/gif" required>
-          <button class="btn small solid mt-16" type="submit">Ganti Foto</button>
+      <div style="flex: 1;">
+        <h3 style="margin:0 0 5px 0; color: var(--text-dark);">Foto Profil</h3>
+        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Format didukung: JPG, PNG, WEBP, atau GIF (Maks. 2MB).</div>
+        <form method="POST" action="/profile/avatar" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+          <input type="file" name="danimaru" accept="image/jpeg,image/png,image/webp,image/gif" required style="font-size: 14px;">
+          <button class="buy-main-btn" type="submit" style="padding: 10px 20px; width: auto; font-size: 14px;"><i class="fa-solid fa-upload"></i> Upload</button>
         </form>
       </div>
     </div>
 
-    <div class="grid grid-3">
-      <div class="card stat-card">
-        <div class="label">Saldo Aktif</div>
-        <div class="value">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
-        <div class="flex" style="gap:8px;">
-          <a href="/topup" class="btn small solid">+ Top Up</a>
-          <a href="/riwayat-saldo" class="btn small ghost">Riwayat Saldo</a>
-        </div>
+    <div class="stat-grid">
+      <div class="card" style="margin-bottom: 0; text-align: center;">
+        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: bold;">Saldo Aktif</div>
+        <div style="font-size: 24px; font-weight: 900; color: var(--primary-color); margin: 8px 0;">Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <a href="/topup" class="buy-main-btn" style="padding: 8px; font-size: 13px; display: inline-block; text-align: center; text-decoration: none;"><i class="fa-solid fa-plus"></i> Top Up Saldo</a>
       </div>
-      <div class="card stat-card magenta">
-        <div class="label">Total Order</div>
-        <div class="value"><%= totalOrder %></div>
-      </div>
-      <div class="card stat-card success">
-        <div class="label">Total Pembelanjaan</div>
-        <div class="value">Rp <%= totalSpent.toLocaleString('id-ID') %></div>
+      <div class="card" style="margin-bottom: 0; text-align: center;">
+        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: bold;">Total Order</div>
+        <div style="font-size: 24px; font-weight: 900; color: var(--text-dark); margin-top: 8px;"><%= totalOrder %></div>
       </div>
     </div>
 
-    <div class="section-title"><h3>Order Terbaru</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (recentOrders.length === 0) { %>
-        <div class="empty-state">Belum ada order. <a href="/produk" style="color:var(--cyan)">Mulai belanja →</a></div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>Produk</th><th>Total</th><th>Status</th><th>Tanggal</th></tr></thead>
-        <tbody>
-          <% recentOrders.forEach(o => { %>
-          <tr>
-            <td class="mono"><%= o.id %></td>
-            <td><%= o.productName %></td>
-            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
-            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
-    </div>
-
-    <div class="section-title"><h3>Akun</h3><div class="line"></div></div>
-    <div class="grid grid-2">
-      <div class="card">
-        <h3>Informasi Akun</h3>
+    <div class="detail-section-title"><i class="fa-solid fa-shield-halved"></i> Pengaturan Akun</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px;">
+      <div class="card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; color: var(--text-dark);">Informasi Pribadi</h3>
         <form method="POST" action="/profile">
-          <label>Username</label>
-          <input type="text" value="<%= user.username %>" disabled>
-          <label>Email</label>
-          <input type="email" name="email" value="<%= user.email || '' %>">
-          <label>Saldo</label>
-          <input type="text" value="Rp <%= user.saldo.toLocaleString('id-ID') %>" disabled class="mono">
-          <label>Status Member</label>
-          <input type="text" value="<%= currentTier.icon %> <%= currentTier.label %>" disabled>
-          <button class="btn solid mt-24" type="submit">Simpan Perubahan</button>
+          <label style="font-size:13px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Username</label>
+          <input type="text" class="profile-input" value="<%= user.username %>" disabled>
+          
+          <label style="font-size:13px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Email</label>
+          <input type="email" name="email" class="profile-input" value="<%= user.email || '' %>">
+          
+          <label style="font-size:13px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Status Member</label>
+          <input type="text" class="profile-input" value="<%= currentTier.icon %> <%= currentTier.label %>" disabled>
+          
+          <button class="buy-main-btn" type="submit" style="padding: 12px; font-size: 15px;"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
         </form>
       </div>
 
-      <div class="card">
-        <h3><%= user.password ? 'Ganti Password' : 'Buat Password' %></h3>
-        <% if (!user.password) { %>
-          <div class="helper-text" style="margin-top:0;">Akun kamu terdaftar lewat Google dan belum punya password lokal. Buat password di sini kalau mau juga bisa masuk pakai username &amp; password (opsional).</div>
-        <% } %>
+      <div class="card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; color: var(--text-dark);"><%= user.password ? 'Keamanan' : 'Buat Password' %></h3>
         <form method="POST" action="/profile/password">
           <% if (user.password) { %>
-          <label>Password Lama</label>
-          <input type="password" name="oldPassword" required>
+          <label style="font-size:13px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Password Lama</label>
+          <input type="password" name="oldPassword" class="profile-input" required>
           <% } %>
-          <label>Password Baru</label>
-          <input type="password" name="newPassword" required minlength="6">
-          <label>Konfirmasi Password Baru</label>
-          <input type="password" name="newPassword2" required minlength="6">
-          <button class="btn magenta mt-24" type="submit"><%= user.password ? 'Update Password' : 'Buat Password' %></button>
+          
+          <label style="font-size:13px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Password Baru</label>
+          <input type="password" name="newPassword" class="profile-input" required minlength="6">
+          
+          <button class="buy-main-btn" type="submit" style="padding: 12px; font-size: 15px; background: var(--text-dark);"><i class="fa-solid fa-lock"></i> <%= user.password ? 'Update Password' : 'Buat Password' %></button>
         </form>
       </div>
-    </div>
-
-    <div class="section-title"><h3>Login Google</h3><div class="line"></div></div>
-    <% const googleReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
-    <div class="card">
-      <div class="connected-account-row">
-        <div class="connected-account-info">
-          <i class="fa-brands fa-google"></i>
-          <div>
-            <div style="font-weight:600;"><%= user.googleId ? 'Akun Google terhubung' : 'Akun Google belum terhubung' %></div>
-            <div class="helper-text" style="margin:2px 0 0;"><% if (user.googleId) { %>Kamu bisa masuk pakai tombol "Masuk dengan Google" di halaman login.<% } else if (googleReady) { %>Hubungkan supaya bisa masuk tanpa ketik username &amp; password.<% } else { %>Login Google belum diaktifkan oleh admin.<% } %></div>
-          </div>
-        </div>
-        <% if (user.googleId) { %>
-          <form method="POST" action="/profile/google/disconnect" onsubmit="return confirm('Putuskan akun Google dari profil ini? Kamu tetap bisa masuk pakai username &amp; password.');" style="margin:0;">
-            <button class="btn small ghost" type="submit">Putuskan</button>
-          </form>
-        <% } else if (googleReady) { %>
-          <a href="/auth/google" class="btn small solid">Hubungkan Google</a>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="section-title"><h3>Membership</h3><div class="line"></div></div>
-    <div class="grid grid-3">
-      <% membershipList.filter(t => t.key !== 'reguler').forEach(t => { %>
-        <div class="card member-card member-<%= t.key %>">
-          <div class="member-card-icon"><%= t.icon %></div>
-          <div class="member-card-title"><%= t.label %></div>
-          <div class="member-card-price">Rp <%= t.price.toLocaleString('id-ID') %></div>
-          <div class="member-card-benefit">Potongan <%= t.discountPercent %>% di setiap pembelian produk</div>
-
-          <% if (currentTier.key === t.key) { %>
-            <button class="btn small solid mt-16" type="button" disabled style="width:100%;">Member Aktif</button>
-          <% } else if (currentTier.order > t.order) { %>
-            <button class="btn small ghost mt-16" type="button" disabled style="width:100%;">Sudah Terlewati</button>
-          <% } else { %>
-            <form method="POST" action="/membership/upgrade">
-              <input type="hidden" name="tier" value="<%= t.key %>">
-              <button class="btn small magenta mt-16" type="submit" style="width:100%;">Upgrade Sekarang</button>
-            </form>
-          <% } %>
-        </div>
-      <% }) %>
     </div>
 
     <%- include('partials/footer') %>

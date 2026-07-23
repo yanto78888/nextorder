@@ -3,7 +3,12 @@
 <head>
   <%- include('partials/head') %>
   <style>
-    .fs-price-now, .mono { color: var(--cyan) !important; }
+    /* Styling khusus Flash Sale */
+    .flash-sale-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 16px 20px; border-radius: 12px; margin-bottom: 24px; font-size: 14px; line-height: 1.5; display: flex; align-items: flex-start; gap: 12px; }
+    .flash-sale-info i { font-size: 20px; color: var(--primary-color); margin-top: 2px; }
+    
+    .fs-empty-state { background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); padding: 50px 20px; text-align: center; color: var(--text-muted); border: 1px solid var(--border-color); margin-bottom: 24px; }
+    .fs-empty-icon { font-size: 48px; color: #cbd5e1; margin-bottom: 16px; }
   </style>
 </head>
 <body>
@@ -11,19 +16,26 @@
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar" style="margin-bottom: 12px;">
-      <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-bolt"></i> <%= settings.title || 'Flash Sale' %></h2>
+    
+    <div class="detail-section-title" style="border: none; margin-bottom: 20px;">
+      <i class="fa-solid fa-bolt" style="color: #fbbf24;"></i> <%= settings.title || 'Flash Sale' %>
     </div>
 
     <% if (items.length === 0) { %>
-      <div class="card empty-state">
-        <i class="fa-solid fa-bolt" style="font-size:26px; opacity:.4; display:block; margin-bottom:8px;"></i>
-        Belum ada Flash Sale yang aktif saat ini. Cek lagi nanti ya!
+      <div class="fs-empty-state">
+        <div class="fs-empty-icon"><i class="fa-solid fa-bolt-lightning"></i></div>
+        <div style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;">Flash Sale Belum Tersedia</div>
+        <div style="font-size: 14px;">Belum ada promo Flash Sale yang aktif saat ini. Cek lagi nanti ya!</div>
       </div>
     <% } else { %>
-      <div class="card" style="margin-bottom:16px; font-size:12px; color:var(--text-dim);">
-        <i class="fa-solid fa-circle-info"></i> Harga Flash Sale <b style="color:var(--text-main);">berlaku sama untuk semua orang</b> (reguler, gold, maupun platinum) selama periode promo masih berjalan.
+      <div class="flash-sale-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          Harga Flash Sale <b style="color: #1e3a8a;">berlaku sama untuk semua orang</b> (Reguler, Gold, maupun Platinum) selama periode promo masih berjalan.
+        </div>
       </div>
+      
+      <!-- Partial ini akan menyesuaikan dengan CSS global yang baru -->
       <%- include('partials/flashsale-carousel', {
         flashSaleItems: items,
         flashSaleSettings: settings,

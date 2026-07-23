@@ -3,7 +3,36 @@
 <head>
   <%- include('partials/head') %>
   <style>
-    .price-row-price, .value, .mono { color: var(--cyan) !important; }
+    /* Specific Styles for Daftar Harga */
+    .price-hero { background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); border-radius: var(--border-radius); padding: 30px 20px; color: white; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: var(--shadow-md); flex-wrap: wrap; gap: 20px; }
+    .price-hero-stat { text-align: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 12px; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); }
+    .price-hero-stat .label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-bottom: 5px; font-weight: 600; }
+    .price-hero-stat .value { font-size: 28px; font-weight: 900; }
+    .price-hero-text { flex: 1; min-width: 250px; font-size: 14px; line-height: 1.6; text-align: right; }
+    .price-hero-text a { color: #fbbf24; font-weight: bold; text-decoration: none; }
+    
+    .search-wrapper { position: relative; margin-bottom: 24px; }
+    .search-input { width: 100%; padding: 16px 20px 16px 50px; border: 2px solid var(--border-color); border-radius: 12px; font-size: 16px; outline: none; transition: 0.3s; background: var(--card-bg); box-shadow: var(--shadow-sm); box-sizing: border-box; }
+    .search-input:focus { border-color: var(--primary-color); box-shadow: 0 4px 15px rgba(0,123,255,0.1); }
+    .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; }
+
+    .category-jump { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+    .category-jump a { background: var(--card-bg); color: var(--text-dark); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid var(--border-color); transition: 0.2s; }
+    .category-jump a:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+    .price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .price-card { background: var(--card-bg); border: 2px solid var(--border-color); border-radius: 12px; padding: 16px; text-decoration: none; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+    .price-card:hover { border-color: var(--primary-color); transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,123,255,0.1); }
+    .price-info { flex: 1; padding-right: 15px; }
+    .price-name { font-size: 15px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
+    .price-meta { font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; background: var(--bg-color); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
+    .price-values { text-align: right; }
+    .price-old { font-size: 12px; text-decoration: line-through; color: var(--text-muted); margin-bottom: 2px; display: block; }
+    .price-new { font-size: 16px; font-weight: 800; color: var(--primary-color); }
+    
+    @media (max-width: 600px) {
+      .price-hero-text { text-align: left; }
+    }
   </style>
 </head>
 <body>
@@ -11,56 +40,60 @@
   <%- include('partials/user-sidebar', { active: 'harga', user, config }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar" style="margin-bottom: 12px;">
-      <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-tags"></i> Daftar Harga Layanan</h2>
-    </div>
+    <div class="detail-section-title" style="border: none; margin-bottom: 20px;"><i class="fa-solid fa-tags"></i> Daftar Harga Layanan</div>
 
-    <div class="card price-hero-card">
-      <div class="stat-card">
+    <!-- Banner Info -->
+    <div class="price-hero">
+      <div class="price-hero-stat">
         <div class="label">Produk Aktif</div>
         <div class="value"><%= totalProducts %></div>
       </div>
-      <div style="font-size:12px; color:var(--text-dim); max-width:320px; text-align:right;">
-        Semua harga di bawah ini <b style="color:var(--text-main);">transparan &amp; berlaku untuk semua orang</b>, tidak perlu login untuk melihatnya.
+      <div class="price-hero-text">
+        Semua harga di bawah ini <b>transparan &amp; berlaku untuk semua orang</b>, tidak perlu login untuk melihatnya.<br>
         <% if (memberDiscount > 0) { %>
-          Harga yang ditampilkan sudah termasuk potongan member <b style="color:var(--cyan);"><%= memberDiscount %>%</b> punyamu.
+          Harga yang ditampilkan sudah termasuk potongan member <b style="color:#fbbf24;"><%= memberDiscount %>%</b> punyamu.
         <% } else if (!user) { %>
-          <a href="/register" style="color:var(--cyan);">Daftar akun</a> untuk kesempatan dapat diskon member.
+          <a href="/register">Daftar akun</a> untuk kesempatan dapat diskon khusus member.
         <% } %>
       </div>
     </div>
 
-    <div class="catalog-search-bar">
-      <input type="text" id="hargaSearchInput" placeholder="Cari nama produk atau layanan...">
-      <button type="button" class="catalog-search-btn" id="hargaSearchBtn" aria-label="Cari produk"><i class="fa-solid fa-magnifying-glass"></i></button>
+    <!-- Pencarian -->
+    <div class="search-wrapper">
+      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <input type="text" id="hargaSearchInput" class="search-input" placeholder="Cari nama produk atau layanan...">
     </div>
-    <div id="hargaSearchEmpty" class="card empty-state" style="display:none;">Produk "<span id="hargaSearchEmptyTerm"></span>" tidak ditemukan.</div>
+    <div id="hargaSearchEmpty" class="card empty-state" style="display:none; text-align:center;">Produk "<span id="hargaSearchEmptyTerm"></span>" tidak ditemukan.</div>
 
+    <!-- Navigasi Kategori Cepat -->
     <% if (groups.length > 1) { %>
-    <div class="price-list-jump">
+    <div class="category-jump">
       <% groups.forEach(g => { %>
         <a href="#cat-<%= g.category.replace(/[^a-zA-Z0-9]/g,'-') %>"><%= g.category %></a>
       <% }) %>
     </div>
     <% } %>
 
+    <!-- Daftar Harga per Kategori -->
     <% if (groups.length === 0) { %>
-      <div class="card empty-state">Belum ada produk tersedia saat ini.</div>
+      <div class="card empty-state" style="text-align:center;">Belum ada produk tersedia saat ini.</div>
     <% } else { %>
       <% groups.forEach(g => { %>
         <div class="price-list-group" data-price-group data-category="<%= g.category %>" id="cat-<%= g.category.replace(/[^a-zA-Z0-9]/g,'-') %>">
-          <div class="section-title"><h3><i class="fa-solid fa-gamepad"></i> <%= g.category %></h3><div class="line"></div></div>
-          <div class="price-row-list">
+          <div class="detail-section-title"><i class="fa-solid fa-gamepad"></i> <%= g.category %></div>
+          <div class="price-grid">
             <% g.products.forEach(p => { %>
-              <a href="/produk/<%= p.id %>" class="price-row" data-name="<%= p.name.toLowerCase() %>">
-                <div class="price-row-info">
-                  <div class="price-row-name"><%= p.name %></div>
+              <a href="/produk/<%= p.id %>" class="price-card" data-name="<%= p.name.toLowerCase() %>">
+                <div class="price-info">
+                  <div class="price-name"><%= p.name %></div>
                   <% const isAuto = p.provider === 'digiflazz'; const stockCount = p.stockItems ? p.stockItems.length : 0; %>
-                  <div class="price-row-meta"><%= isAuto ? 'Pengiriman instan otomatis' : (stockCount > 0 ? stockCount + ' stok tersedia' : 'Stok manual diproses admin') %></div>
+                  <div class="price-meta">
+                    <%- isAuto ? '<i class="fa-solid fa-bolt" style="color:#10b981;"></i> Instan' : (stockCount > 0 ? `<i class="fa-solid fa-box" style="color:var(--text-muted);"></i> ${stockCount} Stok` : '<i class="fa-solid fa-clock" style="color:#f59e0b;"></i> Manual') %>
+                  </div>
                 </div>
-                <div class="price-row-price-wrap">
-                  <% if (p.finalPrice < p.price) { %><span class="price-row-price-old">Rp <%= p.price.toLocaleString('id-ID') %></span><% } %>
-                  <span class="price-row-price">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
+                <div class="price-values">
+                  <% if (p.finalPrice < p.price) { %><span class="price-old">Rp <%= p.price.toLocaleString('id-ID') %></span><% } %>
+                  <span class="price-new">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
                 </div>
               </a>
             <% }) %>
