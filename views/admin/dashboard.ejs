@@ -1,7 +1,119 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('../partials/head') %>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<head>
+  <%- include('../partials/head') %>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- ==========================================
+       UI OVERHAUL: ADMIN DASHBOARD MODERN STYLE
+       ========================================== -->
+  <style>
+    :root {
+      --adm-bg: #0f172a;
+      --adm-card-bg: #1e293b;
+      --adm-border: #334155;
+      --adm-text: #f8fafc;
+      --adm-muted: #94a3b8;
+      --adm-primary: #3b82f6;
+      --adm-success: #10b981;
+      --adm-warning: #f59e0b;
+      --adm-danger: #ef4444;
+    }
+
+    body { background-color: var(--adm-bg); color: var(--adm-text); font-family: 'Inter', sans-serif; }
+    
+    .adm-main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* Page Header */
+    .adm-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--adm-card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--adm-border); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .adm-page-title { font-size: 24px; font-weight: 800; color: var(--adm-text); }
+    .adm-page-sub { font-size: 13px; color: var(--adm-muted); margin-top: 4px; }
+    
+    /* Alert Banners */
+    .adm-alert-banner { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 12px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+    .adm-alert-red { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+    .adm-alert-yellow { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fde68a; }
+    .adm-alert-cta { margin-left: auto; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 8px; color: inherit; text-decoration: none; font-weight: 600; transition: 0.2s; }
+    .adm-alert-cta:hover { background: rgba(255,255,255,0.2); }
+
+    /* KPI Grid */
+    .adm-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .adm-kpi-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; padding: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .kpi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .kpi-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(255,255,255,0.05); }
+    .kpi-trend { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 20px; background: rgba(255,255,255,0.05); }
+    .kpi-val { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .kpi-label { font-size: 13px; color: var(--adm-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-bar { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 15px; overflow: hidden; }
+    .kpi-bar-fill { height: 100%; border-radius: 2px; background: var(--adm-primary); }
+
+    /* Revenue + Donut Card */
+    .adm-revenue-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; padding: 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+    .adm-rev-eyebrow { font-size: 13px; color: var(--adm-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .adm-rev-main { font-size: 32px; font-weight: 900; color: #38bdf8; margin-bottom: 12px; }
+    .adm-rev-sub { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill-badge { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+    .pill-badge.green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .pill-badge.amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .pill-badge.red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .pill-badge.cyan { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+
+    .adm-donut-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+    .adm-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+    .adm-donut-pct { font-size: 14px; font-weight: 800; color: #fff; line-height: 1; }
+    .adm-donut-lab { font-size: 9px; color: var(--adm-muted); text-transform: uppercase; }
+
+    /* Chart Cards */
+    .adm-chart-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+    .adm-chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .adm-chart-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .adm-chart-tabs { display: flex; background: rgba(255,255,255,0.05); padding: 3px; border-radius: 8px; gap: 3px; }
+    .adm-tab { background: transparent; border: none; color: var(--adm-muted); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .adm-tab.active { background: var(--adm-primary); color: #fff; }
+    .adm-chart-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .adm-chart-wrap { position: relative; height: 240px; width: 100%; }
+    .adm-chart-wrap-tall { height: 280px; }
+    .helper-text { font-size: 12px; color: var(--adm-muted); line-height: 1.5; }
+
+    /* Section Header */
+    .adm-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .adm-section-title { font-size: 16px; font-weight: 700; color: var(--adm-text); }
+    .adm-see-all { font-size: 13px; color: var(--adm-primary); text-decoration: none; font-weight: 600; }
+    .adm-see-all:hover { text-decoration: underline; }
+
+    /* Order List */
+    .adm-order-list { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; overflow: hidden; }
+    .adm-order-row { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--adm-border); transition: 0.2s; gap: 12px; }
+    .adm-order-row:last-child { border-bottom: none; }
+    .adm-order-row:hover { background: rgba(255,255,255,0.02); }
+    .adm-order-status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-completed { background: var(--adm-success); }
+    .dot-processing { background: var(--adm-warning); }
+    .dot-cancelled { background: var(--adm-danger); }
+    .adm-order-info { flex: 1; min-width: 0; }
+    .adm-order-name { font-weight: 600; font-size: 14px; color: var(--adm-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .adm-order-meta { font-size: 12px; color: var(--adm-muted); margin-top: 2px; }
+    .adm-order-right { text-align: right; }
+    .adm-order-total { font-weight: 700; font-size: 14px; color: var(--adm-text); }
+    .adm-order-date { font-size: 11px; color: var(--adm-muted); }
+    .adm-order-arrow { color: var(--adm-muted); font-size: 18px; text-decoration: none; padding-left: 10px; }
+
+    /* Review List */
+    .adm-review-list { display: flex; flex-direction: column; gap: 12px; }
+    .adm-review-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; padding: 18px; }
+    .adm-review-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .adm-review-avatar { width: 36px; height: 36px; background: var(--adm-primary); color: #fff; font-weight: bold; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .adm-review-meta { flex: 1; }
+    .adm-review-user { font-weight: 700; font-size: 14px; }
+    .adm-review-product { font-size: 12px; color: var(--adm-muted); }
+    .adm-review-stars { font-size: 13px; }
+    .star-on { color: #fbbf24; }
+    .star-off { color: #475569; }
+    .adm-del-btn { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 6px; font-size: 14px; border-radius: 6px; transition: 0.2s; }
+    .adm-del-btn:hover { background: rgba(239, 68, 68, 0.15); }
+    .adm-review-comment { font-size: 13px; color: var(--adm-muted); background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 8px; border-left: 3px solid var(--adm-primary); margin-bottom: 8px; }
+    .adm-review-date { font-size: 11px; color: var(--adm-muted); }
+    .adm-empty { text-align: center; padding: 30px; color: var(--adm-muted); background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 16px; font-size: 13px; }
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -15,7 +127,7 @@
         <div class="adm-page-title">Dashboard</div>
         <div class="adm-page-sub" id="liveDate"></div>
       </div>
-      <a href="/admin/order" class="btn small solid">+ Order</a>
+      <a href="/admin/order" class="btn small solid" style="background:var(--adm-primary); color:#fff; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:600;">+ Order</a>
     </div>
 
     <!-- Alert warnings -->
@@ -41,8 +153,8 @@
     <div class="adm-kpi-grid">
       <div class="adm-kpi-card kpi-blue">
         <div class="kpi-top">
-          <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
-          <div class="kpi-trend">+<%= totalUsers %></div>
+          <div class="kpi-icon" style="color:#3b82f6;"><i class="fa-solid fa-users"></i></div>
+          <div class="kpi-trend" style="color:#3b82f6;">+<%= totalUsers %></div>
         </div>
         <div class="kpi-val"><%= totalUsers %></div>
         <div class="kpi-label">Total User</div>
@@ -51,32 +163,32 @@
 
       <div class="adm-kpi-card kpi-red">
         <div class="kpi-top">
-          <div class="kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
-          <div class="kpi-trend"><%= stats.totalOrders %></div>
+          <div class="kpi-icon" style="color:#ef4444;"><i class="fa-solid fa-cart-shopping"></i></div>
+          <div class="kpi-trend" style="color:#ef4444;"><%= stats.totalOrders %></div>
         </div>
         <div class="kpi-val"><%= stats.totalOrders %></div>
         <div class="kpi-label">Total Order</div>
-        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= Math.min(100,stats.totalOrders*2) %>%"></div></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= Math.min(100,stats.totalOrders*2) %>%; background:#ef4444;"></div></div>
       </div>
 
       <div class="adm-kpi-card kpi-green">
         <div class="kpi-top">
-          <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
-          <div class="kpi-trend"><%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%</div>
+          <div class="kpi-icon" style="color:#10b981;"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="kpi-trend" style="color:#10b981;"><%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%</div>
         </div>
         <div class="kpi-val"><%= statusCompleted %></div>
         <div class="kpi-label">Selesai</div>
-        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%"></div></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusCompleted/stats.totalOrders*100) : 0 %>%; background:#10b981;"></div></div>
       </div>
 
       <div class="adm-kpi-card kpi-amber">
         <div class="kpi-top">
-          <div class="kpi-icon">⏳</div>
-          <div class="kpi-trend"><%= statusProcessing %></div>
+          <div class="kpi-icon" style="color:#f59e0b;">⏳</div>
+          <div class="kpi-trend" style="color:#f59e0b;"><%= statusProcessing %></div>
         </div>
         <div class="kpi-val"><%= statusProcessing %></div>
         <div class="kpi-label">Diproses</div>
-        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusProcessing/stats.totalOrders*100) : 0 %>%"></div></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:<%= stats.totalOrders > 0 ? Math.round(statusProcessing/stats.totalOrders*100) : 0 %>%; background:#f59e0b;"></div></div>
       </div>
     </div>
 
@@ -100,10 +212,10 @@
       </div>
     </div>
 
-    <!-- Grafik Penjualan Bulanan: Pendapatan Kotor (omzet) vs Pendapatan Bersih (omzet - modal) -->
+    <!-- Grafik Penjualan Bulanan -->
     <div class="adm-chart-card adm-chart-card-monthly" id="monthlyChartCard">
       <div class="adm-chart-header">
-        <div class="adm-chart-title"><i class="fa-solid fa-chart-column" style="color:var(--cyan);"></i> Grafik Penjualan Bulanan</div>
+        <div class="adm-chart-title"><i class="fa-solid fa-chart-column" style="color:#38bdf8;"></i> Grafik Penjualan Bulanan</div>
         <div class="adm-chart-tabs">
           <button class="adm-tab active" data-range="6">6 Bulan</button>
           <button class="adm-tab" data-range="12">12 Bulan</button>
@@ -118,7 +230,7 @@
         <canvas id="monthlyChart"></canvas>
       </div>
       <div class="helper-text" style="margin-top:10px; margin-bottom:0;">
-        <i class="fa-solid fa-circle-info"></i> <b style="color:var(--text-main);">Kotor</b> = total penjualan. <b style="color:var(--text-main);">Bersih</b> = penjualan dikurangi harga modal (Digiflazz otomatis pakai harga modal tersinkron, Stok Manual pakai Harga Modal yang diisi di halaman Kelola Produk).
+        <i class="fa-solid fa-circle-info"></i> <b style="color:#fff;">Kotor</b> = total penjualan. <b style="color:#fff;">Bersih</b> = penjualan dikurangi harga modal.
       </div>
     </div>
 
@@ -200,10 +312,9 @@
 </div><!-- /app-shell -->
 
 <script>
-// Live date
 (function(){var el=document.getElementById('liveDate');if(!el)return;function t(){el.textContent=new Date().toLocaleString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}t();setInterval(t,30000);})();
 
-Chart.defaults.color='#8c8c8c';
+Chart.defaults.color='#94a3b8';
 Chart.defaults.font.family='Inter, sans-serif';
 Chart.defaults.font.size=11;
 
@@ -212,17 +323,17 @@ var revenueData=<%- chartRevenue %>;
 var ordersData=<%- chartOrders %>;
 
 var lineCtx=document.getElementById('lineChart').getContext('2d');
-var gradR=lineCtx.createLinearGradient(0,0,0,160);gradR.addColorStop(0,'rgba(229,9,20,0.3)');gradR.addColorStop(1,'rgba(229,9,20,0)');
-var gradG=lineCtx.createLinearGradient(0,0,0,160);gradG.addColorStop(0,'rgba(245,197,24,0.3)');gradG.addColorStop(1,'rgba(245,197,24,0)');
+var gradR=lineCtx.createLinearGradient(0,0,0,160);gradR.addColorStop(0,'rgba(59,130,246,0.3)');gradR.addColorStop(1,'rgba(59,130,246,0)');
+var gradG=lineCtx.createLinearGradient(0,0,0,160);gradG.addColorStop(0,'rgba(245,158,11,0.3)');gradG.addColorStop(1,'rgba(245,158,11,0)');
 
 var lineChart=new Chart(lineCtx,{
   type:'line',
-  data:{labels:labels,datasets:[{label:'Revenue (Rp)',data:revenueData,borderColor:'#e50914',backgroundColor:gradR,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#e50914',pointBorderColor:'#0a0a0a',pointBorderWidth:2,tension:0.4,fill:true}]},
+  data:{labels:labels,datasets:[{label:'Revenue (Rp)',data:revenueData,borderColor:'#3b82f6',backgroundColor:gradR,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#3b82f6',pointBorderColor:'#1e293b',pointBorderWidth:2,tension:0.4,fill:true}]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1f1f1f',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f5f5f1',bodyColor:'#8c8c8c',
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e293b',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f8fafc',bodyColor:'#94a3b8',
       callbacks:{label:function(c){return c.dataset.label==='Revenue (Rp)'?'Rp '+c.raw.toLocaleString('id-ID'):c.raw+' order';}}}},
-    scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8c8c8c'},border:{color:'rgba(255,255,255,0.06)'}},
-      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8c8c8c',callback:function(v){return v>=1000?(v/1000)+'rb':v;}},beginAtZero:true,border:{color:'rgba(255,255,255,0.06)'}}}}
+    scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#94a3b8'},border:{color:'rgba(255,255,255,0.06)'}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#94a3b8',callback:function(v){return v>=1000?(v/1000)+'rb':v;}},beginAtZero:true,border:{color:'rgba(255,255,255,0.06)'}}}}
 });
 
 document.querySelectorAll('#weeklyChartCard .adm-tab').forEach(function(btn){
@@ -231,19 +342,18 @@ document.querySelectorAll('#weeklyChartCard .adm-tab').forEach(function(btn){
     btn.classList.add('active');
     var t=btn.dataset.chart;
     var ds=lineChart.data.datasets[0];
-    if(t==='revenue'){ds.label='Revenue (Rp)';ds.data=revenueData;ds.borderColor='#e50914';ds.backgroundColor=gradR;ds.pointBackgroundColor='#e50914';}
-    else{ds.label='Jumlah Order';ds.data=ordersData;ds.borderColor='#f5c518';ds.backgroundColor=gradG;ds.pointBackgroundColor='#f5c518';}
+    if(t==='revenue'){ds.label='Revenue (Rp)';ds.data=revenueData;ds.borderColor='#3b82f6';ds.backgroundColor=gradR;ds.pointBackgroundColor='#3b82f6';}
+    else{ds.label='Jumlah Order';ds.data=ordersData;ds.borderColor='#f59e0b';ds.backgroundColor=gradG;ds.pointBackgroundColor='#f59e0b';}
     lineChart.update();
   });
 });
 
 var doCtx=document.getElementById('donutChart').getContext('2d');
 new Chart(doCtx,{type:'doughnut',
-  data:{datasets:[{data:[<%=statusCompleted%>,<%=statusProcessing%>,<%=statusCancelled%>,Math.max(0,<%=stats.totalOrders%>===0?1:0)],backgroundColor:['#2ecc71','#f5c518','#e50914','#1a1a1a'],borderWidth:0,hoverOffset:3}]},
+  data:{datasets:[{data:[<%=statusCompleted%>,<%=statusProcessing%>,<%=statusCancelled%>,Math.max(0,<%=stats.totalOrders%>===0?1:0)],backgroundColor:['#10b981','#f59e0b','#ef4444','#334155'],borderWidth:0,hoverOffset:3}]},
   options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
 });
 
-// ===== GRAFIK PENJUALAN BULANAN (Kotor vs Bersih) =====
 (function () {
   var monthlyLabelsFull = <%- monthlyLabels %>;
   var monthlyGrossFull = <%- monthlyGross %>;
@@ -263,11 +373,11 @@ new Chart(doCtx,{type:'doughnut',
 
   var mCtx = canvas.getContext('2d');
   var grossGrad = mCtx.createLinearGradient(0,0,0,210);
-  grossGrad.addColorStop(0,'rgba(52,152,219,0.85)');
-  grossGrad.addColorStop(1,'rgba(52,152,219,0.18)');
+  grossGrad.addColorStop(0,'rgba(56,189,248,0.85)');
+  grossGrad.addColorStop(1,'rgba(56,189,248,0.18)');
   var netGrad = mCtx.createLinearGradient(0,0,0,210);
-  netGrad.addColorStop(0,'rgba(46,204,113,0.38)');
-  netGrad.addColorStop(1,'rgba(46,204,113,0)');
+  netGrad.addColorStop(0,'rgba(16,185,129,0.38)');
+  netGrad.addColorStop(1,'rgba(16,185,129,0)');
 
   var monthlyChart = new Chart(mCtx, {
     data: {
@@ -286,13 +396,13 @@ new Chart(doCtx,{type:'doughnut',
           type: 'line',
           label: 'Pendapatan Bersih',
           data: monthlyNetFull.slice(-6),
-          borderColor: '#2ecc71',
+          borderColor: '#10b981',
           backgroundColor: netGrad,
           borderWidth: 2.5,
           pointRadius: 3.5,
           pointHoverRadius: 5,
-          pointBackgroundColor: '#2ecc71',
-          pointBorderColor: '#0a0a0a',
+          pointBackgroundColor: '#10b981',
+          pointBorderColor: '#1e293b',
           pointBorderWidth: 1.5,
           tension: 0.4,
           fill: true
@@ -310,14 +420,14 @@ new Chart(doCtx,{type:'doughnut',
           labels: { boxWidth: 10, boxHeight: 10, padding: 14, font: { size: 10.5 } }
         },
         tooltip: {
-          backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
-          titleColor: '#f5f5f1', bodyColor: '#8c8c8c',
+          backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+          titleColor: '#f8fafc', bodyColor: '#94a3b8',
           callbacks: { label: function (c) { return c.dataset.label + ': Rp ' + Math.round(c.raw).toLocaleString('id-ID'); } }
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#8c8c8c' }, border: { color: 'rgba(255,255,255,0.06)' } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8c8c8c', callback: function (v) { return fmtShort(v); } }, border: { color: 'rgba(255,255,255,0.06)' } }
+        x: { grid: { display: false }, ticks: { color: '#94a3b8' }, border: { color: 'rgba(255,255,255,0.06)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', callback: function (v) { return fmtShort(v); } }, border: { color: 'rgba(255,255,255,0.06)' } }
       }
     }
   });
