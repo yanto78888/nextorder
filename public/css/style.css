@@ -253,6 +253,7 @@ h1, h2, h3, h4 {
 .stat-card.magenta .value { color: var(--magenta); text-shadow: 0 0 10px rgba(245,197,24,0.4); }
 .stat-card.amber .value { color: var(--amber); text-shadow: 0 0 10px rgba(255,215,0,0.4); }
 .stat-card.success .value { color: var(--success); text-shadow: 0 0 10px rgba(46,204,113,0.4); }
+.stat-card.danger .value { color: var(--danger); text-shadow: 0 0 10px rgba(229,9,20,0.4); }
 
 /* ---------- FORM ---------- */
 label {
