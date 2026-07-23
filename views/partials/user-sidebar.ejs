@@ -66,6 +66,7 @@
     <% if (!isGuest) { %>
       <a href="/topup" class="drawer-link <%= active === 'topup' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-credit-card"></i></span> Deposit / Top Up</a>
       <a href="/riwayat" class="drawer-link <%= active === 'riwayat' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Riwayat Order</a>
+      <a href="/riwayat-saldo" class="drawer-link <%= active === 'riwayat-saldo' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-wallet"></i></span> Riwayat Saldo</a>
       <a href="/profile" class="drawer-link <%= active === 'profile' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-user"></i></span> Profil Saya</a>
     <% } else { %>
       <a href="/login" class="drawer-link"><span class="nav-icon"><i class="fa-solid fa-key"></i></span> Masuk</a>
