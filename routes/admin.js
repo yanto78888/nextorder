@@ -296,14 +296,14 @@ function parseCustomTargetFields(body) {
 }
 
 router.post('/produk', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice } = req.body;
+  const { name, category, description, price, stockNote, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, usageInstructions } = req.body;
   const thumbnail = req.file ? '/uploads/products/' + req.file.filename : '';
-  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, customTargetFields: parseCustomTargetFields(req.body) });
+  createProduct({ name, category, description, price, stockNote, thumbnail, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, usageInstructions, customTargetFields: parseCustomTargetFields(req.body) });
   res.redirect('/admin/produk');
 });
 
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
-  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice } = req.body;
+  const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, usageInstructions } = req.body;
   const existing = findProductById(req.params.id);
   // Produk IndoSMM pakai field "link" TETAP (dikunci sejak import, checkout-nya hard-code baca
   // targetData.link) -- form generik ini gak nampilin editor field custom buat provider ini
@@ -314,7 +314,7 @@ router.post('/produk/:id', uploadThumbnail, (req, res) => {
   const isIndosmmProduct = existing && existing.provider === 'indosmm';
   const partial = {
     name, category, description, price, stockNote, status, stockItems, provider,
-    digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice
+    digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, costPrice, usageInstructions
   };
   if (!isIndosmmProduct) {
     partial.gamePreset = gamePreset;
@@ -975,7 +975,13 @@ router.get('/users', (req, res) => {
 
 router.post('/users/:id/saldo', (req, res) => {
   const amount = parseInt(req.body.amount);
-  if (amount) addSaldo(req.params.id, amount);
+  if (amount) {
+    addSaldo(req.params.id, amount, {
+      reason: `Penyesuaian saldo oleh admin (${req.session.user.username})`,
+      refType: 'admin',
+      refId: req.session.user.id
+    });
+  }
   res.redirect('/admin/users');
 });
 

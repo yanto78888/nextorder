@@ -11,6 +11,7 @@ import {
 import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct, getProductCostPrice } from '../lib/products.js';
 import { getOrdersByUser, createOrder, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
+import { getSaldoLedgerByUser, getSaldoLedgerSummary } from '../lib/saldoLedger.js';
 import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
@@ -205,7 +206,6 @@ async function fulfillAndRecordOrders({ user, product, qty, targetData, targetTe
   const orders = [];
   for (let i = 0; i < iterations; i++) {
     const delivery = await fulfillOrder(product, orderQty, targetData, targetText);
-    if (delivery.refund) addSaldo(user.id, orderTotal); // refund per-unit kalau gagal
 
     const order = createOrder({
       userId: user.id,
@@ -230,6 +230,17 @@ async function fulfillAndRecordOrders({ user, product, qty, targetData, targetTe
       usedFlashPrice
     });
     orders.push(order);
+
+    // Refund per-unit kalau gagal -- dipanggil SETELAH createOrder (bukan sebelum, kayak
+    // sebelumnya) supaya order.id sudah ada dan bisa dilampirkan ke catatan ledger-nya,
+    // biar dari halaman Riwayat Saldo jelas refund ini berasal dari order yang mana.
+    if (delivery.refund) {
+      addSaldo(user.id, orderTotal, {
+        reason: `Refund pesanan gagal: ${product.name}`,
+        refType: 'order',
+        refId: order.id
+      });
+    }
 
     // Catatan: total terjual TIDAK di-increment manual di sini -- dihitung live dari order (lihat
     // getTotalSoldMap di lib/orders.js), jadi otomatis akurat termasuk kalau order Digiflazz yang
@@ -581,7 +592,10 @@ router.post('/order', requireLogin, async (req, res) => {
     return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
   }
 
-  deductSaldo(user.id, total);
+  deductSaldo(user.id, total, {
+    reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''}`,
+    refType: 'order'
+  });
 
   const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText });
 
@@ -724,8 +738,12 @@ router.post('/riwayat/:id/refill-sosmed', requireLogin, async (req, res) => {
 router.get('/riwayat/:id', requireLogin, (req, res) => {
   const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
   if (!order) return res.redirect('/riwayat?error=' + encodeURIComponent('Order tidak ditemukan'));
+  // Diambil dari produk (bukan snapshot di order) supaya selalu 1x tampil apa pun qty-nya, dan
+  // tetap muncul walau order-nya diselesaikan admin manual (lihat catatan di lib/products.js).
+  const product = order.productId ? findProductById(order.productId) : null;
   res.render('invoice', {
     order,
+    usageInstructions: product ? product.usageInstructions : '',
     config: getConfig(),
     user: findUserById(req.session.user.id),
     success: req.query.success || null,
@@ -741,6 +759,28 @@ router.get('/riwayat/:id/download', requireLogin, (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(order.detail);
+});
+
+// Riwayat mutasi saldo (masuk & keluar) -- beda dari /riwayat (riwayat ORDER) dan /topup
+// (riwayat DEPOSIT doang). Di sini semua yang pernah nambah/motong saldo user ketemu dalam
+// 1 daftar kronologis: topup QRIS, bayar order, refund order gagal/dibatalkan/partial,
+// upgrade membership, sampai penyesuaian manual oleh admin (lihat lib/saldoLedger.js dan
+// setiap pemanggil recordSaldoMutation buat daftar lengkapnya).
+router.get('/riwayat-saldo', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  const entries = getSaldoLedgerByUser(user.id);
+  const { totalMasuk, totalKeluar } = getSaldoLedgerSummary(user.id);
+  res.render('riwayat-saldo', {
+    entries,
+    totalMasuk,
+    totalKeluar,
+    user,
+    config: getConfig(),
+    success: req.query.success || null,
+    error: req.query.error || null,
+    pageTitle: `Riwayat Saldo - ${getConfig().siteName || 'NEXORDER'}`,
+    noindex: true
+  });
 });
 
 router.get('/topup', requireLogin, (req, res) => {
@@ -824,7 +864,10 @@ router.get('/order/qris-confirm', requireLogin, async (req, res) => {
       return res.redirect('/produk?error=' + encodeURIComponent('Saldo tidak cukup setelah deposit'));
     }
 
-    deductSaldo(user.id, total);
+    deductSaldo(user.id, total, {
+      reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''} (QRIS)`,
+      refType: 'order'
+    });
 
     const orders = await fulfillAndRecordOrders({
       user, product, qty, targetData: pending.targetData || {}, targetText: pending.targetText || '',
