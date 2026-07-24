@@ -1,48 +1,3 @@
-<style>
-  /* Styling Modern Footer & FAB */
-  .site-footer-modern { background: var(--card-bg); border-top: 1px solid var(--border-color); padding: 40px 20px 20px; margin-top: 40px; color: var(--text-dark); box-shadow: 0 -4px 20px rgba(0,0,0,0.02); }
-  
-  .footer-trust-modern { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-bottom: 40px; padding-bottom: 30px; border-bottom: 1px dashed var(--border-color); }
-  .footer-trust-item { display: flex; align-items: center; gap: 10px; background: var(--bg-color); padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; color: var(--text-dark); border: 1px solid var(--border-color); transition: 0.3s; }
-  .footer-trust-item:hover { border-color: var(--primary-color); transform: translateY(-2px); }
-  .footer-trust-item i { font-size: 18px; color: var(--primary-color); }
-
-  .footer-grid-modern { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto 30px; }
-  
-  .footer-brand-modern { font-size: 20px; font-weight: 900; color: var(--text-dark); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-  .footer-brand-modern i { color: var(--primary-color); }
-  .footer-desc-modern { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
-  
-  .footer-col-title-modern { font-size: 14px; font-weight: 800; color: var(--text-dark); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
-  
-  .footer-links-modern { display: flex; flex-direction: column; gap: 12px; }
-  .footer-links-modern a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; transition: 0.3s; display: flex; align-items: center; gap: 10px; }
-  .footer-links-modern a i { width: 16px; text-align: center; color: var(--primary-color); opacity: 0.7; transition: 0.3s; }
-  .footer-links-modern a:hover { color: var(--primary-color); transform: translateX(6px); }
-  .footer-links-modern a:hover i { opacity: 1; }
-
-  .footer-payment-note-modern { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
-  .fp-icons-modern { display: flex; gap: 15px; margin-top: 15px; font-size: 24px; color: var(--text-dark); opacity: 0.8; }
-  .fp-icons-modern i { transition: 0.3s; }
-  .fp-icons-modern i:hover { color: var(--primary-color); transform: scale(1.1); }
-  
-  .footer-bottom-modern { text-align: center; font-size: 12px; color: var(--text-muted); padding-top: 20px; border-top: 1px solid var(--border-color); font-weight: 600; line-height: 1.5; }
-  
-  /* FAB WhatsApp Modern dengan Animasi Pulse */
-  .help-fab-modern { position: fixed; bottom: 85px; right: 20px; width: 55px; height: 55px; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(37,211,102,0.4); z-index: 90; text-decoration: none; transition: 0.3s; animation: pulse-wa 2s infinite; }
-  .help-fab-modern:hover { transform: scale(1.1) rotate(-10deg); animation: none; }
-  @keyframes pulse-wa {
-    0% { box-shadow: 0 0 0 0 rgba(37,211,102, 0.7); }
-    70% { box-shadow: 0 0 0 15px rgba(37,211,102, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(37,211,102, 0); }
-  }
-  
-  @media (max-width: 600px) {
-    .footer-trust-modern { flex-direction: column; align-items: stretch; }
-    .footer-trust-item { justify-content: center; }
-  }
-</style>
-
 <%
   /* Nomor WA owner disimpan di Admin > Setting (config.ownerWhatsapp), dirapikan jadi format
      wa.me (62xxxxxxxxxx) di sini. Kalau belum diisi admin, tombol kontak & FAB otomatis
@@ -54,22 +9,22 @@
   const year = new Date().getFullYear();
 %>
 
-<footer class="site-footer-modern">
-  <div class="footer-trust-modern">
-    <div class="footer-trust-item"><i class="fa-solid fa-shield-halved"></i> Aman &amp; Terpercaya</div>
-    <div class="footer-trust-item"><i class="fa-solid fa-bolt"></i> Terkirim Otomatis</div>
-    <div class="footer-trust-item"><i class="fa-solid fa-headset"></i> Layanan 24/7</div>
+<footer class="site-footer">
+  <div class="footer-trust">
+    <div class="footer-trust-item"><i class="fa-solid fa-shield-halved"></i> Topup Aman &amp; Terpercaya</div>
+    <div class="footer-trust-item"><i class="fa-solid fa-bolt"></i> Produk Terkirim Otomatis</div>
+    <div class="footer-trust-item"><i class="fa-solid fa-headset"></i> Kontak Bantuan Siap Bantu</div>
   </div>
 
-  <div class="footer-grid-modern">
+  <div class="footer-grid">
     <div class="footer-col">
-      <div class="footer-brand-modern"><i class="fa-solid fa-bolt"></i> <%= config.siteName || 'TOPUP SHOP' %></div>
-      <p class="footer-desc-modern"><%= config.siteTagline || 'Layanan top up game & digital otomatis, aman, dan terpercaya.' %></p>
+      <div class="footer-brand"><i class="fa-solid fa-bolt"></i> <%= config.siteName || 'TOPUP SHOP' %></div>
+      <p class="footer-desc"><%= config.siteTagline || 'Layanan top up game & digital otomatis, aman, dan terpercaya.' %></p>
     </div>
 
     <div class="footer-col">
-      <div class="footer-col-title-modern">Tautan Cepat</div>
-      <div class="footer-links-modern">
+      <div class="footer-col-title">Tautan Cepat</div>
+      <div class="footer-links">
         <a href="/produk"><i class="fa-solid fa-house"></i> Beranda</a>
         <a href="/daftar-harga"><i class="fa-solid fa-tags"></i> Daftar Harga Layanan</a>
         <% if (waLink) { %><a href="<%= waLink %>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Kontak Bantuan</a><% } %>
@@ -78,10 +33,10 @@
     </div>
 
     <div class="footer-col">
-      <div class="footer-col-title-modern">Pembayaran</div>
-      <div class="footer-payment-note-modern">
+      <div class="footer-col-title">Pembayaran</div>
+      <div class="footer-payment-note">
         Saldo Akun &amp; QRIS — bisa dibayar dari e-wallet maupun m-banking apa saja.
-        <div class="fp-icons-modern" aria-hidden="true">
+        <div class="fp-icons" aria-hidden="true">
           <i class="fa-solid fa-qrcode" title="QRIS"></i>
           <i class="fa-solid fa-wallet" title="Saldo Akun"></i>
           <i class="fa-solid fa-building-columns" title="m-Banking"></i>
@@ -90,14 +45,13 @@
     </div>
   </div>
 
-  <div class="footer-bottom-modern">
-    © <%= year %> <b><%= config.siteName || 'TOPUP SHOP' %></b>. Semua hak dilindungi.<br>
-    <span style="opacity: 0.7;">Semua harga dapat berubah sewaktu-waktu tanpa pemberitahuan.</span>
+  <div class="footer-bottom">
+    © <%= year %> <b><%= config.siteName || 'TOPUP SHOP' %></b>. Semua hak dilindungi. Semua harga dapat berubah sewaktu-waktu tanpa pemberitahuan.
   </div>
 </footer>
 
 <% if (waLink) { %>
-<a href="<%= waLink %>" target="_blank" rel="noopener" class="help-fab-modern" title="Hubungi Kontak Bantuan via WhatsApp" aria-label="Hubungi Kontak Bantuan via WhatsApp">
+<a href="<%= waLink %>" target="_blank" rel="noopener" class="help-fab" title="Hubungi Kontak Bantuan via WhatsApp" aria-label="Hubungi Kontak Bantuan via WhatsApp">
   <i class="fa-brands fa-whatsapp"></i>
 </a>
 <% } %>

@@ -1,78 +1,30 @@
-<style>
-  /* Styling Modern Topbar & Sidebar (Admin) */
-  .phone-topbar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; position: sticky; top: 0; z-index: 40; box-shadow: var(--shadow-sm); }
-  .hamburger-btn { background: none; border: none; font-size: 22px; color: var(--text-dark); cursor: pointer; transition: 0.2s; padding: 5px; }
-  .hamburger-btn:hover { color: var(--primary-color); }
-  
-  .brand-center { font-size: 18px; font-weight: 900; color: var(--text-dark); display: flex; flex-direction: column; align-items: center; line-height: 1.2; text-decoration: none; }
-  .brand-center i { font-size: 20px; margin-bottom: 2px; color: var(--primary-color); }
-  .brand-center small { font-size: 10px; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 1px; }
-
-  .admin-logout-btn { background: none; border: none; font-size: 20px; color: #ef4444; cursor: pointer; transition: 0.3s; padding: 5px; }
-  .admin-logout-btn:hover { transform: scale(1.1); color: #b91c1c; }
-
-  /* Drawer / Sidebar Panel Admin */
-  .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 50; opacity: 0; visibility: hidden; transition: 0.3s ease; }
-  .drawer-overlay.show { opacity: 1; visibility: visible; }
-  
-  .drawer { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background: var(--card-bg); z-index: 60; box-shadow: var(--shadow-md); transition: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; flex-direction: column; overflow-y: auto; }
-  .drawer.show { left: 0; }
-
-  .drawer-head { padding: 25px 20px; background: linear-gradient(135deg, #fef2f2, #fff); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; }
-  .drawer-user { display: flex; align-items: center; gap: 15px; }
-  .drawer-avatar { width: 50px; height: 50px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; overflow: hidden; box-shadow: 0 4px 10px rgba(239,68,68,0.2); }
-  .drawer-username { font-size: 16px; font-weight: 900; color: var(--text-dark); margin-bottom: 4px; }
-  .drawer-saldo { font-size: 12px; font-weight: 700; color: var(--text-muted); }
-  
-  #drawerCloseBtn { background: #fef2f2; border: none; width: 32px; height: 32px; border-radius: 50%; color: #dc2626; cursor: pointer; font-size: 16px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
-  #drawerCloseBtn:hover { background: #fee2e2; transform: scale(1.1); }
-
-  .drawer-nav { padding: 20px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .drawer-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; color: var(--text-dark); text-decoration: none; font-size: 14px; font-weight: 600; transition: 0.2s; }
-  .drawer-link:hover { background: var(--bg-color); color: var(--text-dark); transform: translateX(4px); }
-  
-  /* State aktif khusus admin (warna merah) */
-  .drawer-link.active { background: rgba(239,68,68,0.1); color: #ef4444; border-left: 4px solid #ef4444; border-radius: 0 10px 10px 0; }
-  .drawer-link.active .nav-icon { color: #ef4444; opacity: 1; }
-  
-  .nav-icon { width: 20px; text-align: center; font-size: 16px; opacity: 0.7; }
-  .drawer-link:hover .nav-icon { opacity: 1; }
-  
-  .drawer-link-group { background: #eff6ff; color: #1d4ed8; margin-top: 10px; border: 1px dashed #bfdbfe; }
-  .drawer-link-group:hover { background: #dbeafe; border-color: #93c5fd; }
-
-  .drawer-logout { padding: 20px; border-top: 1px solid var(--border-color); }
-  .btn-logout { display: block; width: 100%; padding: 12px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; transition: 0.3s; text-align: center; text-decoration: none; }
-  .btn-logout:hover { background: #fee2e2; }
-</style>
-
 <div class="phone-topbar">
-  <button type="button" class="hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
+  <button type="button" class="icon-btn hamburger-btn" id="drawerOpenBtn" title="Menu" aria-label="Buka menu">
     <i class="fa-solid fa-bars"></i>
   </button>
 
-  <div class="brand-center">
-    <div><i class="fa-solid fa-bolt"></i> <%= config.siteName %></div>
-    <small>Admin Control</small>
+  <div class="brand brand-center">
+    <i class="fa-solid fa-bolt"></i> <%= config.siteName %>
+    <small>ADMIN CONTROL</small>
   </div>
 
-  <form action="/logout" method="POST" style="margin: 0;">
-    <button type="submit" class="admin-logout-btn" title="Keluar"><i class="fa-solid fa-right-from-bracket"></i></button>
+  <form action="/logout" method="POST">
+    <button type="submit" class="icon-btn" title="Keluar"><i class="fa-solid fa-right-from-bracket"></i></button>
   </form>
 </div>
 
-<!-- ===== DRAWER MENU ADMIN ===== -->
+<!-- ===== DRAWER MENU ADMIN (hamburger pojok kiri atas) ===== -->
 <div class="drawer-overlay" id="drawerOverlay"></div>
 <aside class="drawer" id="drawerPanel">
   <div class="drawer-head">
     <div class="drawer-user">
-      <div class="drawer-avatar"><i class="fa-solid fa-user-shield"></i></div>
+      <div class="drawer-avatar"><span class="avatar-initial"><i class="fa-solid fa-user-shield"></i></span></div>
       <div class="drawer-user-info">
         <div class="drawer-username">Admin Panel</div>
         <div class="drawer-saldo"><%= config.siteName %></div>
       </div>
     </div>
-    <button type="button" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">
+    <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">
       <i class="fa-solid fa-xmark"></i>
     </button>
   </div>
@@ -86,12 +38,11 @@
     <a href="/admin/order" class="drawer-link <%= active === 'order' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span> Order</a>
     <a href="/admin/users" class="drawer-link <%= active === 'users' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> Kelola User</a>
     <a href="/admin/settings" class="drawer-link <%= active === 'settings' ? 'active' : '' %>"><span class="nav-icon"><i class="fa-solid fa-gear"></i></span> Pengaturan</a>
-    
     <a href="/produk" class="drawer-link drawer-link-group"><span class="nav-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></span> Lihat Situs (Mode User)</a>
   </nav>
 
   <form action="/logout" method="POST" class="drawer-logout">
-    <button type="submit" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+    <button type="submit" class="btn danger" style="width:100%;"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
   </form>
 </aside>
 
