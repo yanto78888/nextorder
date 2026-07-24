@@ -6,6 +6,10 @@
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
   <div class="main detail-main no-bottom-nav">
 
+    <% /* Produk yang tergabung dalam Grup Varian (mis. semua nominal "Mobile Legends") harus tetap
+       menampilkan nama grupnya di sini, BUKAN nama SKU spesifik yang kebetulan jadi link (varian
+       termurah) dari kartu katalog. Kalau tidak, judul halaman "loncat" jadi nama nominal tertentu
+       (mis. "MOBILELEGEND - 3 Diamond") padahal di beranda kartunya cuma tertulis "Mobile Legends". */ %>
     <% const displayName = product.variantGroup || product.name; %>
 
     <!-- Hero Image -->
@@ -22,6 +26,7 @@
     <div class="detail-body">
 
       <div class="detail-meta-row">
+        <% /* Digiflazz = auto top up sistem, jadi statusnya selalu "Auto" walau tidak ada stockItems manual. */ %>
         <% const isAuto = product.provider === 'digiflazz'; %>
         <% const stockCount = product.stockItems ? product.stockItems.length : 0; %>
         <span class="nf-stock-tag <%= (isAuto || stockCount > 0) ? 'ok' : 'warn' %>"><%- (isAuto || stockCount > 0) ? '<i class="fa-solid fa-bolt"></i> Auto' : '<i class="fa-solid fa-screwdriver-wrench"></i> Manual' %></span>
@@ -66,6 +71,7 @@
 
       <!-- Deskripsi / Panduan cara membeli -->
       <% if (isAuto) { %>
+        <% /* Produk auto top up (Digiflazz) gak pakai deskripsi manual, tapi panduan langkah beli yang sama buat semua produk auto. */ %>
         <% let guideStep = 1; %>
         <div class="detail-section">
           <div class="detail-section-title">Cara Membeli</div>
@@ -99,14 +105,20 @@
       <% } else if (product.description) { %>
         <div class="detail-section">
           <div class="detail-section-title">Deskripsi Produk</div>
-          <!-- [FIX 5]: Menggunakan <%- agar tag HTML bawaan WYSIWYG editor (seperti <br> dll) dirender dengan benar. 
-               Pastikan output ini disanitasi di sisi backend! -->
-          <div class="detail-desc"><%- product.description %></div>
+          <div class="detail-desc"><%= product.description %></div>
         </div>
       <% } %>
 
+      <!-- Buy Box: grid nominal & harga tampil buat SEMUA ORANG (termasuk tamu belum login).
+           Cuma kontrol pembelian (qty, data tujuan, metode bayar, tombol beli) yang wajib login. -->
       <div class="detail-buy-box">
 
+        <%
+          // Nomor urutan langkah beli dihitung dinamis. "Isi Data Tujuan" (ID game / Server-Zone ID)
+          // sekarang ditaruh PALING ATAS, sebelum pilih nominal -- user isi ID/Server dulu baru
+          // milih nominal & bayar, urutannya lebih natural buat top up game. Nomor cuma dimunculin
+          // kalau produk ini punya >1 varian nominal buat dipilih (sama kayak aturan sebelumnya).
+        %>
         <% const numberSteps = !!(variants && variants.length > 1); %>
         <% const hasTargetFields = !!(product.targetFields && product.targetFields.length > 0); %>
         <% const targetFieldsLabel = (numberSteps && hasTargetFields) ? '1. ' : ''; %>
@@ -138,8 +150,7 @@
         <% } %>
 
         <% if (variants && variants.length > 1) { %>
-        <!-- [FIX 3]: Span dengan ID digunakan agar JS bisa memanipulasi teks angkanya secara dinamis -->
-        <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><span id="stepVariant"><%= variantLabel %></span>Pilih Nominal</div>
+        <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><%= variantLabel %>Pilih Nominal</div>
         <% if (user) { %>
         <div class="variant-grid" id="variantGrid">
           <% variants.forEach(v => { %>
@@ -151,6 +162,8 @@
           <% }) %>
         </div>
         <% } else { %>
+        <!-- Tamu: kartu varian jadi tautan biasa ke halaman produknya masing-masing, biar semua
+             harga tetap kelihatan tanpa perlu JS pemilih varian yang cuma jalan buat user login. -->
         <div class="variant-grid">
           <% variants.forEach(v => { %>
             <a href="/produk/<%= v.id %>" class="variant-card <%= v.id === product.id ? 'selected' : '' %>">
@@ -172,8 +185,7 @@
 
         <% if (user) { %>
           <div class="detail-qty-row">
-            <!-- [FIX 3]: Span dengan ID digunakan agar JS bisa memanipulasi teks angkanya secara dinamis -->
-            <label><span id="stepQty"><%= qtyLabel %></span>Jumlah:</label>
+            <label><%= qtyLabel %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
               <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? 10 : 99) %>">
@@ -234,6 +246,7 @@
           <span class="reviews-count"><%= reviews.length %> ulasan</span>
         </div>
 
+        <!-- Form ulasan (hanya user login & belum review) -->
         <% if (user && !hasReviewed) { %>
           <div class="review-form-card">
             <div class="review-form-title">Tulis Ulasanmu</div>
@@ -253,6 +266,7 @@
           <div class="review-login-prompt"><a href="/login" style="color:var(--cyan);">Login</a> untuk menulis ulasan.</div>
         <% } %>
 
+        <!-- Daftar ulasan -->
         <% if (reviews.length === 0) { %>
           <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star"></i></div>
         <% } else { %>
@@ -285,76 +299,38 @@
 
 <script>
 (function(){
-  // [FIX 1]: Menambahkan .replace(/</g, '\\u003c') pada JSON.stringify untuk mencegah XSS
-  var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})).replace(/</g, '\\u003c') %>;
+  var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
   var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
+  // Isi Data Tujuan selalu di posisi PALING ATAS di box beli (lihat markup di atas), jadi kalau
+  // nomor langkah lagi dipakai (produk ini punya >1 varian nominal), section itu selalu "1."
+  // -- termasuk pas dimunculin ulang lewat JS ini waktu user ganti pilihan varian.
   var numberSteps = <%- numberSteps ? 'true' : 'false' %>;
 
+  // Qty stepper
   var unitPrice=<%= finalPrice %>;
   var qEl=document.getElementById('qtyInput');
   var tEl=document.getElementById('totalPreview');
   function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
-  
-  function upd(){
-    // [FIX 2]: Tambahkan Math.min() terhadap batas maksimal `max` agar input manual tetap tertahan
-    var maxQty = parseInt(qEl.max) || 99;
-    var q = Math.min(maxQty, Math.max(1, parseInt(qEl.value) || 1));
-    qEl.value = q;
-    
-    var qs = document.getElementById('buyQtySaldo');
-    var qq = document.getElementById('buyQtyQris');
-    if(qs) qs.value = q;
-    if(qq) qq.value = q;
-    if(tEl) tEl.textContent = fmt(unitPrice * q);
-    updSaldoWarning(q);
-  }
-  
+  function upd(){var q=Math.max(1,parseInt(qEl.value)||1);qEl.value=q;
+    var qs=document.getElementById('buyQtySaldo');var qq=document.getElementById('buyQtyQris');
+    if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);
+    updSaldoWarning(q);}
   function updSaldoWarning(q){
     var warn=document.getElementById('saldoWarning');
     if(!warn) return;
     warn.style.display = (userSaldo < unitPrice*q) ? '' : 'none';
   }
-  
-  if(qEl){
-    qEl.addEventListener('input',upd);
+  if(qEl){qEl.addEventListener('input',upd);
     var m=document.getElementById('qtyMinus');var p=document.getElementById('qtyPlus');
-    if(m) m.addEventListener('click', function(){ qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1); upd(); });
-    // [FIX 2]: Tombol plus sekarang tidak bisa melampaui stok maksimal berkat fungsi upd() yang dimodifikasi
-    if(p) p.addEventListener('click', function(){ qEl.value=(parseInt(qEl.value)||1)+1; upd(); });
-  }
-
-  // [FIX 3]: Fungsi penyesuaian dinamis untuk teks label langkah urutan
-  function updateStepNumbers(hasTargetFields) {
-    if (!numberSteps) return; // Kalau cuma 1 varian, nomor langkah tidak diperlukan
-    var stepVar = document.getElementById('stepVariant');
-    var stepQty = document.getElementById('stepQty');
-    if (hasTargetFields) {
-      if (stepVar) stepVar.textContent = '2. ';
-      if (stepQty) stepQty.textContent = '3. ';
-    } else {
-      if (stepVar) stepVar.textContent = '1. ';
-      if (stepQty) stepQty.textContent = '2. ';
-    }
-  }
+    if(m)m.addEventListener('click',function(){qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1);upd();});
+    if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
 
   // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
   function renderTargetFields(fields){
-    var wrap = document.getElementById('targetFieldsWrap');
+    var wrap=document.getElementById('targetFieldsWrap');
     if(!wrap) return;
-
-    // [FIX 4]: Simpan input lama agar ketika user ganti varian, field yang sudah diketik tidak terhapus
-    var oldValues = {};
-    wrap.querySelectorAll('.target-field-input').forEach(function(el){
-      oldValues[el.dataset.key] = el.value;
-    });
-
-    if(!fields || fields.length===0){ 
-      wrap.innerHTML=''; 
-      updateStepNumbers(false);
-      return; 
-    }
-    
+    if(!fields || fields.length===0){ wrap.innerHTML=''; return; }
     var label = numberSteps ? '1. ' : '';
     var html='<div class="target-fields-box"><div class="detail-method-title">'+label+'Isi Data Tujuan</div>';
     fields.forEach(function(f){
@@ -372,17 +348,7 @@
     });
     var hasZoneField = fields.some(function(f){ return /zone/i.test(f.key); });
     html+='<div class="helper-text">Pastikan data di atas benar. Kesalahan '+(hasZoneField?'ID/Zone':'data')+' bisa membuat pesanan gagal terkirim.</div></div>';
-    
     wrap.innerHTML=html;
-
-    // [FIX 4]: Kembalikan data value input yang sudah disalin tadi
-    wrap.querySelectorAll('.target-field-input').forEach(function(el){
-      if(oldValues[el.dataset.key]){
-        el.value = oldValues[el.dataset.key];
-      }
-    });
-    
-    updateStepNumbers(true);
   }
 
   var variantGrid=document.getElementById('variantGrid');
@@ -421,8 +387,7 @@
       if(idSaldo)idSaldo.value=vid;
       if(idQris)idQris.value=vid;
 
-      // Reset value ke 1 dan set maksimal sesuai stok
-      if(qEl){ qEl.value = 1; qEl.max = (v.provider !== 'digiflazz' && v.stockCount > 0) ? v.stockCount : (v.provider === 'digiflazz' ? 10 : 99); }
+      if(qEl){ qEl.value=1; qEl.max = (v.provider !== 'digiflazz' && v.stockCount>0) ? v.stockCount : 99; }
       upd();
 
       renderTargetFields(v.targetFields);
@@ -442,6 +407,7 @@
   var buyBtn=document.getElementById('buyMainBtn');
   function injectTargetFields(form){
     if(!form) return true;
+    // Bersihkan hidden input target_ lama biar gak dobel kalau user submit lebih dari sekali
     form.querySelectorAll('input[data-target-hidden]').forEach(function(el){el.remove();});
     var inputs=document.querySelectorAll('.target-field-input');
     var ok=true;
