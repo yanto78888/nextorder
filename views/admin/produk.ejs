@@ -29,7 +29,7 @@
               <input type="text" name="category" class="input-modern" placeholder="Contoh: Mobile Legends" required list="categoryList">
               <datalist id="categoryList">
                 <% categories.forEach(cat => { %>
-                  <option value="<%= cat %>">
+                  <option value="<%= cat %>"></option>
                 <% }) %>
               </datalist>
             </div>
@@ -46,13 +46,13 @@
 
             <div class="form-group-modern">
               <label>Foto / Ikon Produk (Opsional)</label>
-              <input type="file" name="thumbnailFile" class="input-modern" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp,image/gif">
+              <input type="file" name="danimaru" class="input-modern danimaru-upload" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp,image/gif">
             </div>
           </div>
 
           <!-- Kolom Kanan: Harga & Provider -->
           <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div class="grid grid-2 form-mini-grid">
+            <div class="form-mini-grid">
               <div class="form-group-modern">
                 <label>Harga Reguler (Rp)</label>
                 <input type="number" name="price" class="input-modern" min="0" placeholder="0" required>
@@ -196,6 +196,11 @@
   .mb-16 { margin-bottom: 16px; }
   .mb-24 { margin-bottom: 24px; }
   
+  /* PERBAIKAN GRID UNTUK DESKTOP */
+  .grid { display: grid; gap: 24px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
   .form-group-modern { display: flex; flex-direction: column; gap: 6px; }
   .form-group-modern label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
   
@@ -251,11 +256,11 @@
   
   @media (max-width: 768px) {
     .grid-2 { grid-template-columns: 1fr; }
+    .form-mini-grid { grid-template-columns: 1fr; }
   }
 </style>
 
 <script>
-  // Filter ringan di sisi klien (Client-side filtering)
   function filterProducts() {
     const category = document.getElementById('filterCategory').value.toLowerCase();
     const search = document.getElementById('searchProduct').value.toLowerCase();

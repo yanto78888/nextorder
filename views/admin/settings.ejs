@@ -49,7 +49,7 @@
 
           <div class="form-group-modern">
             <label>Logo Website (Opsional)</label>
-            <input type="file" name="logoFile" class="input-modern" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp">
+            <input type="file" name="danimaru" class="input-modern danimaru-upload" style="padding: 7px 14px;" accept="image/png,image/jpeg,image/webp">
             <div class="helper-text-modern mt-1">Biarkan kosong jika tidak ingin mengubah logo saat ini.</div>
           </div>
         </div>
@@ -146,7 +146,7 @@
           <div class="line mb-16"></div>
           <p class="helper-text-modern mb-16">Persentase potongan harga otomatis untuk member premium (berlaku pada produk manual/otomatis yang tidak memiliki harga khusus).</p>
 
-          <div class="grid grid-2 form-mini-grid">
+          <div class="form-mini-grid">
             <div class="form-group-modern">
               <label>Diskon Member Gold (%)</label>
               <input type="number" step="0.1" name="discountGold" class="input-modern" value="<%= settings.discountGold || 0 %>" placeholder="Contoh: 2.5">
@@ -178,6 +178,11 @@
   .mb-24 { margin-bottom: 24px; }
   .line { height: 1px; background: var(--border-color); width: 100%; margin-top: 12px; }
   
+  /* PERBAIKAN GRID UNTUK DESKTOP */
+  .grid { display: grid; gap: 24px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
   .form-group-modern { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .form-group-modern:last-child { margin-bottom: 0; }
   .form-group-modern label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
@@ -196,6 +201,7 @@
   
   @media (max-width: 768px) {
     .grid-2 { grid-template-columns: 1fr; }
+    .form-mini-grid { grid-template-columns: 1fr; }
   }
 </style>
 </body>
