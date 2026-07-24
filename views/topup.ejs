@@ -1,156 +1,75 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <%- include('partials/head') %>
-  <style>
-    /* Styling Modern Top Up */
-    .dashboard-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
-    .user-chip-modern { background: var(--bg-color); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; color: var(--primary-color); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 8px; }
-
-    .topup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 30px; }
-    
-    .topup-input { width: 100%; padding: 16px; border: 2px solid var(--border-color); border-radius: 12px; font-size: 16px; outline: none; transition: 0.3s; background: #fff; box-sizing: border-box; margin-bottom: 8px; font-weight: bold; }
-    .topup-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
-    
-    .btn-main-modern { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; transition: 0.3s; text-align: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.2); margin-top: 15px; }
-    .btn-main-modern:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,123,255,0.3); }
-    
-    .btn-danger-modern { display: block; width: 100%; padding: 14px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; transition: 0.3s; text-align: center; text-decoration: none; margin-top: 15px; }
-    .btn-danger-modern:hover { background: #fee2e2; }
-
-    .qr-box-modern { text-align: center; padding: 25px 20px; background: var(--bg-color); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px; }
-    .qr-box-modern img { width: 220px; height: 220px; object-fit: contain; background: #fff; padding: 10px; border-radius: 12px; border: 2px dashed #cbd5e1; margin-bottom: 20px; display: inline-block; }
-    .qr-timer { font-size: 26px; font-weight: 900; color: #ef4444; font-family: 'Courier New', Courier, monospace; margin-bottom: 10px; background: #fef2f2; border: 1px solid #fecaca; padding: 8px; border-radius: 8px; display: inline-block; min-width: 120px; }
-    .qr-status { font-size: 14px; font-weight: 700; color: #d97706; background: #fef3c7; padding: 8px 16px; border-radius: 8px; display: inline-block; border: 1px solid #fde68a; }
-
-    .qr-detail-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .qr-detail-table td { padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 14px; }
-    .qr-detail-table tr:last-child td { border-bottom: none; }
-    .qr-detail-label { color: var(--text-muted); font-weight: 600; }
-    .qr-detail-value { text-align: right; font-weight: 800; color: var(--text-dark); }
-    .qr-detail-value.mono { font-family: 'Courier New', Courier, monospace; color: var(--primary-color); font-size: 15px; }
-
-    /* Modern Table */
-    .modern-table-wrapper { background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); overflow-x: auto; margin-bottom: 24px; border: 1px solid var(--border-color); }
-    .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .modern-table th { background: var(--bg-color); padding: 16px 20px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-    .modern-table td { padding: 16px 20px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-dark); vertical-align: middle; white-space: nowrap; }
-    .modern-table tr:last-child td { border-bottom: none; }
-    .modern-table tr:hover td { background-color: #f8fafc; }
-
-    .badge-modern { padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; }
-    .badge-pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-    .badge-completed { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
-    .badge-cancelled { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-    
-    .btn-action-danger { padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-family: inherit; }
-    .btn-action-danger:hover { background: #fee2e2; }
-  </style>
-</head>
+<head><%- include('partials/head') %></head>
 <body>
 <div class="app-shell">
-  <%- include('partials/user-sidebar', { active: 'topup', user, config }) %>
+  <%- include('partials/user-sidebar', { active: 'topup' }) %>
 
   <div class="main no-bottom-nav">
-    
-    <div class="dashboard-header-row">
-      <div class="detail-section-title" style="margin: 0; border: none; padding: 0;"><i class="fa-solid fa-wallet"></i> Top Up Saldo</div>
-      <div class="user-chip-modern"><i class="fa-solid fa-coins"></i> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+    <div class="topbar">
+      <h2>Top Up Saldo</h2>
+      <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= user.saldo.toLocaleString('id-ID') %></div>
     </div>
 
-    <% if (typeof success !== 'undefined' && success) { %>
-      <div style="background:#f0fdf4; color:#059669; padding:15px; border-radius:12px; border: 1px solid #a7f3d0; margin-bottom: 24px; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> <%= success %></div>
-    <% } %>
-    <% if (typeof error !== 'undefined' && error) { %>
-      <div style="background:#fef2f2; color:#dc2626; padding:15px; border-radius:12px; border: 1px solid #fecaca; margin-bottom: 24px; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div>
-    <% } %>
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
 
-    <div class="topup-grid">
-      <!-- Form Pembuatan QRIS -->
-      <div class="card" id="form-card" style="margin-bottom: 0;">
-        <h3 style="margin-top: 0; color: var(--text-dark);"><i class="fa-solid fa-qrcode" style="color: var(--primary-color);"></i> Isi Saldo via QRIS</h3>
-        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">Masukkan nominal top up. QR dinamis akan otomatis dibuat sesuai nominal ditambah biaya layanan &amp; kode unik.</p>
-        
-        <label style="font-size: 13px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 8px;">Nominal Top Up (Rp)</label>
-        <input type="number" id="amount" class="topup-input" min="<%= (config.qris && config.qris.depositMin) || 1000 %>" placeholder="Contoh: 50000">
-        
-        <button class="btn-main-modern" id="btn-create"><i class="fa-solid fa-bolt"></i> Generate QRIS</button>
-        <div id="form-error" style="display:none; background:#fef2f2; color:#dc2626; padding:12px; border-radius:8px; border: 1px solid #fecaca; margin-top:14px; font-size:13px; font-weight:bold; text-align:center;"></div>
+    <div class="grid grid-2">
+      <div class="card" id="form-card">
+        <h3>Isi Saldo via QRIS</h3>
+        <p class="helper-text">Masukkan nominal top up. QR dinamis akan otomatis dibuat sesuai nominal + fee + kode unik.</p>
+        <label>Nominal Top Up (Rp)</label>
+        <input type="number" id="amount" min="<%= (config.qris && config.qris.depositMin) || 1000 %>" placeholder="Contoh: 50000">
+        <button class="btn solid mt-24" id="btn-create" style="width:100%;">Generate QRIS</button>
+        <div id="form-error" class="alert error" style="display:none; margin-top:14px;"></div>
       </div>
 
-      <!-- Area Menampilkan QRIS Aktif -->
-      <div class="card" id="qr-card" style="display:none; margin-bottom: 0;">
-        <h3 style="margin-top: 0; color: var(--text-dark); text-align: center;">Scan QRIS di Bawah</h3>
-        
-        <div class="qr-box-modern">
+      <div class="card" id="qr-card" style="display:none;">
+        <h3>Scan QRIS di Bawah</h3>
+        <div class="qr-box">
           <img id="qr-image" src="" alt="QR Deposit">
           <div class="qr-timer" id="qr-timer">10:00</div>
-          <div class="qr-status" id="qr-status"><i class="fa-solid fa-hourglass-half"></i> Menunggu pembayaran...</div>
+          <div class="qr-status" id="qr-status">Menunggu pembayaran...</div>
         </div>
-        
-        <table class="qr-detail-table">
-          <tr>
-            <td class="qr-detail-label">Nominal Topup</td>
-            <td class="qr-detail-value mono" id="d-amount"></td>
-          </tr>
-          <tr>
-            <td class="qr-detail-label">Total Bayar</td>
-            <td class="qr-detail-value mono" id="d-total"></td>
-          </tr>
-          <tr>
-            <td class="qr-detail-label">ID Transaksi</td>
-            <td class="qr-detail-value mono" style="color: var(--text-muted);" id="d-trxid"></td>
-          </tr>
+        <table style="margin-top:10px;">
+          <tr><td>Nominal Topup</td><td class="mono" id="d-amount"></td></tr>
+          <tr><td>Total Bayar</td><td class="mono" id="d-total"></td></tr>
+          <tr><td>ID Transaksi</td><td class="mono" id="d-trxid"></td></tr>
         </table>
-        
-        <button class="btn-danger-modern" id="btn-cancel">Batal Transaksi</button>
+        <button class="btn danger mt-16" id="btn-cancel" style="width:100%;">Batal Transaksi</button>
       </div>
     </div>
 
-    <!-- Tabel Riwayat -->
-    <div class="detail-section-title"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Top Up</div>
-    
-    <% if (deposits.length === 0) { %>
-      <div class="card empty-state" style="text-align:center; color: var(--text-muted); padding: 40px 20px;">
-        <div style="font-size: 35px; margin-bottom: 12px; opacity: 0.3;"><i class="fa-solid fa-receipt"></i></div>
-        Belum ada riwayat top up.
-      </div>
-    <% } else { %>
-      <div class="modern-table-wrapper">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nominal</th>
-              <th>Total Bayar</th>
-              <th>Status</th>
-              <th>Tanggal</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% deposits.forEach(d => { %>
-            <tr>
-              <td style="font-family: 'Courier New', Courier, monospace; font-weight: 700; color: var(--text-muted);"><%= d.trxid %></td>
-              <td style="font-weight: 700;">Rp <%= d.amount.toLocaleString('id-ID') %></td>
-              <td style="font-weight: 800; color: var(--text-dark);">Rp <%= d.total.toLocaleString('id-ID') %></td>
-              <td><span class="badge-modern badge-<%= d.status %>"><%= d.status %></span></td>
-              <td style="font-size: 13px; color: var(--text-muted);"><%= new Date(d.createdAt).toLocaleString('id-ID') %></td>
-              <td>
-                <% if (d.status === 'pending') { %>
-                <form method="POST" action="/topup/<%= d.trxid %>/batal" onsubmit="return confirm('Batalkan transaksi top up ini?')" style="margin:0;">
-                  <button class="btn-action-danger" type="submit"><i class="fa-solid fa-ban"></i> Batal</button>
-                </form>
-                <% } else { %>
-                <span style="color: var(--text-muted); font-weight:bold;">-</span>
-                <% } %>
-              </td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
+    <div class="section-title"><h3>Riwayat Top Up</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (deposits.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat top up.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Nominal</th><th>Total Bayar</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% deposits.forEach(d => { %>
+          <tr>
+            <td class="mono"><%= d.trxid %></td>
+            <td class="mono">Rp <%= d.amount.toLocaleString('id-ID') %></td>
+            <td class="mono">Rp <%= d.total.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= d.status %>"><%= d.status %></span></td>
+            <td><%= new Date(d.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <% if (d.status === 'pending') { %>
+              <form method="POST" action="/topup/<%= d.trxid %>/batal" onsubmit="return confirm('Batalkan transaksi top up ini?')">
+                <button class="btn small danger" type="submit">Batal</button>
+              </form>
+              <% } else { %>
+              <span class="helper-text">-</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
 
     <%- include('partials/footer') %>
   </div>

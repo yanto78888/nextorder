@@ -1,170 +1,23 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <%- include('partials/head') %>
-  <!-- ==========================================
-       UI OVERHAUL: STYLING MODERN (ALA CODASHOP)
-       ========================================== -->
-  <style>
-    /* Reset & Base Variables */
-    :root {
-      --primary-color: #007bff;
-      --primary-hover: #0056b3;
-      --secondary-color: #10b981;
-      --bg-color: #f4f7fa;
-      --card-bg: #ffffff;
-      --text-dark: #1e293b;
-      --text-muted: #64748b;
-      --border-color: #e2e8f0;
-      --shadow-sm: 0 2px 10px rgba(0,0,0,0.03);
-      --shadow-md: 0 8px 25px rgba(0,0,0,0.06);
-      --border-radius: 16px;
-    }
-
-    body { background-color: var(--bg-color); color: var(--text-dark); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    
-    /* Layout Container */
-    .detail-main { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
-    
-    /* Hero Section */
-    .detail-hero { position: relative; height: 260px; border-radius: 0 0 30px 30px; overflow: hidden; box-shadow: var(--shadow-md); margin-bottom: 30px; background: #000; }
-    .detail-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; filter: blur(2px); transition: 0.3s; }
-    .detail-hero-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 60%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
-    .detail-back-btn { position: absolute; top: 20px; left: 20px; color: #fff; text-decoration: none; font-weight: 600; background: rgba(0,0,0,0.4); padding: 8px 16px; border-radius: 20px; backdrop-filter: blur(5px); transition: 0.2s; z-index: 10; }
-    .detail-back-btn:hover { background: var(--primary-color); }
-    
-    /* Bodi Halaman */
-    .detail-body { padding: 0 20px; margin-top: -80px; position: relative; z-index: 5; }
-
-    /* Header Produk (Judul & Meta) */
-    .detail-title { font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-    .detail-meta-row { margin-bottom: 8px; }
-    .nf-stock-tag { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
-    .nf-stock-tag.ok { background: #10b981; color: #fff; }
-    .nf-stock-tag.warn { background: #f59e0b; color: #fff; }
-    .detail-category { background: rgba(255,255,255,0.2); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 12px; backdrop-filter: blur(4px); margin-left: 5px; }
-
-    /* Rating Bintang */
-    .rating-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
-    .star { color: #d1d5db; font-size: 18px; }
-    .star.filled { color: #fbbf24; }
-    .rating-score { color: #fff; font-weight: 700; font-size: 16px; }
-    .rating-count { color: #cbd5e1; font-size: 14px; }
-
-    /* Stats Grid */
-    .detail-stats-row { display: flex; justify-content: space-between; background: var(--card-bg); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--shadow-sm); margin-bottom: 24px; text-align: center; }
-    .detail-stat { flex: 1; }
-    .detail-stat-val { font-size: 18px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
-    .detail-stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .detail-stat-divider { width: 1px; background: var(--border-color); }
-
-    /* Kartu Section Umum (Panduan, Beli, Ulasan) */
-    .detail-section, .detail-buy-box, .reviews-section { background: var(--card-bg); padding: 25px; border-radius: var(--border-radius); box-shadow: var(--shadow-sm); margin-bottom: 24px; }
-    .detail-section-title, .detail-method-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-bottom: 2px solid var(--bg-color); padding-bottom: 10px; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
-
-    /* Panduan Pembelian */
-    .buy-guide-list { padding: 0; list-style: none; margin: 0; display: flex; flex-direction: column; gap: 12px; }
-    .buy-guide-item { display: flex; gap: 12px; align-items: flex-start; }
-    .buy-guide-num { background: var(--primary-color); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 13px; font-weight: bold; flex-shrink: 0; }
-    .buy-guide-text { font-size: 14px; color: #475569; line-height: 1.5; }
-
-    /* Input Fields (User ID, Zone ID) */
-    .target-fields-box { background: var(--bg-color); padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border-color); }
-    .target-fields-box label { display: block; margin-top: 10px; margin-bottom: 5px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
-    .target-field-input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; outline: none; transition: 0.3s; background: #fff; box-sizing: border-box; }
-    .target-field-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
-    .helper-text { font-size: 12px; color: #ef4444; margin-top: 10px; font-style: italic; }
-
-    /* Grid Variant Nominal */
-    .variant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .variant-card { display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fff; border: 2px solid var(--border-color); border-radius: 12px; padding: 16px 10px; text-align: center; cursor: pointer; transition: 0.2s; outline: none; text-decoration: none; min-height: 80px; }
-    .variant-card:hover { border-color: #cbd5e1; transform: translateY(-2px); }
-    .variant-card-name { font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
-    .variant-card-price { font-size: 14px; color: var(--primary-color); font-weight: 800; }
-    .variant-card-warn { font-size: 11px; color: #ef4444; background: #fef2f2; padding: 2px 6px; border-radius: 4px; margin-top: 5px; }
-    
-    /* Efek Variabel Aktif */
-    .variant-card.selected { border-color: var(--primary-color); background: #f0f7ff; box-shadow: 0 4px 12px rgba(0,123,255,0.15); transform: translateY(-2px); }
-
-    /* Harga & Stepper (Qty) */
-    .detail-price-main { text-align: right; margin-bottom: 15px; background: var(--bg-color); padding: 15px; border-radius: 12px; }
-    .detail-price-old { text-decoration: line-through; color: var(--text-muted); font-size: 14px; margin-right: 8px; }
-    .detail-price-now { font-size: 24px; font-weight: 900; color: var(--primary-color); }
-    
-    .detail-qty-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); padding: 15px; border-radius: 12px; margin-bottom: 24px; }
-    .detail-qty-row label { font-weight: 600; color: var(--text-dark); }
-    .qty-stepper { display: flex; align-items: center; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; }
-    .qty-btn { background: #f8f9fa; border: none; padding: 8px 15px; cursor: pointer; font-size: 16px; font-weight: bold; color: var(--text-dark); transition: 0.2s; }
-    .qty-btn:hover { background: #e2e8f0; }
-    .qty-stepper input { width: 50px; text-align: center; border: none; outline: none; font-weight: bold; font-size: 16px; -moz-appearance: textfield; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); padding: 8px 0; }
-    .total-preview { font-size: 18px; color: var(--text-dark); }
-
-    /* Metode Pembayaran Tab */
-    .payment-method-tabs { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-    .method-tab input { display: none; }
-    .method-card { display: flex; align-items: center; padding: 16px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: 0.2s; background: #fff; }
-    .method-icon { font-size: 24px; width: 40px; color: var(--text-muted); }
-    .method-info { flex: 1; }
-    .method-name { font-weight: 700; font-size: 15px; color: var(--text-dark); }
-    .method-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .method-check { color: transparent; font-size: 18px; transition: 0.2s; }
-    
-    /* Efek Metode Dipilih */
-    .method-tab input:checked + .method-card { border-color: var(--secondary-color); background: #f0fdf4; box-shadow: 0 4px 12px rgba(16,185,129,0.1); }
-    .method-tab input:checked + .method-card .method-icon { color: var(--secondary-color); }
-    .method-tab input:checked + .method-card .method-check { color: var(--secondary-color); }
-
-    /* Tombol Beli Utama */
-    .buy-main-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: 800; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 6px 15px rgba(0,123,255,0.3); }
-    .buy-main-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,123,255,0.4); }
-
-    /* Reviews Styling */
-    .reviews-header { display: flex; justify-content: space-between; align-items: center; }
-    .reviews-count { font-size: 14px; background: var(--bg-color); padding: 4px 10px; border-radius: 20px; font-weight: 600; color: var(--text-muted); }
-    .review-form-card { background: var(--bg-color); padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border-color); }
-    .review-stars-input { font-size: 30px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: center; gap: 5px; }
-    .rev-star-btn { color: #d1d5db; transition: 0.2s; }
-    .rev-star-btn.sel, .rev-star-btn.hov { color: #fbbf24; transform: scale(1.1); }
-    .review-textarea { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); outline: none; resize: vertical; box-sizing: border-box; font-family: inherit; margin-bottom: 15px; }
-    .review-submit-btn { width: 100%; padding: 12px; background: var(--text-dark); color: white; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; }
-    
-    .review-card { padding: 20px 0; border-bottom: 1px solid var(--border-color); }
-    .review-card:last-child { border-bottom: none; }
-    .review-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .review-avatar { width: 40px; height: 40px; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 18px; }
-    .review-card-meta { flex: 1; }
-    .review-username { font-weight: 700; font-size: 15px; color: var(--text-dark); }
-    .review-date { font-size: 12px; color: var(--text-muted); }
-    .review-stars-display { font-size: 14px; }
-    .rstar-on { color: #fbbf24; }
-    .rstar-off { color: #e2e8f0; }
-    .review-comment { font-size: 14px; color: #475569; line-height: 1.6; background: var(--bg-color); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary-color); }
-
-    /* Alert / Warning */
-    .alert.error { background: #fef2f2; border: 1px solid #f87171; color: #dc2626; padding: 10px 15px; border-radius: 8px; font-weight: 600; text-align: center; }
-    
-    /* Responsive */
-    @media (max-width: 600px) {
-      .detail-stats-row { flex-direction: column; gap: 10px; }
-      .detail-stat-divider { width: 100%; height: 1px; }
-      .detail-title { font-size: 22px; }
-      .variant-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-  </style>
-</head>
+<head><%- include('partials/head') %></head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'produk', user, config }) %>
   <div class="main detail-main no-bottom-nav">
 
+    <% /* Produk yang tergabung dalam Grup Varian (mis. semua nominal "Mobile Legends") harus tetap
+       menampilkan nama grupnya di sini, BUKAN nama SKU spesifik yang kebetulan jadi link (varian
+       termurah) dari kartu katalog. Kalau tidak, judul halaman "loncat" jadi nama nominal tertentu
+       (mis. "MOBILELEGEND - 3 Diamond") padahal di beranda kartunya cuma tertulis "Mobile Legends". */ %>
     <% const displayName = product.variantGroup || product.name; %>
 
-    <!-- Hero Image (Banner) -->
+    <!-- Hero Image -->
     <div class="detail-hero">
       <% if (displayThumbnail) { %>
         <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= displayName %>">
       <% } else { %>
-        <div class="detail-thumb detail-thumb-placeholder" style="background:var(--primary-color); display:flex; align-items:center; justify-content:center; font-size:80px; color:#fff;"><%= displayName.charAt(0).toUpperCase() %></div>
+        <div class="detail-thumb detail-thumb-placeholder"><%= displayName.charAt(0).toUpperCase() %></div>
       <% } %>
       <div class="detail-hero-overlay"></div>
       <a href="/produk" class="detail-back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
@@ -172,8 +25,8 @@
 
     <div class="detail-body">
 
-      <!-- Header & Rating Info Menempel di Bawah Banner -->
       <div class="detail-meta-row">
+        <% /* Digiflazz = auto top up sistem, jadi statusnya selalu "Auto" walau tidak ada stockItems manual. */ %>
         <% const isAuto = product.provider === 'digiflazz'; %>
         <% const stockCount = product.stockItems ? product.stockItems.length : 0; %>
         <span class="nf-stock-tag <%= (isAuto || stockCount > 0) ? 'ok' : 'warn' %>"><%- (isAuto || stockCount > 0) ? '<i class="fa-solid fa-bolt"></i> Auto' : '<i class="fa-solid fa-screwdriver-wrench"></i> Manual' %></span>
@@ -182,6 +35,7 @@
 
       <h1 class="detail-title"><%= displayName %></h1>
 
+      <!-- Rating display -->
       <div class="rating-row">
         <div class="stars-display">
           <% const avgR = product.rating || 0; for(let i=1;i<=5;i++){%><span class="star <%= i<=Math.round(avgR)?'filled':'' %>">★</span><%}%>
@@ -190,7 +44,7 @@
         <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
       </div>
 
-      <!-- Stats Box -->
+      <!-- Stats -->
       <div class="detail-stats-row">
         <div class="detail-stat">
           <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
@@ -199,7 +53,7 @@
         <div class="detail-stat-divider"></div>
         <% if (isAuto) { %>
         <div class="detail-stat">
-          <div class="detail-stat-val" style="color:var(--secondary-color);"><i class="fa-solid fa-bolt"></i> Instan</div>
+          <div class="detail-stat-val" style="color:var(--success);"><i class="fa-solid fa-bolt"></i> Instan</div>
           <div class="detail-stat-label">Pengiriman</div>
         </div>
         <% } else { %>
@@ -210,16 +64,17 @@
         <% } %>
         <div class="detail-stat-divider"></div>
         <div class="detail-stat">
-          <div class="detail-stat-val" style="color:var(--primary-color);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
-          <div class="detail-stat-label">Harga Awal</div>
+          <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+          <div class="detail-stat-label">Harga</div>
         </div>
       </div>
 
-      <!-- Panduan Membeli -->
+      <!-- Deskripsi / Panduan cara membeli -->
       <% if (isAuto) { %>
+        <% /* Produk auto top up (Digiflazz) gak pakai deskripsi manual, tapi panduan langkah beli yang sama buat semua produk auto. */ %>
         <% let guideStep = 1; %>
         <div class="detail-section">
-          <div class="detail-section-title"><i class="fa-solid fa-book-open"></i> Cara Membeli</div>
+          <div class="detail-section-title">Cara Membeli</div>
           <ol class="buy-guide-list">
             <% if (variants && variants.length > 1) { %>
             <li class="buy-guide-item">
@@ -234,39 +89,49 @@
             <% if (product.targetFields && product.targetFields.length > 0) { %>
             <li class="buy-guide-item">
               <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Isi <b><%= product.targetFields.map(f => f.label).join(' & ') %></b> dengan benar. Data yang salah bisa bikin pesanan gagal.</span>
+              <span class="buy-guide-text">Isi <b><%= product.targetFields.map(f => f.label).join(' & ') %></b> dengan benar. Data yang salah bisa bikin pesanan gagal terkirim.</span>
             </li>
             <% } %>
             <li class="buy-guide-item">
               <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Pilih <b>metode pembayaran</b> (Saldo akun / QRIS) dan klik <b>Beli Sekarang</b>.</span>
+              <span class="buy-guide-text">Pilih <b>metode pembayaran</b>: Saldo akun atau QRIS.</span>
+            </li>
+            <li class="buy-guide-item">
+              <span class="buy-guide-num"><%= guideStep++ %></span>
+              <span class="buy-guide-text">Klik <b>Beli Sekarang</b>. Setelah pembayaran berhasil, produk terkirim <b>otomatis & instan</b>.</span>
             </li>
           </ol>
         </div>
       <% } else if (product.description) { %>
         <div class="detail-section">
-          <div class="detail-section-title"><i class="fa-solid fa-circle-info"></i> Deskripsi Produk</div>
-          <div class="detail-desc" style="color:var(--text-muted); line-height: 1.6;"><%= product.description %></div>
+          <div class="detail-section-title">Deskripsi Produk</div>
+          <div class="detail-desc"><%= product.description %></div>
         </div>
       <% } %>
 
-      <!-- SECTION: KOTAK PEMBELIAN UTAMA -->
+      <!-- Buy Box: grid nominal & harga tampil buat SEMUA ORANG (termasuk tamu belum login).
+           Cuma kontrol pembelian (qty, data tujuan, metode bayar, tombol beli) yang wajib login. -->
       <div class="detail-buy-box">
+
         <%
-          const numberSteps = !!(variants && variants.length > 1);
-          const hasTargetFields = !!(product.targetFields && product.targetFields.length > 0);
-          const targetFieldsLabel = (numberSteps && hasTargetFields) ? '1. ' : '';
-          const variantLabel = numberSteps ? (hasTargetFields ? '2. ' : '1. ') : '';
-          const qtyLabel = numberSteps ? (hasTargetFields ? '3. ' : '2. ') : '';
+          // Nomor urutan langkah beli dihitung dinamis. "Isi Data Tujuan" (ID game / Server-Zone ID)
+          // sekarang ditaruh PALING ATAS, sebelum pilih nominal -- user isi ID/Server dulu baru
+          // milih nominal & bayar, urutannya lebih natural buat top up game. Nomor cuma dimunculin
+          // kalau produk ini punya >1 varian nominal buat dipilih (sama kayak aturan sebelumnya).
         %>
+        <% const numberSteps = !!(variants && variants.length > 1); %>
+        <% const hasTargetFields = !!(product.targetFields && product.targetFields.length > 0); %>
+        <% const targetFieldsLabel = (numberSteps && hasTargetFields) ? '1. ' : ''; %>
+        <% const variantLabel = numberSteps ? (hasTargetFields ? '2. ' : '1. ') : ''; %>
+        <% const qtyLabel = numberSteps ? (hasTargetFields ? '3. ' : '2. ') : ''; %>
 
         <% if (user) { %>
         <div id="targetFieldsWrap">
         <% if (hasTargetFields) { %>
         <div class="target-fields-box">
-          <div class="detail-method-title"><span class="buy-guide-num"><%= targetFieldsLabel.replace('.','') || 1 %></span> Isi Data Tujuan</div>
+          <div class="detail-method-title"><%= targetFieldsLabel %>Isi Data Tujuan</div>
           <% product.targetFields.forEach(f => { %>
-            <label><%= f.label %><% if (f.required) { %> <span style="color:#ef4444;">*</span><% } %></label>
+            <label><%= f.label %><% if (f.required) { %> <span style="color:var(--cyan);">*</span><% } %></label>
             <% if (f.type === 'select') { %>
               <select class="target-field-input" data-key="<%= f.key %>" <%= f.required ? 'required' : '' %>>
                 <option value="">Pilih <%= f.label %></option>
@@ -285,7 +150,7 @@
         <% } %>
 
         <% if (variants && variants.length > 1) { %>
-        <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><span class="buy-guide-num"><%= variantLabel.replace('.','') || 1 %></span> Pilih Nominal</div>
+        <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><%= variantLabel %>Pilih Nominal</div>
         <% if (user) { %>
         <div class="variant-grid" id="variantGrid">
           <% variants.forEach(v => { %>
@@ -297,6 +162,8 @@
           <% }) %>
         </div>
         <% } else { %>
+        <!-- Tamu: kartu varian jadi tautan biasa ke halaman produknya masing-masing, biar semua
+             harga tetap kelihatan tanpa perlu JS pemilih varian yang cuma jalan buat user login. -->
         <div class="variant-grid">
           <% variants.forEach(v => { %>
             <a href="/produk/<%= v.id %>" class="variant-card <%= v.id === product.id ? 'selected' : '' %>">
@@ -309,7 +176,6 @@
         <% } %>
         <% } %>
 
-        <!-- Display Harga Saat Ini -->
         <div class="detail-price-main">
           <% if (finalPrice < product.price) { %>
             <span class="detail-price-old" id="priceOld">Rp <%= product.price.toLocaleString('id-ID') %></span>
@@ -319,7 +185,7 @@
 
         <% if (user) { %>
           <div class="detail-qty-row">
-            <label>Jumlah Beli:</label>
+            <label><%= qtyLabel %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
               <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? 10 : 99) %>">
@@ -328,17 +194,17 @@
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
           </div>
 
-          <div class="detail-method-title"><i class="fa-solid fa-wallet"></i> Metode Pembayaran</div>
+          <div class="detail-method-title">Metode Pembayaran</div>
           <div class="payment-method-tabs">
             <label class="method-tab">
               <input type="radio" name="payMethod" value="saldo" checked>
               <div class="method-card">
                 <div class="method-icon"><i class="fa-solid fa-credit-card"></i></div>
                 <div class="method-info">
-                  <div class="method-name">Saldo Akun</div>
-                  <div class="method-sub">Sisa Saldo: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                  <div class="method-name">Saldo</div>
+                  <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
                 </div>
-                <div class="method-check"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
               </div>
             </label>
             <label class="method-tab">
@@ -347,14 +213,13 @@
                 <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
                 <div class="method-info">
                   <div class="method-name">QRIS</div>
-                  <div class="method-sub">Bayar otomatis via e-Wallet/Bank</div>
+                  <div class="method-sub">Bayar via scan QR</div>
                 </div>
-                <div class="method-check"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="method-check"><i class="fa-solid fa-check"></i></div>
               </div>
             </label>
           </div>
 
-          <!-- Formulir Tersembunyi -->
           <form method="POST" action="/order" id="buyFormSaldo">
             <input type="hidden" name="productId" id="productIdSaldo" value="<%= product.id %>">
             <input type="hidden" name="qty" id="buyQtySaldo" value="1">
@@ -364,45 +229,46 @@
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
           </form>
 
-          <button type="button" class="buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
-          <div class="alert error" id="saldoWarning" style="margin-top:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>"><i class="fa-solid fa-triangle-exclamation"></i> Saldo tidak cukup — Silakan gunakan QRIS atau Topup Saldo.</div>
+          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
+          <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>">Saldo tidak cukup — gunakan QRIS.</div>
         <% } else { %>
           <div class="guest-buy-box">
-            <a href="/login" class="buy-main-btn" style="display:block; text-align:center; text-decoration:none;"><i class="fa-solid fa-key"></i> Login untuk Membeli</a>
-            <div style="text-align:center; margin-top:15px; font-size:14px; color:var(--text-muted);">Belum punya akun? <a href="/register" style="color:var(--primary-color); font-weight:bold;">Daftar gratis</a></div>
+            <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
+            <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
           </div>
         <% } %>
       </div>
 
-      <!-- ====== ULASAN ====== -->
+      <!-- ====== ULASAN / KOMENTAR ====== -->
       <div class="reviews-section">
         <div class="reviews-header">
-          <div class="detail-section-title" style="border:none; margin:0;"><i class="fa-solid fa-star"></i> Ulasan Pembeli</div>
+          <div class="detail-section-title">Ulasan Pembeli</div>
           <span class="reviews-count"><%= reviews.length %> ulasan</span>
         </div>
-        <hr style="border:none; border-top: 1px solid var(--border-color); margin: 15px 0 25px 0;">
 
+        <!-- Form ulasan (hanya user login & belum review) -->
         <% if (user && !hasReviewed) { %>
           <div class="review-form-card">
-            <div style="font-weight:700; margin-bottom:10px; text-align:center;">Tulis Ulasanmu</div>
+            <div class="review-form-title">Tulis Ulasanmu</div>
             <form method="POST" action="/produk/<%= product.id %>/review" class="review-form">
               <div class="review-stars-input" id="reviewStarsInput">
                 <% for(let i=1;i<=5;i++){%><span class="rev-star-btn" data-val="<%= i %>">★</span><%}%>
               </div>
               <input type="hidden" name="rating" id="reviewRatingVal" value="">
-              <p style="text-align:center; font-size:13px; color:var(--text-muted); margin-bottom:15px;" id="revStarHint">Ketuk bintang untuk memberi nilai</p>
-              <textarea name="comment" class="review-textarea" placeholder="Ceritakan pengalamanmu... (opsional)" maxlength="500" rows="3"></textarea>
-              <button type="submit" class="review-submit-btn" id="reviewSubmitBtn" disabled>Kirim Ulasan</button>
+              <p class="rev-star-hint" id="revStarHint">Ketuk bintang untuk memberi nilai</p>
+              <textarea name="comment" class="review-textarea" placeholder="Ceritakan pengalamanmu menggunakan produk ini... (opsional, maks 500 karakter)" maxlength="500" rows="3"></textarea>
+              <button type="submit" class="btn solid review-submit-btn" id="reviewSubmitBtn" disabled>Kirim Ulasan</button>
             </form>
           </div>
         <% } else if (user && hasReviewed) { %>
-          <div style="background:#f0fdf4; color:#059669; padding:15px; border-radius:8px; text-align:center; border:1px solid #a7f3d0; margin-bottom: 20px;"><i class="fa-solid fa-circle-check"></i> Kamu sudah memberikan ulasan.</div>
+          <div class="review-already"><i class="fa-solid fa-circle-check"></i> Kamu sudah memberikan ulasan untuk produk ini.</div>
         <% } else { %>
-          <div style="text-align:center; padding:15px; background:var(--bg-color); border-radius:8px; margin-bottom:20px;"><a href="/login" style="color:var(--primary-color); font-weight:bold;">Login</a> untuk menulis ulasan.</div>
+          <div class="review-login-prompt"><a href="/login" style="color:var(--cyan);">Login</a> untuk menulis ulasan.</div>
         <% } %>
 
+        <!-- Daftar ulasan -->
         <% if (reviews.length === 0) { %>
-          <div style="text-align:center; padding:30px; color:var(--text-muted);">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star" style="color:#fbbf24;"></i></div>
+          <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star"></i></div>
         <% } else { %>
           <div class="review-list">
             <% reviews.forEach(r => { %>
@@ -431,14 +297,17 @@
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
-<!-- SCRIPT JAVASCRIPT LAMA (DIPERTAHANKAN 100% UNTUK LOGIKA BACKEND) -->
 <script>
 (function(){
   var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
   var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
+  // Isi Data Tujuan selalu di posisi PALING ATAS di box beli (lihat markup di atas), jadi kalau
+  // nomor langkah lagi dipakai (produk ini punya >1 varian nominal), section itu selalu "1."
+  // -- termasuk pas dimunculin ulang lewat JS ini waktu user ganti pilihan varian.
   var numberSteps = <%- numberSteps ? 'true' : 'false' %>;
 
+  // Qty stepper
   var unitPrice=<%= finalPrice %>;
   var qEl=document.getElementById('qtyInput');
   var tEl=document.getElementById('totalPreview');
@@ -457,14 +326,15 @@
     if(m)m.addEventListener('click',function(){qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1);upd();});
     if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
 
+  // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
   function renderTargetFields(fields){
     var wrap=document.getElementById('targetFieldsWrap');
     if(!wrap) return;
     if(!fields || fields.length===0){ wrap.innerHTML=''; return; }
-    var label = numberSteps ? '<span class="buy-guide-num">1</span> ' : '';
+    var label = numberSteps ? '1. ' : '';
     var html='<div class="target-fields-box"><div class="detail-method-title">'+label+'Isi Data Tujuan</div>';
     fields.forEach(function(f){
-      html+='<label>'+f.label+(f.required?' <span style="color:#ef4444;">*</span>':'')+'</label>';
+      html+='<label>'+f.label+(f.required?' <span style="color:var(--cyan);">*</span>':'')+'</label>';
       if(f.type==='select'){
         html+='<select class="target-field-input" data-key="'+f.key+'" '+(f.required?'required':'')+'>';
         html+='<option value="">Pilih '+f.label+'</option>';
@@ -519,10 +389,12 @@
 
       if(qEl){ qEl.value=1; qEl.max = (v.provider !== 'digiflazz' && v.stockCount>0) ? v.stockCount : 99; }
       upd();
+
       renderTargetFields(v.targetFields);
     });
   }
 
+  // Method tabs
   var radios=document.querySelectorAll('input[name="payMethod"]');
   radios.forEach(function(r){r.addEventListener('change',function(){
     document.querySelectorAll('.method-card').forEach(function(c){c.classList.remove('selected');});
@@ -531,15 +403,17 @@
   var def=document.querySelector('input[name="payMethod"]:checked');
   if(def)def.closest('.method-tab').querySelector('.method-card').classList.add('selected');
 
+  // Buy button
   var buyBtn=document.getElementById('buyMainBtn');
   function injectTargetFields(form){
     if(!form) return true;
+    // Bersihkan hidden input target_ lama biar gak dobel kalau user submit lebih dari sekali
     form.querySelectorAll('input[data-target-hidden]').forEach(function(el){el.remove();});
     var inputs=document.querySelectorAll('.target-field-input');
     var ok=true;
     inputs.forEach(function(el){
       var val=el.value.trim();
-      if(el.hasAttribute('required') && !val){ el.style.borderColor='#ef4444'; ok=false; }
+      if(el.hasAttribute('required') && !val){ el.style.borderColor='var(--cyan)'; ok=false; }
       else { el.style.borderColor=''; }
       var hidden=document.createElement('input');
       hidden.type='hidden';
@@ -553,10 +427,11 @@
   if(buyBtn)buyBtn.addEventListener('click',function(){
     var m='saldo';radios.forEach(function(r){if(r.checked)m=r.value;});
     var f=m==='qris'?document.getElementById('buyFormQris'):document.getElementById('buyFormSaldo');
-    if(!injectTargetFields(f)){ alert('Mohon lengkapi data tujuan (User ID/Game ID) terlebih dahulu!'); return; }
+    if(!injectTargetFields(f)){ alert('Lengkapi dulu data tujuan yang wajib diisi (tanda *)'); return; }
     if(f)f.submit();
   });
 
+  // Review star input
   var stars=document.querySelectorAll('.rev-star-btn');
   var ratingInput=document.getElementById('reviewRatingVal');
   var hint=document.getElementById('revStarHint');

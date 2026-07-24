@@ -1,193 +1,105 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <%- include('partials/head') %>
-  <style>
-    /* Styling Modern Riwayat Order */
-    .dashboard-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
-    
-    .modern-table-wrapper { background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); overflow-x: auto; margin-bottom: 30px; border: 1px solid var(--border-color); }
-    .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .modern-table th { background: var(--bg-color); padding: 16px 20px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-    .modern-table td { padding: 16px 20px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-dark); vertical-align: middle; white-space: nowrap; }
-    .modern-table tr:last-child td { border-bottom: none; }
-    .modern-table tr:hover td { background-color: #f8fafc; }
-
-    /* Modern Badges */
-    .badge-modern { padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; }
-    .badge-completed { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
-    .badge-processing { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-    .badge-cancelled, .badge-rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-    .badge-pending { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
-    .badge-auto { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
-    .badge-admin { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
-
-    /* Action Buttons */
-    .action-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-    .btn-action { padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; border: none; font-family: inherit; }
-    .btn-action-ghost { background: var(--bg-color); color: var(--text-dark); border: 1px solid var(--border-color); }
-    .btn-action-ghost:hover { background: #e2e8f0; }
-    .btn-action-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-    .btn-action-danger:hover { background: #fee2e2; }
-    .btn-action-primary { background: rgba(0,123,255,0.1); color: var(--primary-color); border: 1px solid rgba(0,123,255,0.2); }
-    .btn-action-primary:hover { background: var(--primary-color); color: white; }
-    
-    .data-mono { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: var(--text-muted); font-size: 13px; }
-    .data-price { font-weight: 800; color: var(--text-dark); }
-    
-    .detail-text { max-width: 250px; white-space: normal; line-height: 1.5; font-size: 12px; color: var(--text-muted); background: var(--bg-color); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
-  </style>
-</head>
+<head><%- include('partials/head') %></head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'riwayat' }) %>
 
   <div class="main no-bottom-nav">
-    
-    <div class="dashboard-header-row">
-      <div class="detail-section-title" style="margin: 0; border: none; padding: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Order</div>
+    <div class="topbar"><h2>Riwayat Order</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="section-title"><h3>Riwayat Jasa Sosmed</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (sosmedOrders.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat order Jasa Sosmed.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Layanan</th><th>Target</th><th>Qty</th><th>Total</th><th>Status</th><th>Refill</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% sosmedOrders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.productName %></td>
+            <td style="max-width:180px; font-size:12px; color:var(--text-dim); word-break:break-all;"><%= o.targetText || o.providerCustomerNo || '-' %></td>
+            <td><%= o.qty %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td>
+              <span class="badge <%= o.status %>"><%= o.status %></span>
+              <% if (o.cancelRequestedAt && o.status === 'processing') { %>
+                <br><span class="badge pending" style="margin-top:4px; display:inline-block;">menunggu konfirmasi batal</span>
+              <% } %>
+            </td>
+            <td>
+              <% if (o.refillStatus === 'processing') { %>
+                <span class="badge processing">diproses</span>
+              <% } else if (o.refillStatus === 'completed') { %>
+                <span class="badge completed">selesai</span>
+              <% } else if (o.refillStatus === 'rejected') { %>
+                <span class="badge cancelled">ditolak</span>
+              <% } else if (o.refillStatus === 'cancelled') { %>
+                <span class="badge cancelled">batal</span>
+              <% } else { %>
+                <span class="helper-text">-</span>
+              <% } %>
+            </td>
+            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <div class="flex" style="flex-wrap:wrap; gap:6px;">
+                <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
+                <% if (o.canCancel) { %>
+                <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" onsubmit="return confirm('Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga).')">
+                  <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
+                </form>
+                <% } %>
+                <% if (o.canRefill) { %>
+                <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" onsubmit="return confirm('Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.')">
+                  <button class="btn small magenta" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
+                </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
     </div>
 
-    <% if (success) { %>
-      <div style="background:#f0fdf4; color:#059669; padding:15px; border-radius:12px; border: 1px solid #a7f3d0; margin-bottom: 24px; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> <%= success %></div>
-    <% } %>
-    <% if (error) { %>
-      <div style="background:#fef2f2; color:#dc2626; padding:15px; border-radius:12px; border: 1px solid #fecaca; margin-bottom: 24px; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> <%= error %></div>
-    <% } %>
-
-    <!-- RIWAYAT JASA SOSMED -->
-    <div class="detail-section-title"><i class="fa-solid fa-thumbs-up"></i> Jasa Sosmed</div>
-    
-    <% if (sosmedOrders.length === 0) { %>
-      <div class="card empty-state" style="text-align:center; color: var(--text-muted); padding: 40px 20px;">
-        <div style="font-size: 35px; margin-bottom: 12px; opacity: 0.3;"><i class="fa-solid fa-box-open"></i></div>
-        Belum ada riwayat order Jasa Sosmed.
-      </div>
-    <% } else { %>
-      <div class="modern-table-wrapper">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Layanan</th>
-              <th>Target</th>
-              <th>Qty</th>
-              <th>Total</th>
-              <th>Status</th>
-              <th>Refill</th>
-              <th>Tanggal</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% sosmedOrders.forEach(o => { %>
-            <tr>
-              <td class="data-mono"><%= o.id %></td>
-              <td style="font-weight: 700;"><%= o.productName %></td>
-              <td style="max-width:200px; white-space:normal; font-size:12px; color:var(--text-muted); line-height: 1.4; word-break: break-all;">
-                <%= o.targetText || o.providerCustomerNo || '-' %>
-              </td>
-              <td style="font-weight: 600;"><%= o.qty %></td>
-              <td class="data-price">Rp <%= o.total.toLocaleString('id-ID') %></td>
-              <td>
-                <span class="badge-modern badge-<%= o.status %>"><%= o.status %></span>
-                <% if (o.cancelRequestedAt && o.status === 'processing') { %>
-                  <br><span class="badge-modern badge-pending" style="margin-top:6px; font-size: 10px;">Menunggu Batal</span>
-                <% } %>
-              </td>
-              <td>
-                <% if (o.refillStatus === 'processing') { %>
-                  <span class="badge-modern badge-processing"><i class="fa-solid fa-rotate"></i> Diproses</span>
-                <% } else if (o.refillStatus === 'completed') { %>
-                  <span class="badge-modern badge-completed"><i class="fa-solid fa-check"></i> Selesai</span>
-                <% } else if (o.refillStatus === 'rejected') { %>
-                  <span class="badge-modern badge-rejected"><i class="fa-solid fa-xmark"></i> Ditolak</span>
-                <% } else if (o.refillStatus === 'cancelled') { %>
-                  <span class="badge-modern badge-cancelled"><i class="fa-solid fa-ban"></i> Batal</span>
-                <% } else { %>
-                  <span style="color: var(--text-muted); font-weight:bold;">-</span>
-                <% } %>
-              </td>
-              <td style="font-size: 12px; color: var(--text-muted);"><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-              <td>
-                <div class="action-btns">
-                  <a href="/riwayat/<%= o.id %>" class="btn-action btn-action-ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
-                  <% if (o.canCancel) { %>
-                  <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" onsubmit="return confirm('Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga).')" style="margin:0;">
-                    <button class="btn-action btn-action-danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
-                  </form>
-                  <% } %>
-                  <% if (o.canRefill) { %>
-                  <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" onsubmit="return confirm('Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.')" style="margin:0;">
-                    <button class="btn-action btn-action-primary" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
-                  </form>
-                  <% } %>
-                </div>
-              </td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
-
-    <!-- RIWAYAT PRODUK & TOP UP -->
-    <div class="detail-section-title"><i class="fa-solid fa-gamepad"></i> Produk &amp; Top Up</div>
-    
-    <% if (otherOrders.length === 0) { %>
-      <div class="card empty-state" style="text-align:center; color: var(--text-muted); padding: 40px 20px;">
-        <div style="font-size: 35px; margin-bottom: 12px; opacity: 0.3;"><i class="fa-solid fa-box-open"></i></div>
-        Belum ada riwayat order produk/top up.
-      </div>
-    <% } else { %>
-      <div class="modern-table-wrapper">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Produk</th>
-              <th>Tujuan</th>
-              <th>Qty</th>
-              <th>Total</th>
-              <th>Mode</th>
-              <th>Status</th>
-              <th>Detail</th>
-              <th>Tanggal</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% otherOrders.forEach(o => { %>
-            <tr>
-              <td class="data-mono"><%= o.id %></td>
-              <td style="font-weight: 700;"><%= o.productName %></td>
-              <td style="font-size:12px; color:var(--text-muted); font-weight:600;"><%= o.targetText || '-' %></td>
-              <td style="font-weight: 600;"><%= o.qty %></td>
-              <td class="data-price">Rp <%= o.total.toLocaleString('id-ID') %></td>
-              <td>
-                <span class="badge-modern badge-<%= o.deliveryMode === 'auto' ? 'auto' : 'admin' %>">
-                  <i class="fa-solid <%= o.deliveryMode === 'auto' ? 'fa-bolt' : 'fa-user-gear' %>" style="margin-right:4px;"></i>
-                  <%= o.deliveryMode || o.source %>
-                </span>
-              </td>
-              <td><span class="badge-modern badge-<%= o.status %>"><%= o.status %></span></td>
-              <td>
-                <% if (o.qty > 3 && o.detail) { %>
-                  <a href="/riwayat/<%= o.id %>/download" class="btn-action btn-action-primary"><i class="fa-solid fa-download"></i> Download .txt</a>
-                <% } else { %>
-                  <div class="detail-text"><%= o.detail || (o.manualRequired ? 'Menunggu admin kirim manual' : '-') %></div>
-                <% } %>
-              </td>
-              <td style="font-size: 12px; color: var(--text-muted);"><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-              <td>
-                <a href="/riwayat/<%= o.id %>" class="btn-action btn-action-ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
-              </td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
+    <div class="section-title"><h3>Riwayat Produk &amp; Top Up</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (otherOrders.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat order produk/top up.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% otherOrders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.productName %></td>
+            <td style="font-size:12px; color:var(--text-dim);"><%= o.targetText || '-' %></td>
+            <td><%= o.qty %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td><span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : 'admin' %>"><%= o.deliveryMode || o.source %></span></td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td style="max-width:260px; font-size:12px; color:var(--text-dim);">
+              <% if (o.qty > 3 && o.detail) { %>
+                <a href="/riwayat/<%= o.id %>/download" class="btn small solid"><i class="fa-solid fa-download"></i> Download .txt</a>
+              <% } else { %>
+                <span style="white-space:pre-wrap;"><%= o.detail || (o.manualRequired ? 'Menunggu admin kirim manual' : '-') %></span>
+              <% } %>
+            </td>
+            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+            <td><a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
 
     <%- include('partials/footer') %>
   </div>
