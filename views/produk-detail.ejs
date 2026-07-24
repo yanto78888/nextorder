@@ -37,11 +37,11 @@
 
       <!-- Rating display -->
       <div class="rating-row">
-        <div class="stars-display">
+        <div class="stars-display" id="ratingStars">
           <% const avgR = product.rating || 0; for(let i=1;i<=5;i++){%><span class="star <%= i<=Math.round(avgR)?'filled':'' %>">★</span><%}%>
         </div>
-        <span class="rating-score"><%= avgR.toFixed(1) %></span>
-        <span class="rating-count">(<%= product.ratingCount || 0 %> ulasan)</span>
+        <span class="rating-score" id="ratingScore"><%= avgR.toFixed(1) %></span>
+        <span class="rating-count" id="ratingCount">(<%= product.ratingCount || 0 %> ulasan)</span>
       </div>
 
       <!-- Stats -->
@@ -188,7 +188,7 @@
             <label><%= qtyLabel %>Jumlah:</label>
             <div class="qty-stepper">
               <button type="button" class="qty-btn" id="qtyMinus">−</button>
-              <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? 10 : 99) %>">
+              <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? maxDigiflazzQty : 99) %>">
               <button type="button" class="qty-btn" id="qtyPlus">+</button>
             </div>
             <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
@@ -243,14 +243,17 @@
       <div class="reviews-section">
         <div class="reviews-header">
           <div class="detail-section-title">Ulasan Pembeli</div>
-          <span class="reviews-count"><%= reviews.length %> ulasan</span>
+          <span class="reviews-count" id="reviewsCount"><%= reviews.length %> ulasan</span>
         </div>
 
-        <!-- Form ulasan (hanya user login & belum review) -->
+        <!-- Form ulasan (hanya user login & belum review). Dibungkus id="reviewFormWrap" karena
+             kalau produk ini punya varian nominal, "belum/sudah review" bisa beda per varian --
+             JS di bawah nge-render ulang isi div ini pas user ganti nominal (lihat VARIANTS[].hasReviewed). -->
+        <div id="reviewFormWrap">
         <% if (user && !hasReviewed) { %>
           <div class="review-form-card">
             <div class="review-form-title">Tulis Ulasanmu</div>
-            <form method="POST" action="/produk/<%= product.id %>/review" class="review-form">
+            <form method="POST" action="/produk/<%= product.id %>/review" class="review-form" id="reviewForm">
               <div class="review-stars-input" id="reviewStarsInput">
                 <% for(let i=1;i<=5;i++){%><span class="rev-star-btn" data-val="<%= i %>">★</span><%}%>
               </div>
@@ -265,8 +268,10 @@
         <% } else { %>
           <div class="review-login-prompt"><a href="/login" style="color:var(--cyan);">Login</a> untuk menulis ulasan.</div>
         <% } %>
+        </div>
 
         <!-- Daftar ulasan -->
+        <div id="reviewListWrap">
         <% if (reviews.length === 0) { %>
           <div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star"></i></div>
         <% } else { %>
@@ -290,6 +295,7 @@
             <% }) %>
           </div>
         <% } %>
+        </div>
       </div>
 
     </div><!-- /detail-body -->
@@ -306,13 +312,24 @@
   // nomor langkah lagi dipakai (produk ini punya >1 varian nominal), section itu selalu "1."
   // -- termasuk pas dimunculin ulang lewat JS ini waktu user ganti pilihan varian.
   var numberSteps = <%- numberSteps ? 'true' : 'false' %>;
+  // Batas qty produk auto top up (Digiflazz), sama persis dengan MAX_DIGIFLAZZ_QTY_PER_ORDER
+  // di routes/user.js (dikirim dari server lewat maxDigiflazzQty biar gak ada 2 angka beda tempat).
+  var MAX_DIGIFLAZZ_QTY = <%= maxDigiflazzQty %>;
 
   // Qty stepper
   var unitPrice=<%= finalPrice %>;
   var qEl=document.getElementById('qtyInput');
   var tEl=document.getElementById('totalPreview');
   function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
-  function upd(){var q=Math.max(1,parseInt(qEl.value)||1);qEl.value=q;
+  // q di-clamp ke MIN 1 *dan* MAX (dari atribut max input) -- sebelumnya cuma di-clamp ke 1,
+  // jadi tombol "+" atau ketik manual bisa lewatin batas stok/limit Digiflazz begitu aja di
+  // layar (total harga ikut naik seolah valid), baru ketahuan gagal pas klik "Beli Sekarang"
+  // dan server (validateQty) nolak. Sekarang batasnya ditegakkan dari awal di sisi tampilan.
+  function upd(){
+    var max=parseInt(qEl.max,10);
+    if(!max || max<1) max=99;
+    var q=Math.max(1,Math.min(max,parseInt(qEl.value)||1));
+    qEl.value=q;
     var qs=document.getElementById('buyQtySaldo');var qq=document.getElementById('buyQtyQris');
     if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);
     updSaldoWarning(q);}
@@ -351,6 +368,115 @@
     wrap.innerHTML=html;
   }
 
+  // ---- Rating & ulasan ikut varian yang dipilih ----
+  // Sebelumnya bagian ⭐ rating dan daftar "Ulasan Pembeli" gak pernah diperbarui pas user ganti
+  // nominal lewat kartu varian -- padahal harga/stok/kolom target semua sudah ikut berubah.
+  // Akibatnya rating & ulasan yang tampil nyangkut punya SKU pertama yang dibuka, bisa keliatan
+  // kayak "review salah produk" buat nominal lain. VARIANTS[id].rating/ratingCount/reviews/
+  // hasReviewed dikirim dari server (lihat routes/user.js) biar gak perlu request AJAX lagi.
+  function escapeHtml(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function formatTanggalId(iso){
+    try { return new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}); }
+    catch(e){ return ''; }
+  }
+  function reviewFormHtml(productId){
+    var html='<div class="review-form-card"><div class="review-form-title">Tulis Ulasanmu</div>';
+    html+='<form method="POST" action="/produk/'+productId+'/review" class="review-form" id="reviewForm">';
+    html+='<div class="review-stars-input" id="reviewStarsInput">';
+    for(var i=1;i<=5;i++){ html+='<span class="rev-star-btn" data-val="'+i+'">★</span>'; }
+    html+='</div><input type="hidden" name="rating" id="reviewRatingVal" value="">';
+    html+='<p class="rev-star-hint" id="revStarHint">Ketuk bintang untuk memberi nilai</p>';
+    html+='<textarea name="comment" class="review-textarea" placeholder="Ceritakan pengalamanmu menggunakan produk ini... (opsional, maks 500 karakter)" maxlength="500" rows="3"></textarea>';
+    html+='<button type="submit" class="btn solid review-submit-btn" id="reviewSubmitBtn" disabled>Kirim Ulasan</button></form></div>';
+    return html;
+  }
+  // Pasang listener bintang klik/hover ke form ulasan yang lagi ada di DOM. Dipanggil sekali pas
+  // load awal, dan dipanggil ULANG tiap kali reviewFormHtml() baru disuntikkan (ganti varian),
+  // karena elemen lama (beserta listener-nya) sudah dibuang lewat innerHTML.
+  function wireReviewForm(){
+    var form=document.getElementById('reviewForm');
+    if(!form) return;
+    var stars=form.querySelectorAll('.rev-star-btn');
+    var ratingInput=document.getElementById('reviewRatingVal');
+    var hint=document.getElementById('revStarHint');
+    var submitBtn=document.getElementById('reviewSubmitBtn');
+    var labels=['Sangat Buruk','Kurang Baik','Cukup','Bagus Sekali','Luar Biasa!'];
+    stars.forEach(function(s){
+      s.addEventListener('mouseenter',function(){
+        var v=parseInt(s.dataset.val);
+        stars.forEach(function(x){x.classList.toggle('hov',parseInt(x.dataset.val)<=v);});
+        if(hint)hint.textContent=labels[v-1];
+      });
+      s.addEventListener('mouseleave',function(){
+        stars.forEach(function(x){x.classList.remove('hov');});
+        if(hint&&!ratingInput.value)hint.textContent='Ketuk bintang untuk memberi nilai';
+      });
+      s.addEventListener('click',function(){
+        var v=parseInt(s.dataset.val);
+        if(ratingInput)ratingInput.value=v;
+        stars.forEach(function(x){x.classList.toggle('sel',parseInt(x.dataset.val)<=v);x.classList.remove('hov');});
+        if(hint)hint.textContent=labels[v-1];
+        if(submitBtn)submitBtn.disabled=false;
+      });
+    });
+  }
+  function updateReviewsSection(v){
+    var avgR=v.rating||0;
+    var starsWrap=document.getElementById('ratingStars');
+    if(starsWrap){
+      var starsHtml='';
+      for(var i=1;i<=5;i++){ starsHtml+='<span class="star '+(i<=Math.round(avgR)?'filled':'')+'">★</span>'; }
+      starsWrap.innerHTML=starsHtml;
+    }
+    var scoreEl=document.getElementById('ratingScore');
+    if(scoreEl)scoreEl.textContent=avgR.toFixed(1);
+    var countEl=document.getElementById('ratingCount');
+    if(countEl)countEl.textContent='('+(v.ratingCount||0)+' ulasan)';
+
+    var revs=v.reviews||[];
+    var reviewsCountEl=document.getElementById('reviewsCount');
+    if(reviewsCountEl)reviewsCountEl.textContent=revs.length+' ulasan';
+
+    // Form/keterangan ulasan cuma relevan buat user login -- kartu varian yang bisa diklik ini
+    // (#variantGrid) sendiri emang cuma dirender untuk user login (lihat produk-detail.ejs),
+    // jadi aman diasumsikan formWrap di sini pasti mewakili tampilan "user sudah login".
+    var formWrap=document.getElementById('reviewFormWrap');
+    if(formWrap){
+      if(v.hasReviewed){
+        formWrap.innerHTML='<div class="review-already"><i class="fa-solid fa-circle-check"></i> Kamu sudah memberikan ulasan untuk produk ini.</div>';
+      } else {
+        formWrap.innerHTML=reviewFormHtml(v.id);
+        wireReviewForm();
+      }
+    }
+
+    var listWrap=document.getElementById('reviewListWrap');
+    if(listWrap){
+      if(revs.length===0){
+        listWrap.innerHTML='<div class="reviews-empty">Belum ada ulasan. Jadilah yang pertama! <i class="fa-solid fa-star"></i></div>';
+      } else {
+        var html='<div class="review-list">';
+        revs.forEach(function(r){
+          html+='<div class="review-card"><div class="review-card-top">';
+          html+='<div class="review-avatar">'+escapeHtml(String(r.username||'').charAt(0).toUpperCase())+'</div>';
+          html+='<div class="review-card-meta"><div class="review-username">'+escapeHtml(r.username)+'</div>';
+          html+='<div class="review-date">'+formatTanggalId(r.createdAt)+'</div></div>';
+          html+='<div class="review-stars-display">';
+          for(var i=1;i<=5;i++){ html+='<span class="'+(i<=r.rating?'rstar-on':'rstar-off')+'">★</span>'; }
+          html+='</div></div>';
+          if(r.comment) html+='<div class="review-comment">'+escapeHtml(r.comment)+'</div>';
+          html+='</div>';
+        });
+        html+='</div>';
+        listWrap.innerHTML=html;
+      }
+    }
+  }
+
   var variantGrid=document.getElementById('variantGrid');
   if(variantGrid){
     variantGrid.addEventListener('click',function(e){
@@ -387,10 +513,18 @@
       if(idSaldo)idSaldo.value=vid;
       if(idQris)idQris.value=vid;
 
-      if(qEl){ qEl.value=1; qEl.max = (v.provider !== 'digiflazz' && v.stockCount>0) ? v.stockCount : 99; }
+      if(qEl){
+        // Sebelumnya varian Digiflazz jatuh ke cabang "else 99" di sini (cuma dicek
+        // "provider !== 'digiflazz'"), padahal saat halaman pertama dimuat batasnya 10
+        // (MAX_DIGIFLAZZ_QTY). Efeknya: ganti nominal bikin batas qty diam-diam melonggar
+        // dari 10 ke 99. Sekarang provider digiflazz SELALU pakai MAX_DIGIFLAZZ_QTY dulu.
+        qEl.value=1;
+        qEl.max = (v.provider === 'digiflazz') ? MAX_DIGIFLAZZ_QTY : (v.stockCount>0 ? v.stockCount : 99);
+      }
       upd();
 
       renderTargetFields(v.targetFields);
+      updateReviewsSection(v);
     });
   }
 
@@ -431,30 +565,9 @@
     if(f)f.submit();
   });
 
-  // Review star input
-  var stars=document.querySelectorAll('.rev-star-btn');
-  var ratingInput=document.getElementById('reviewRatingVal');
-  var hint=document.getElementById('revStarHint');
-  var submitBtn=document.getElementById('reviewSubmitBtn');
-  var labels=['Sangat Buruk','Kurang Baik','Cukup','Bagus Sekali','Luar Biasa!'];
-  stars.forEach(function(s){
-    s.addEventListener('mouseenter',function(){
-      var v=parseInt(s.dataset.val);
-      stars.forEach(function(x){x.classList.toggle('hov',parseInt(x.dataset.val)<=v);});
-      if(hint)hint.textContent=labels[v-1];
-    });
-    s.addEventListener('mouseleave',function(){
-      stars.forEach(function(x){x.classList.remove('hov');});
-      if(hint&&!ratingInput.value)hint.textContent='Ketuk bintang untuk memberi nilai';
-    });
-    s.addEventListener('click',function(){
-      var v=parseInt(s.dataset.val);
-      if(ratingInput)ratingInput.value=v;
-      stars.forEach(function(x){x.classList.toggle('sel',parseInt(x.dataset.val)<=v);x.classList.remove('hov');});
-      if(hint)hint.textContent=labels[v-1];
-      if(submitBtn)submitBtn.disabled=false;
-    });
-  });
+  // Review star input (pasang listener buat form ulasan yang dirender server pas load awal;
+  // fungsi yang sama dipanggil ulang di updateReviewsSection() tiap kali form ini disuntik ulang)
+  wireReviewForm();
 })();
 </script>
 </body>
