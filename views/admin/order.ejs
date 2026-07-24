@@ -6,247 +6,94 @@
   <%- include('../partials/admin-sidebar', { active: 'order' }) %>
 
   <div class="main no-bottom-nav">
-    
-    <div class="admin-header-modern">
-      <h2><i class="fa-solid fa-cart-shopping" style="color: var(--primary-color);"></i> Kelola Order</h2>
-    </div>
+    <div class="topbar"><h2>Kelola Order</h2></div>
 
     <% const waitingManual = orders.filter(o => o.manualRequired && o.status === 'processing'); %>
     <% if (waitingManual.length > 0) { %>
-      <div class="alert error" style="display: flex; gap: 12px; align-items: center; border-left: 4px solid #ef4444;">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px;"></i>
-        <div>
-          <strong style="font-size: 15px;">Perhatian! Terdapat <%= waitingManual.length %> pesanan tertunda.</strong><br>
-          <span style="font-size: 13px; opacity: 0.9;">Order menunggu admin kirim manual karena stok otomatis kosong/habis[span_2](start_span)[span_2](end_span).</span>
-        </div>
-      </div>
+      <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
     <% } %>
 
-    <!-- Form Kirim Pesanan Manual -->
-    <div class="card card-modern mb-24">
-      <h3 class="card-title-modern"><i class="fa-solid fa-paper-plane"></i> Kirim Pesanan Manual</h3>
-      <p class="helper-text-modern mb-16">Buat order langsung untuk user tertentu (misalnya pembayaran di luar sistem, bonus, atau pengiriman produk manual)[span_3](start_span)[span_3](end_span).</p>
-      
-      <form method="POST" action="/admin/order/manual" class="mt-16">
+    <div class="card">
+      <h3><i class="fa-solid fa-screwdriver-wrench"></i> Kirim Pesanan Manual</h3>
+      <p class="helper-text">Buat order langsung untuk user tertentu (misalnya pembayaran di luar sistem, bonus, atau pengiriman produk manual).</p>
+      <form method="POST" action="/admin/order/manual">
         <div class="grid grid-2">
-          <!-- Kolom 1 -->
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div class="form-group-modern">
-              <label>Pilih User</label>
-              <select name="userId" class="input-modern" required>
-                <option value="">-- Pilih User --</option>
-                <% users.forEach(u => { %>
-                  <option value="<%= u.id %>"><%= u.username %> (Saldo: Rp <%= u.saldo.toLocaleString('id-ID') %>)</option>
-                <% }) %>
-              </select>
-            </div>
+          <div>
+            <label>Pilih User</label>
+            <select name="userId" required>
+              <option value="">-- pilih user --</option>
+              <% users.forEach(u => { %>
+                <option value="<%= u.id %>"><%= u.username %> (saldo Rp <%= u.saldo.toLocaleString('id-ID') %>)</option>
+              <% }) %>
+            </select>
 
-            <div class="form-group-modern">
-              <label>Pilih Produk <span style="opacity:.6; font-weight: 400;">(Opsional)</span></label>
-              <select name="productId" class="input-modern">
-                <option value="">-- Atau isi manual di kolom sebelah --</option>
-                <% products.forEach(p => { %>
-                  <option value="<%= p.id %>"><%= p.name %> - Rp <%= p.price.toLocaleString('id-ID') %></option>
-                <% }) %>
-              </select>
-            </div>
+            <label>Pilih Produk (opsional)</label>
+            <select name="productId">
+              <option value="">-- atau isi manual di bawah --</option>
+              <% products.forEach(p => { %>
+                <option value="<%= p.id %>"><%= p.name %> - Rp <%= p.price.toLocaleString('id-ID') %></option>
+              <% }) %>
+            </select>
           </div>
-
-          <!-- Kolom 2 -->
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div class="form-group-modern">
-              <label>Nama Produk Manual <span style="opacity:.6; font-weight: 400;">(Jika tidak pilih di atas)</span></label>
-              <input type="text" name="customName" class="input-modern" placeholder="Contoh: Netflix Premium 1 Bulan">
-            </div>
-            
-            <div class="grid grid-2 form-mini-grid">
-              <div class="form-group-modern">
-                <label>Harga Manual (Rp)</label>
-                <input type="number" name="customPrice" class="input-modern" placeholder="0">
-              </div>
-              <div class="form-group-modern">
-                <label>Status</label>
-                <select name="status" class="input-modern">
-                  <option value="completed">Selesai</option>
-                  <option value="processing">Diproses</option>
-                </select>
-              </div>
-            </div>
+          <div>
+            <label>Nama Produk Manual (jika tidak pilih di atas)</label>
+            <input type="text" name="customName" placeholder="Contoh: Netflix Premium 1 Bulan">
+            <label>Harga Manual (Rp)</label>
+            <input type="number" name="customPrice" placeholder="0">
+            <label>Status</label>
+            <select name="status">
+              <option value="completed">Selesai</option>
+              <option value="processing">Diproses</option>
+            </select>
           </div>
         </div>
-
-        <div class="line mt-16 mb-16"></div>
-
-        <div class="form-group-modern mb-12">
-          <label>Catatan Internal</label>
-          <input type="text" name="note" class="input-modern" placeholder="Catatan untuk admin (opsional)">
-        </div>
-
-        <div class="form-group-modern">
-          <label>Detail / Isi Produk yang Dikirim ke User</label>
-          <textarea name="detail" class="input-modern" rows="3" placeholder="Contoh: Email: xxx@gmail.com | Password: xxxx"></textarea>
-        </div>
-
-        <button class="btn-modern primary mt-16" type="submit" style="width: 100%;"><i class="fa-solid fa-paper-plane"></i> Kirim Pesanan Sekarang</button>
+        <label>Catatan</label>
+        <input type="text" name="note" placeholder="Catatan internal (opsional)">
+        <label>Detail / Isi Produk yang Dikirim ke User</label>
+        <textarea name="detail" placeholder="Contoh: Email: xxx@gmail.com | Password: xxxx"></textarea>
+        <button class="btn magenta mt-24" type="submit"><i class="fa-solid fa-paper-plane"></i> Kirim Pesanan</button>
       </form>
     </div>
 
-    <!-- Tabel Semua Order -->
-    <div class="card card-modern mt-24">
-      <div class="flex-between-modern mb-16">
-        <h3 class="card-title-modern mb-0"><i class="fa-solid fa-list-check"></i> Riwayat Semua Order</h3>
-      </div>
-      
+    <div class="section-title"><h3>Semua Order</h3><div class="line"></div></div>
+    <div class="card">
       <% if (orders.length === 0) { %>
-        <div class="empty-state-modern">
-          <i class="fa-solid fa-receipt empty-icon"></i>
-          <div>Belum ada order masuk[span_4](start_span)[span_4](end_span).</div>
-        </div>
+        <div class="empty-state">Belum ada order.</div>
       <% } else { %>
-        <div class="table-responsive-modern">
-          <table class="table-modern">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>User</th>
-                <th>Produk</th>
-                <th>Tujuan</th>
-                <th>Total</th>
-                <th>Mode</th>
-                <th>Status</th>
-                <th>Detail Kirim</th>
-                <th class="text-right">Update</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% orders.forEach(o => { %>
-              <tr>
-                <td class="font-mono text-dim" style="font-size: 11px;">#<%= o.id %></td>
-                <td class="font-medium"><%= o.username %></td>
-                <td style="max-width: 150px;">
-                  <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;" title="<%= o.productName %>">
-                    <%= o.productName %>
-                  </div>
-                </td>
-                <td style="max-width: 120px;">
-                  <div class="text-dim" style="font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<%= o.targetText || '-' %>">
-                    <%= o.targetText || '-' %>
-                  </div>
-                </td>
-                <td class="font-mono text-primary font-bold">Rp <%= o.total.toLocaleString('id-ID') %></td>
-                <td>
-                  <% if (o.deliveryMode === 'auto') { %>
-                    <span class="badge-modern completed">Auto</span>
-                  <% } else if (o.manualRequired) { %>
-                    <span class="badge-modern danger">Manual Req</span>
-                  <% } else { %>
-                    <span class="badge-modern admin"><%= o.deliveryMode || o.source %></span>
-                  <% } %>
-                  
-                  <% if (o.manualRequired && o.status === 'processing') { %>
-                    <div class="text-danger mt-1" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Butuh Manual</div>
-                  <% } %>
-                </td>
-                <td>
-                  <% if (o.status === 'completed') { %>
-                    <span class="badge-modern completed"><i class="fa-solid fa-check"></i> Selesai</span>
-                  <% } else if (o.status === 'processing') { %>
-                    <span class="badge-modern warning"><i class="fa-solid fa-spinner fa-spin"></i> Diproses</span>
-                  <% } else if (o.status === 'cancelled') { %>
-                    <span class="badge-modern danger"><i class="fa-solid fa-xmark"></i> Batal</span>
-                  <% } else { %>
-                    <span class="badge-modern neutral"><%= o.status %></span>
-                  <% } %>
-                </td>
-                <td style="max-width: 150px;">
-                  <div class="text-dim" style="font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 48px; overflow-y: auto;">
-                    <%= o.detail || '-' %>
-                  </div>
-                </td>
-                <td class="text-right">
-                  <form method="POST" action="/admin/order/<%= o.id %>/status" class="inline-flex-form" style="flex-direction: column; align-items: flex-end; gap: 4px;">
-                    <div style="display: flex; gap: 4px; width: 100%;">
-                      <select name="status" class="input-modern mini" style="width: 100px;">
-                        <option value="processing" <%= o.status === 'processing' ? 'selected' : '' %>>Diproses</option>
-                        <option value="completed" <%= o.status === 'completed' ? 'selected' : '' %>>Selesai</option>
-                        <option value="cancelled" <%= o.status === 'cancelled' ? 'selected' : '' %>>Batal</option>
-                      </select>
-                      <button class="btn-modern primary small box-btn" type="submit" title="Update Status"><i class="fa-solid fa-floppy-disk"></i></button>
-                    </div>
-                    <textarea name="detail" class="input-modern mini" placeholder="Isi produk / catatan..." style="width: 100%; min-height: 40px; resize: vertical;"><%= o.detail || '' %></textarea>
-                  </form>
-                </td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
+      <table>
+        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Tujuan</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Update</th></tr></thead>
+        <tbody>
+          <% orders.forEach(o => { %>
+          <tr>
+            <td class="mono"><%= o.id %></td>
+            <td><%= o.username %></td>
+            <td><%= o.productName %></td>
+            <td style="max-width:160px; font-size:12px; color:var(--text-dim); white-space:pre-wrap;"><%= o.targetText || '-' %></td>
+            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
+            <td>
+              <span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : (o.manualRequired ? 'cancelled' : 'admin') %>"><%= o.deliveryMode || o.source %></span>
+              <% if (o.manualRequired && o.status === 'processing') { %><br><span class="helper-text" style="color:var(--danger);">butuh manual</span><% } %>
+            </td>
+            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
+            <td style="max-width:180px; font-size:12px; color:var(--text-dim);"><%= o.detail || '-' %></td>
+            <td>
+              <form method="POST" action="/admin/order/<%= o.id %>/status" class="flex">
+                <select name="status" style="width:120px;">
+                  <option value="processing" <%= o.status === 'processing' ? 'selected' : '' %>>Diproses</option>
+                  <option value="completed" <%= o.status === 'completed' ? 'selected' : '' %>>Selesai</option>
+                  <option value="cancelled" <%= o.status === 'cancelled' ? 'selected' : '' %>>Batal</option>
+                </select>
+                <textarea name="detail" placeholder="isi produk..." style="width:180px; min-height:42px;"><%= o.detail || '' %></textarea>
+                <button class="btn small solid" type="submit">Update</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
       <% } %>
     </div>
   </div>
 </div>
-
-<style>
-  /* ADMIN ORDER MODERN CSS STYLES */
-  .admin-header-modern { margin-bottom: 24px; }
-  .admin-header-modern h2 { font-size: 24px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 12px; margin: 0; }
-  
-  .card-modern { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow-sm); }
-  .card-title-modern { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 10px; margin: 0 0 8px 0; }
-  
-  .helper-text-modern { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-  .mt-1 { margin-top: 4px; }
-  .mt-16 { margin-top: 16px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-24 { margin-bottom: 24px; }
-  
-  .line { height: 1px; background: var(--border-color); width: 100%; }
-  
-  .form-group-modern { display: flex; flex-direction: column; gap: 6px; }
-  .form-group-modern label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
-  
-  .input-modern { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: var(--bg-color); color: var(--text-dark); transition: 0.2s; outline: none; width: 100%; box-sizing: border-box; }
-  .input-modern:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); background: var(--card-bg); }
-  .input-modern.mini { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
-  textarea.input-modern { resize: vertical; }
-  
-  .btn-modern { padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; }
-  .btn-modern.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
-  .btn-modern.primary { background: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
-  .btn-modern.primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-  .btn-modern.box-btn { padding: 6px; width: 30px; height: 30px; border-radius: 6px; }
-  
-  .table-responsive-modern { overflow-x: auto; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); }
-  .table-modern { width: 100%; border-collapse: collapse; text-align: left; background: var(--card-bg); font-size: 13px; }
-  .table-modern th { background: var(--bg-color); padding: 14px 16px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
-  .table-modern td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-  .table-modern tr:last-child td { border-bottom: none; }
-  .table-modern tr:hover { background: rgba(0,0,0,0.01); }
-  
-  .font-mono { font-family: monospace; }
-  .font-medium { font-weight: 600; color: var(--text-dark); }
-  .font-bold { font-weight: 700; }
-  .text-dim { color: var(--text-muted); }
-  .text-primary { color: var(--primary-color); }
-  .text-danger { color: #ef4444; }
-  .text-right { text-align: right !important; }
-  
-  .badge-modern { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .badge-modern.neutral { background: var(--bg-color); color: var(--text-muted); border: 1px solid var(--border-color); }
-  .badge-modern.completed { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
-  .badge-modern.warning { background: rgba(245, 158, 11, 0.1); color: #d97706; }
-  .badge-modern.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-  .badge-modern.admin { background: rgba(168, 85, 247, 0.1); color: #9333ea; }
-  
-  .empty-state-modern { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: var(--bg-color); border-radius: 12px; border: 1px dashed var(--border-color); }
-  .empty-icon { font-size: 40px; margin-bottom: 16px; color: #cbd5e1; }
-  
-  .inline-flex-form { display: flex; align-items: center; }
-  
-  @media (max-width: 768px) {
-    .grid-2 { grid-template-columns: 1fr; }
-  }
-</style>
 </body>
 </html>
