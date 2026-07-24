@@ -16,7 +16,7 @@ import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
-import { createReview, getReviewsByProduct } from '../lib/reviews.js';
+import { createReview, getReviewsByProduct, getAllReviews } from '../lib/reviews.js';
 import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail, getGroupThumbnails } from '../lib/digiflazzGroups.js';
 import {
@@ -921,10 +921,18 @@ router.get('/produk/:id', (req, res) => {
   const finalPrice = resolvePrice(product);
   // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
   product.totalSold = getTotalSoldMap()[product.id] || 0;
-  const reviews = getReviewsByProduct(product.id);
-  // hasReviewed dulu dicek lewat hasUserReviewed(user.id, product.id) terpisah, yang scan ULANG
-  // semua review dari disk -- padahal review produk ini baru aja diambil barusan di atas (`reviews`),
-  // jadi cukup dicek langsung dari situ (in-memory), gak perlu baca file yang sama dua kali.
+
+  // Baca reviews.json SEKALI buat seluruh request ini (bukan sekali per varian nominal) -- sama
+  // pola dengan resolvePrice/thumbByGroup di atas. Dipakai ulang buat: (1) produk utama yang lagi
+  // dibuka, dan (2) tiap varian nominal di grup yang sama, supaya kartu ⭐ rating & daftar ulasan
+  // di halaman ini BISA ikut berganti kalau user pilih nominal lain lewat JS (dulu bagian ini diam
+  // aja pas ganti varian -- rating/ulasan yang ditampilkan nyangkut di SKU pertama yang dibuka,
+  // padahal harga/stok/kolom target semua sudah ikut berubah).
+  const allReviews = getAllReviews();
+  const reviewsForProductId = (id) => allReviews
+    .filter(r => r.productId === id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const reviews = reviewsForProductId(product.id);
   const hasReviewed = user ? reviews.some(r => r.userId === user.id) : false;
   const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
 
@@ -933,16 +941,23 @@ router.get('/produk/:id', (req, res) => {
   const variants = product.variantGroup
     ? activeProducts
         .filter(p => p.variantGroup === product.variantGroup)
-        .map(p => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          finalPrice: resolvePrice(p),
-          thumbnail: p.thumbnail,
-          targetFields: p.targetFields || [],
-          stockCount: countStock(p),
-          provider: p.provider
-        }))
+        .map(p => {
+          const variantReviews = reviewsForProductId(p.id);
+          return {
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            finalPrice: resolvePrice(p),
+            thumbnail: p.thumbnail,
+            targetFields: p.targetFields || [],
+            stockCount: countStock(p),
+            provider: p.provider,
+            rating: p.rating || 0,
+            ratingCount: p.ratingCount || 0,
+            reviews: variantReviews,
+            hasReviewed: user ? variantReviews.some(r => r.userId === user.id) : false
+          };
+        })
         .sort((a, b) => a.price - b.price)
     : [];
 
@@ -963,6 +978,7 @@ router.get('/produk/:id', (req, res) => {
     hasReviewed,
     user,
     config: cfgDetail,
+    maxDigiflazzQty: MAX_DIGIFLAZZ_QTY_PER_ORDER,
     error: req.query.error || null,
     success: req.query.success || null,
     pageTitle: `${seoName} - ${cfgDetail.siteName || 'NEXORDER'}`,
