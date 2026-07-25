@@ -2294,3 +2294,27 @@ input[type="number"] {
 .doc-params th, .doc-params td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border-glow); }
 .doc-params th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
 .doc-params code { color: var(--cyan); }
+.doc-tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 6px; }
+.doc-tag.topup { background: rgba(46,204,113,.15); color: #2ecc71; border: 1px solid rgba(46,204,113,.35); }
+.doc-tag.smm { background: rgba(155,89,182,.15); color: #b370cf; border: 1px solid rgba(155,89,182,.35); }
+.doc-tag.manual { background: rgba(230,126,34,.15); color: #e67e22; border: 1px solid rgba(230,126,34,.35); }
+.doc-code-wrap { position: relative; }
+.doc-code-wrap .doc-code { padding-right: 42px; }
+.doc-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border-glow);
+  color: var(--text-dim);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.doc-copy-btn:hover { background: rgba(0,229,255,.12); color: var(--cyan); }
