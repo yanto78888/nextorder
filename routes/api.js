@@ -25,6 +25,17 @@ import {
 
 const router = express.Router();
 
+// Nama provider ASLI (digiflazz/indosmm) TIDAK PERNAH dikirim ke luar lewat API ini -- diganti
+// label generik yang cocok sama nama endpoint order-nya (/order/topup, /order/smm, /order/manual).
+// Ini nerusin kebijakan yang sama kayak di tampilan web (lihat lib/orderEngine.js & smm-rules-modal.ejs):
+// nama supplier sengaja disembunyikan dari customer/reseller, supaya gak gampang "dilewatin"
+// langsung ke supplier aslinya.
+function publicProviderLabel(provider) {
+  if (provider === 'digiflazz') return 'topup';
+  if (provider === 'indosmm') return 'smm';
+  return 'manual';
+}
+
 function formatOrdersForApi(orders) {
   return orders.map(o => ({
     order_id: o.id,
@@ -50,7 +61,7 @@ function formatProductForApi(p, { full = false } = {}) {
     name: p.name,
     category: p.category || '',
     group: p.variantGroup || '',
-    provider: p.provider, // manual | digiflazz | indosmm
+    provider: publicProviderLabel(p.provider), // topup | smm | manual -- lihat catatan publicProviderLabel di atas
     price: getPlatinumPrice(p),
     stock: p.provider === 'manual' ? countStock(p) : null, // null = otomatis/gak terbatas stok fisik
     qty_min: p.provider === 'indosmm' ? (Number(p.indosmmMin) || 1) : 1,
@@ -94,7 +105,9 @@ router.get('/', (req, res) => {
         'GET  /api/v1/saldo',
         'GET  /api/v1/pricelist',
         'GET  /api/v1/product/:id',
-        'POST /api/v1/order        { product_id, qty?, target?, ref_id? }',
+        'POST /api/v1/order/topup  { product_id, qty?, target?, ref_id? }  -- produk Top Up Game/Pulsa',
+        'POST /api/v1/order/smm    { product_id, qty?, target?, ref_id? }  -- produk Jasa Sosmed',
+        'POST /api/v1/order/manual { product_id, qty?, target?, ref_id? }  -- produk stok manual',
         'GET  /api/v1/order/:id',
         'GET  /api/v1/order?limit=20',
         'POST /api/v1/deposit      { amount }',
@@ -157,9 +170,16 @@ router.get('/order/:id', requireApiKey, (req, res) => {
 });
 
 // ---------- Bikin transaksi baru ----------
-// Body JSON: { product_id, qty? (default 1), target? (objek, mis. {zone_id:'123',user_id:'456'}
-// atau {link:'https://...'} buat layanan Jasa Sosmed), ref_id? (buat idempotency, lihat bawah) }
-router.post('/order', requireApiKey, async (req, res) => {
+// Endpoint order DIPISAH per jenis produk (bukan 1 endpoint gabungan) karena bentuk `target` dan
+// arti `qty` beda jauh antar provider -- misahin endpoint-nya sekalian nyegah integrator kirim
+// payload jenis yang salah ke jenis produk yang salah (mis. ngirim {link:...} ke produk Top Up
+// Game). Ketiganya berbagi logic yang SAMA (processOrderRequest) supaya konsisten, cuma beda
+// validasi provider + pesan errornya.
+//
+// Body JSON (sama buat ketiganya): { product_id, qty? (default 1), target? (objek, isinya
+// beda-beda tergantung endpoint, lihat dokumentasi tiap endpoint), ref_id? (buat idempotency,
+// SANGAT disarankan diisi -- lihat penjelasan di bawah) }
+async function processOrderRequest(req, res, { expectedProvider, label }) {
   try {
     const body = req.body || {};
     const productId = body.product_id;
@@ -169,8 +189,8 @@ router.post('/order', requireApiKey, async (req, res) => {
     // Kalau reseller nge-retry request yang sama persis (mis. request pertama sukses diproses
     // tapi responsenya gak sempat diterima reseller karena timeout), request kedua dengan
     // ref_id yang SAMA gak akan bikin order/potongan saldo baru lagi -- cukup dibalikin hasil
-        // yang sama kayak request pertama. Tanpa ref_id, retry di sisi reseller bisa bikin
-        // pesanan & potongan saldo DOBEL.
+    // yang sama kayak request pertama. Tanpa ref_id, retry di sisi reseller bisa bikin
+    // pesanan & potongan saldo DOBEL.
     const refId = body.ref_id ? String(body.ref_id).trim().slice(0, 100) : '';
 
     if (!productId) {
@@ -191,6 +211,13 @@ router.post('/order', requireApiKey, async (req, res) => {
     const product = findProductById(productId);
     if (!product || product.status !== 'active') {
       return res.status(404).json({ success: false, message: 'Produk tidak ditemukan / tidak aktif' });
+    }
+
+    if (product.provider !== expectedProvider) {
+      return res.status(400).json({
+        success: false,
+        message: `Produk ini bukan produk ${label}. Cek field "provider" di /pricelist buat tahu jenis produknya, lalu pakai endpoint yang sesuai: /order/topup, /order/smm, atau /order/manual.`
+      });
     }
 
     const qtyError = validateQty(product, qty);
@@ -246,7 +273,22 @@ router.post('/order', requireApiKey, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
+}
+
+// Top Up Game/Pulsa (produk provider "digiflazz"). target = ID tujuan (mis. {user_id, zone_id}).
+router.post('/order/topup', requireApiKey, (req, res) => processOrderRequest(req, res, {
+  expectedProvider: 'digiflazz', label: 'Top Up Game/Pulsa'
+}));
+
+// Jasa Sosmed / SMM (produk provider "indosmm"). target = { link }. qty = jumlah asli (mis. 1000 followers).
+router.post('/order/smm', requireApiKey, (req, res) => processOrderRequest(req, res, {
+  expectedProvider: 'indosmm', label: 'Jasa Sosmed'
+}));
+
+// Produk stok manual (produk provider "manual"). target biasanya gak dipakai (kosongkan/hilangkan).
+router.post('/order/manual', requireApiKey, (req, res) => processOrderRequest(req, res, {
+  expectedProvider: 'manual', label: 'Manual (Stok)'
+}));
 
 // ---------- Deposit / Top Up saldo via API ----------
 // Bikin transaksi QRIS baru buat isi saldo. Pembayaran TETAP lewat scan QR (dibayar dari
