@@ -159,6 +159,7 @@ curl -X POST <%= apiBaseUrl %>/order \
   -H "X-API-Key: <%= user.apiKey %>" \
   -H "Content-Type: application/json" \
   -d '{"product_id":"ID_PRODUK","qty":1,"target":{"user_id":"12345"},"ref_id":"order-saya-001"}'</pre>
+        <p style="margin:10px 0 0;"><a href="/dokumentasi-api" style="color:var(--cyan);"><i class="fa-solid fa-book"></i> Lihat dokumentasi API lengkap</a> (semua endpoint: produk, transaksi, deposit, cek saldo)</p>
       <% } else { %>
         <p style="margin:0 0 12px; font-size:14px;">Kamu belum punya API key.</p>
         <form method="POST" action="/profile/api-key/generate" style="margin:0;">

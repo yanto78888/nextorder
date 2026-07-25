@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'dokumentasi-api', user, config }) %>
+
+  <div class="main no-bottom-nav">
+
+    <div class="topbar" style="margin-bottom: 12px;">
+      <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-code"></i> Dokumentasi API Reseller</h2>
+    </div>
+
+    <div class="card">
+      <p style="margin:0 0 8px;">API ini dipakai buat integrasi otomatis dari bot/website kamu sendiri ke <b><%= config.siteName || 'situs ini' %></b> -- cek harga, cek saldo, transaksi produk, sampai deposit saldo, semuanya bisa lewat kode tanpa buka browser.</p>
+      <p style="margin:0 0 8px;"><b>Semua harga produk lewat API ini otomatis harga tier Platinum</b>, berapa pun membership akun kamu sebenarnya. Flash sale tetap menang di atas harga Platinum kalau sedang aktif.</p>
+      <% if (user) { %>
+        <a href="/profile" class="btn small solid mt-16"><i class="fa-solid fa-key"></i> Kelola API Key Saya</a>
+      <% } else { %>
+        <p style="margin:8px 0 0;"><a href="/login" style="color:var(--cyan);">Masuk</a> atau <a href="/register" style="color:var(--cyan);">daftar akun</a> dulu, lalu buka halaman Profil untuk generate API key.</p>
+      <% } %>
+    </div>
+
+    <div class="section-title"><h3>Autentikasi</h3><div class="line"></div></div>
+    <div class="card">
+      <p style="margin:0 0 8px;">Semua request (kecuali <code>GET /api/v1/</code>) wajib menyertakan API key lewat header berikut:</p>
+      <pre class="doc-code">X-API-Key: nxo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Base URL: <code><%= apiBaseUrl %></code>. Jangan bagikan API key ke siapa pun -- siapa pun yang pegang key itu bisa transaksi &amp; deposit pakai akun kamu. Kalau bocor, generate ulang lewat halaman Profil (key lama langsung tidak berlaku).</p>
+    </div>
+
+    <div class="section-title"><h3>Format Response</h3><div class="line"></div></div>
+    <div class="card">
+      <p style="margin:0 0 8px;">Semua endpoint selalu balas JSON dengan bentuk yang konsisten:</p>
+      <pre class="doc-code">// Berhasil
+{ "success": true, "data": { ... }, "message": "..." }
+
+// Gagal
+{ "success": false, "message": "Penjelasan error di sini" }</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Selalu cek field <code>success</code> dulu sebelum baca <code>data</code>. HTTP status code juga mengikuti (400 = input salah, 401/403 = auth bermasalah, 402 = saldo kurang, 404 = data tidak ditemukan, 500 = error di server).</p>
+    </div>
+
+    <div class="section-title"><h3>1. Akun</h3><div class="line"></div></div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/profile</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Info akun pemilik API key: username, email, saldo, dan membership asli (membership TIDAK memengaruhi harga di API ini, lihat catatan di atas).</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/profile \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "data": { "username": "budi", "email": "budi@mail.com", "saldo": 150000, "membership": "reguler" }
+}</pre>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/saldo</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Cek saldo cepat -- sama seperti <code>/profile</code> tapi cuma balas angka saldo, cocok dipanggil sesering apapun sebelum transaksi.</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/saldo \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+      <pre class="doc-code">{ "success": true, "data": { "saldo": 150000 } }</pre>
+    </div>
+
+    <div class="section-title"><h3>2. Produk &amp; Harga</h3><div class="line"></div></div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/pricelist</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Daftar semua produk aktif beserta harga (tier Platinum), stok, batas qty, dan field target yang wajib diisi saat order. Ringkas -- tanpa deskripsi/thumbnail/cara pakai (pakai <code>/product/:id</code> kalau butuh itu).</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/pricelist \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "data": [
+    {
+      "product_id": "P123",
+      "name": "Mobile Legends 86 Diamond",
+      "category": "Top Up Game",
+      "group": "mobile-legends",
+      "provider": "digiflazz",
+      "price": 20500,
+      "stock": null,
+      "qty_min": 1,
+      "qty_max": 10,
+      "target_fields": [
+        { "key": "user_id", "label": "User ID", "required": true },
+        { "key": "zone_id", "label": "Zone ID", "required": true }
+      ]
+    }
+  ]
+}</pre>
+      <p style="margin:8px 0 0;" class="helper-text"><code>stock</code>: <code>null</code> berarti auto/tidak dibatasi stok fisik (Digiflazz/IndoSMM), angka berarti sisa stok manual. <code>qty_max</code>: <code>null</code> berarti tidak ada batas atas selain saldo kamu.</p>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/product/:id</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Detail lengkap 1 produk -- sama seperti di atas ditambah <code>description</code>, <code>thumbnail</code>, dan <code>usage_instructions</code> (cara pakai, khusus produk stok manual).</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/product/P123 \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+    </div>
+
+    <div class="section-title"><h3>3. Transaksi / Order</h3><div class="line"></div></div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Bikin transaksi baru. Saldo dipotong otomatis (harga tier Platinum), produk langsung diproses (auto top up Digiflazz/IndoSMM atau stok manual sesuai jenis produk).</p>
+      <table class="doc-params">
+        <thead><tr><th>Field</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>product_id</code></td><td>Ya</td><td>Ambil dari <code>/pricelist</code></td></tr>
+          <tr><td><code>qty</code></td><td>Tidak</td><td>Default 1. Auto top up dibatasi maksimal <%= maxDigiflazzQty %>x per transaksi</td></tr>
+          <tr><td><code>target</code></td><td>Kondisional</td><td>Objek berisi field sesuai <code>target_fields</code> produk itu, mis. <code>{"user_id":"12345","zone_id":"6789"}</code> atau <code>{"link":"https://instagram.com/..."}</code> untuk Jasa Sosmed</td></tr>
+          <tr><td><code>ref_id</code></td><td>Sangat disarankan</td><td>ID request unik dari sisi kamu (lihat penjelasan idempotency di bawah)</td></tr>
+        </tbody>
+      </table>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order \
+  -H "X-API-Key: API_KEY_KAMU" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "P123",
+    "qty": 1,
+    "target": { "user_id": "12345", "zone_id": "6789" },
+    "ref_id": "order-toko-saya-00042"
+  }'</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "message": "Order berhasil, produk sudah dikirim.",
+  "data": [
+    {
+      "order_id": "ORD456",
+      "product_id": "P123",
+      "product_name": "Mobile Legends 86 Diamond",
+      "qty": 1,
+      "price": 20500,
+      "total": 20500,
+      "status": "completed",
+      "detail": "Top up berhasil",
+      "note": "Dibayar via API (saldo)",
+      "target": "User ID: 12345 | Zone ID: 6789",
+      "created_at": "2026-07-25T08:00:00.000Z",
+      "updated_at": "2026-07-25T08:00:01.000Z"
+    }
+  ]
+}</pre>
+      <p style="margin:8px 0 0;" class="helper-text"><code>status</code> bisa <code>completed</code> (sudah terkirim), <code>processing</code> (masih diproses otomatis, cek ulang lewat <code>/order/:id</code>), atau <code>cancelled</code> (gagal, saldo otomatis dikembalikan). <code>data</code> berbentuk ARRAY karena produk auto top up dengan <code>qty</code> lebih dari 1 diproses sebagai beberapa order terpisah (1 order per unit) -- produk stok manual selalu balas 1 order di dalam array.</p>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/order/:id</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Cek status 1 order (pakai <code>order_id</code> dari response <code>/order</code> di atas).</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/order/ORD456 \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/order?limit=20</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Riwayat order milik akun kamu, terbaru duluan. <code>limit</code> opsional, maksimal 100 (default 20).</p>
+      <pre class="doc-code">curl "<%= apiBaseUrl %>/order?limit=10" \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+    </div>
+
+    <div class="card doc-endpoint" style="border-color:rgba(0,229,255,.25);">
+      <div class="doc-endpoint-head"><i class="fa-solid fa-circle-info" style="color:var(--cyan);"></i> Kenapa <code>ref_id</code> penting</div>
+      <p style="margin:6px 0 0;">Kalau koneksi kamu ke server terputus tepat setelah request <code>POST /order</code> terkirim (jadi kamu gak sempat terima response-nya), padahal order-nya sebenarnya SUDAH diproses & saldo SUDAH terpotong di sisi kami -- lalu sistem kamu retry request yang sama karena mengira gagal, itu bisa bikin pesanan &amp; potongan saldo DOBEL kalau tidak dicegah.</p>
+      <p style="margin:8px 0 0;">Kirim <code>ref_id</code> unik tiap transaksi (mis. ID order di sistem kamu sendiri). Kalau ada request kedua masuk dengan <code>ref_id</code> yang SAMA, kami tidak proses ulang -- cukup dibalikin hasil persis yang pertama, saldo tidak terpotong lagi.</p>
+    </div>
+
+    <div class="section-title"><h3>4. Deposit / Top Up Saldo</h3><div class="line"></div></div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/deposit</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Bikin transaksi QRIS baru buat isi saldo. Dibalikin QR code (base64 PNG) yang bisa langsung ditampilkan/di-scan dari e-wallet atau m-banking apa saja.</p>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/deposit \
+  -H "X-API-Key: API_KEY_KAMU" \
+  -H "Content-Type: application/json" \
+  -d '{ "amount": 50000 }'</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "message": "Scan QR berikut untuk membayar...",
+  "data": {
+    "trxid": "DEP-789",
+    "amount": 50000,
+    "fee": 350,
+    "kode_unik": 27,
+    "total": 50377,
+    "status": "pending",
+    "created_at": "2026-07-25T08:00:00.000Z",
+    "expired_at": "2026-07-25T08:10:00.000Z",
+    "paid_at": null,
+    "qr_image_base64": "data:image/png;base64,iVBORw0KG..."
+  }
+}</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Bayar TEPAT sejumlah <code>total</code> (sudah termasuk biaya QRIS &amp; kode unik pembeda transaksi). Saldo bertambah OTOMATIS begitu pembayaran terdeteksi -- tidak perlu konfirmasi manual, tinggal polling status lewat endpoint di bawah sampai <code>status</code> jadi <code>"paid"</code>.</p>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/deposit/:trxid</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Cek status 1 deposit. <code>status</code>: <code>pending</code> (menunggu bayar) &rarr; <code>paid</code> (saldo sudah masuk) / <code>expired</code> (lewat batas waktu, tidak dibayar) / <code>cancelled</code>.</p>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/deposit/DEP-789 \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/deposit?limit=20</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Riwayat deposit milik akun kamu, terbaru duluan.</p>
+      <pre class="doc-code">curl "<%= apiBaseUrl %>/deposit?limit=10" \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+</body>
+</html>
