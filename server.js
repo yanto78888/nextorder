@@ -1,6 +1,7 @@
 import express from 'express';
 import session from 'express-session';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 import { attachUser } from './middleware/auth.js';
@@ -11,10 +12,12 @@ import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
 import { checkPendingIndosmmOrders, checkPendingIndosmmRefills } from './lib/indosmm.js';
 import { scheduleAutoBackup } from './lib/backup.js';
 import { getActiveProducts } from './lib/products.js';
+import { FileSessionStore } from './lib/sessionStore.js';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import adminRoutes from './routes/admin.js';
+import apiRoutes from './routes/api.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -41,6 +44,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'nexorder-secret-key-ganti-jika-perlu',
   resave: false,
   saveUninitialized: false,
+  // `store` WAJIB diisi -- tanpa ini express-session diam-diam pakai MemoryStore bawaan yang
+  // nyimpen sesi cuma di RAM, jadi semua orang ke-logout tiap proses Node-nya restart (deploy
+  // ulang, `pm2 reload`, crash, dst). Lihat catatan lengkap di lib/sessionStore.js.
+  store: new FileSessionStore(),
   cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } // 7 hari
 }));
 
@@ -58,14 +65,27 @@ app.use((req, res, next) => {
 });
 
 // ---------- bootstrap admin default jika belum ada user ----------
+// Password digenerate ACAK tiap kali bootstrap ini beneran jalan (bukan hardcoded tetap) --
+// dulu passwordnya fixed 'binigw' buat username 'skirk' persis kayak yang ketulis di source
+// code template ini, jadi siapa pun yang pernah lihat kode ini (template yang dipakai ulang)
+// otomatis tahu kredensial default itu buat dicoba di situs mana pun yang lupa gantinya.
+function generateRandomPassword(length = 10) {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'; // tanpa 0/O/1/l/I biar gak ketuker pas diketik manual
+  let out = '';
+  for (let i = 0; i < length; i++) out += chars[crypto.randomInt(chars.length)];
+  return out;
+}
+
 function bootstrap() {
   const users = getAllUsers();
   if (users.length === 0) {
-    createUser({ username: 'skirk', email: '', password: 'binigw', role: 'admin' });
+    const password = generateRandomPassword();
+    createUser({ username: 'skirk', email: '', password, role: 'admin' });
     console.log('===================================================');
     console.log(' Akun admin default dibuat!');
     console.log(' Username : skirk');
-    console.log(' Password : binigw');
+    console.log(` Password : ${password}`);
+    console.log(' (password ini cuma tampil sekali di log ini, gak disimpan di tempat lain)');
     console.log(' >>> SEGERA LOGIN & GANTI PASSWORD DI HALAMAN PROFILE <<<');
     console.log('===================================================');
   }
@@ -84,6 +104,7 @@ app.get('/', (req, res) => {
 app.use('/', authRoutes);
 app.use('/', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/api/v1', apiRoutes);
 
 // ---------- SEO: robots.txt & sitemap.xml ----------
 // Halaman privat (butuh login) & panel admin sengaja di-disallow -- gak ada nilai SEO buat
