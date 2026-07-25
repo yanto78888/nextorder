@@ -152,10 +152,11 @@
         <div class="line" style="margin:16px 0;"></div>
         <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Contoh Pemakaian</label>
         <div class="helper-text" style="margin-bottom:6px;">Base URL: <code><%= apiBaseUrl %></code> &middot; kirim key lewat header <code>X-API-Key</code></div>
-        <pre style="background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:12px; font-size:12px; overflow-x:auto; margin:0;">curl <%= apiBaseUrl %>/pricelist \
+        <pre class="doc-code">curl <%= apiBaseUrl %>/pricelist \
   -H "X-API-Key: <%= user.apiKey %>"
 
-curl -X POST <%= apiBaseUrl %>/order \
+# Order dipisah per jenis produk: /order/topup, /order/smm, /order/manual
+curl -X POST <%= apiBaseUrl %>/order/topup \
   -H "X-API-Key: <%= user.apiKey %>" \
   -H "Content-Type: application/json" \
   -d '{"product_id":"ID_PRODUK","qty":1,"target":{"user_id":"12345"},"ref_id":"order-saya-001"}'</pre>
@@ -214,6 +215,47 @@ function copyApiKey() {
     done();
   }
 }
+
+// Tombol "Salin" otomatis buat blok contoh kode API (.doc-code) -- pola sama kayak di
+// /dokumentasi-api, dipisah di sini karena halaman ini gak nge-include script itu.
+(function () {
+  function fallbackCopy(pre) {
+    var range = document.createRange();
+    range.selectNodeContents(pre);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }
+  document.querySelectorAll('.doc-code').forEach(function (pre) {
+    var wrap = document.createElement('div');
+    wrap.className = 'doc-code-wrap';
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'doc-copy-btn';
+    btn.title = 'Salin';
+    btn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', function () {
+      var text = pre.textContent;
+      function done() {
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(function () { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1200);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(pre); done(); });
+      } else {
+        fallbackCopy(pre);
+        done();
+      }
+    });
+  });
+})();
 </script>
 </body>
 </html>

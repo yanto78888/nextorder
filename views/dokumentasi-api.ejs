@@ -75,7 +75,7 @@
       "name": "Mobile Legends 86 Diamond",
       "category": "Top Up Game",
       "group": "mobile-legends",
-      "provider": "digiflazz",
+      "provider": "topup",
       "price": 20500,
       "stock": null,
       "qty_min": 1,
@@ -87,7 +87,7 @@
     }
   ]
 }</pre>
-      <p style="margin:8px 0 0;" class="helper-text"><code>stock</code>: <code>null</code> berarti auto/tidak dibatasi stok fisik (Digiflazz/IndoSMM), angka berarti sisa stok manual. <code>qty_max</code>: <code>null</code> berarti tidak ada batas atas selain saldo kamu.</p>
+      <p style="margin:8px 0 0;" class="helper-text"><code>stock</code>: <code>null</code> berarti auto/tidak dibatasi stok fisik (Top Up/Jasa Sosmed), angka berarti sisa stok manual. <code>provider</code> nilainya <code>"topup"</code>, <code>"smm"</code>, atau <code>"manual"</code> -- sesuai endpoint order yang harus dipakai. <code>qty_max</code>: <code>null</code> berarti tidak ada batas atas selain saldo kamu.</p>
     </div>
 
     <div class="card doc-endpoint">
@@ -100,25 +100,30 @@
     <div class="section-title"><h3>3. Transaksi / Order</h3><div class="line"></div></div>
 
     <div class="card doc-endpoint">
-      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order</code></div>
-      <p class="helper-text" style="margin:6px 0 10px;">Bikin transaksi baru. Saldo dipotong otomatis (harga tier Platinum), produk langsung diproses (auto top up Digiflazz/IndoSMM atau stok manual sesuai jenis produk).</p>
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/topup</code> &middot; <code>/order/smm</code> &middot; <code>/order/manual</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Bikin transaksi baru. Sengaja dipisah jadi <b>3 endpoint berbeda</b> sesuai jenis produknya (Top Up Game/Pulsa, Jasa Sosmed, Stok Manual) -- bukan 1 endpoint gabungan -- karena bentuk <code>target</code> dan arti <code>qty</code> beda jauh antar jenis. Kirim <code>product_id</code> ke endpoint yang SALAH (mis. produk Top Up dikirim ke <code>/order/smm</code>) akan ditolak dengan error yang jelas. Saldo dipotong otomatis pakai harga tier Platinum.</p>
       <table class="doc-params">
         <thead><tr><th>Field</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>product_id</code></td><td>Ya</td><td>Ambil dari <code>/pricelist</code></td></tr>
-          <tr><td><code>qty</code></td><td>Tidak</td><td>Default 1. Auto top up dibatasi maksimal <%= maxDigiflazzQty %>x per transaksi</td></tr>
-          <tr><td><code>target</code></td><td>Kondisional</td><td>Objek berisi field sesuai <code>target_fields</code> produk itu, mis. <code>{"user_id":"12345","zone_id":"6789"}</code> atau <code>{"link":"https://instagram.com/..."}</code> untuk Jasa Sosmed</td></tr>
+          <tr><td><code>product_id</code></td><td>Ya</td><td>Ambil dari <code>/pricelist</code> atau <code>/product/:id</code> -- cek field <code>provider</code>-nya buat tahu harus pakai endpoint yang mana</td></tr>
+          <tr><td><code>qty</code></td><td>Tidak</td><td>Default 1. Artinya beda-beda tergantung endpoint -- lihat 3 contoh di bawah</td></tr>
+          <tr><td><code>target</code></td><td>Kondisional</td><td>Objek sesuai <code>target_fields</code> produk itu -- boleh dikosongkan/dihilangkan kalau produknya gak butuh data tujuan (lihat contoh Produk Manual)</td></tr>
           <tr><td><code>ref_id</code></td><td>Sangat disarankan</td><td>ID request unik dari sisi kamu (lihat penjelasan idempotency di bawah)</td></tr>
         </tbody>
       </table>
-      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order \
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/topup</code> <span class="doc-tag topup">Top Up Game / Pulsa</span></div>
+      <p class="helper-text" style="margin:6px 0 10px;"><code>provider: "topup"</code> di <code>/pricelist</code>. <code>target</code> isinya ID tujuan (User ID/Zone ID/No. HP, dst -- field persisnya beda tiap produk, cek <code>target_fields</code>). <code>qty</code> = jumlah TRANSAKSI (maksimal <%= maxDigiflazzQty %>x per request), BUKAN jumlah diamond/pulsa.</p>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order/topup \
   -H "X-API-Key: API_KEY_KAMU" \
   -H "Content-Type: application/json" \
   -d '{
     "product_id": "P123",
     "qty": 1,
     "target": { "user_id": "12345", "zone_id": "6789" },
-    "ref_id": "order-toko-saya-00042"
+    "ref_id": "topup-ml-00042"
   }'</pre>
       <pre class="doc-code">{
   "success": true,
@@ -140,7 +145,76 @@
     }
   ]
 }</pre>
-      <p style="margin:8px 0 0;" class="helper-text"><code>status</code> bisa <code>completed</code> (sudah terkirim), <code>processing</code> (masih diproses otomatis, cek ulang lewat <code>/order/:id</code>), atau <code>cancelled</code> (gagal, saldo otomatis dikembalikan). <code>data</code> berbentuk ARRAY karena produk auto top up dengan <code>qty</code> lebih dari 1 diproses sebagai beberapa order terpisah (1 order per unit) -- produk stok manual selalu balas 1 order di dalam array.</p>
+      <p style="margin:8px 0 0;" class="helper-text">Kalau <code>qty</code> &gt; 1, <code>data</code> isinya BEBERAPA order sekaligus (1 order per unit -- sistem Top Up gak punya konsep "quantity" per transaksi). <code>status</code>: <code>completed</code> = langsung sukses, <code>processing</code> = masih dicek ulang otomatis (poll <code>/order/:id</code>), <code>cancelled</code> = gagal &amp; saldo sudah dikembalikan otomatis.</p>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/smm</code> <span class="doc-tag smm">Jasa Sosmed (SMM)</span></div>
+      <p class="helper-text" style="margin:6px 0 10px;"><code>provider: "smm"</code> di <code>/pricelist</code>. <code>target</code> WAJIB isi <code>link</code> (URL postingan/profil/video tujuan). <code>qty</code> = jumlah ASLI yang dipesan (mis. 1000 followers/likes/views), BUKAN "berapa kali beli" -- harga dihitung dari rate per 1000 di <code>/pricelist</code>, batas minimal/maksimal juga beda tiap produk (lihat <code>qty_min</code>/<code>qty_max</code>).</p>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order/smm \
+  -H "X-API-Key: API_KEY_KAMU" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "S456",
+    "qty": 1000,
+    "target": { "link": "https://instagram.com/p/xxxxxxx" },
+    "ref_id": "smm-ig-like-00099"
+  }'</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "message": "Order diterima, sedang diproses otomatis.",
+  "data": [
+    {
+      "order_id": "ORD789",
+      "product_id": "S456",
+      "product_name": "Instagram Likes Real & Active",
+      "qty": 1000,
+      "price": 15,
+      "total": 15000,
+      "status": "processing",
+      "detail": "",
+      "note": "Sedang diproses sistem, tunggu beberapa saat",
+      "target": "Link Target (postingan/profil/video): https://instagram.com/p/xxxxxxx",
+      "created_at": "2026-07-25T08:00:00.000Z",
+      "updated_at": "2026-07-25T08:00:00.000Z"
+    }
+  ]
+}</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Order Jasa Sosmed SELALU mulai dari <code>processing</code> (gak ada yang instan sukses/gagal kayak Top Up) -- berubah jadi <code>completed</code> belakangan setelah dicek ulang otomatis oleh sistem. <code>data</code> di sini selalu 1 order saja (beda dari Top Up Game yang bisa pecah jadi banyak order kalau <code>qty</code> &gt; 1).</p>
+    </div>
+
+    <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/manual</code> <span class="doc-tag manual">Produk Manual (Stok)</span></div>
+      <p class="helper-text" style="margin:6px 0 10px;"><code>provider: "manual"</code> di <code>/pricelist</code>. Biasanya gak butuh <code>target</code> sama sekali (boleh dihilangkan dari body) -- kecuali admin sengaja pasang field tambahan khusus produk itu, cek <code>target_fields</code>. <code>qty</code> = jumlah item yang diambil dari stok.</p>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order/manual \
+  -H "X-API-Key: API_KEY_KAMU" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "M789",
+    "qty": 2,
+    "ref_id": "manual-akun-00007"
+  }'</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "message": "Order berhasil, produk sudah dikirim.",
+  "data": [
+    {
+      "order_id": "ORD321",
+      "product_id": "M789",
+      "product_name": "Akun Netflix Private 1 Bulan",
+      "qty": 2,
+      "price": 15000,
+      "total": 30000,
+      "status": "completed",
+      "detail": "1. user1@mail.com:pass123\n2. user2@mail.com:pass456",
+      "note": "Dibayar via API (saldo)",
+      "target": "",
+      "created_at": "2026-07-25T08:00:00.000Z",
+      "updated_at": "2026-07-25T08:00:00.000Z"
+    }
+  ]
+}</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Kalau stok manual lagi kurang/kosong, <code>status</code> balik <code>processing</code> dengan catatan menunggu admin kirim manual (saldo TETAP terpotong penuh, bukan dianggap gagal) -- <code>detail</code> baru keisi begitu admin selesai kirim, cek ulang lewat <code>/order/:id</code>.</p>
     </div>
 
     <div class="card doc-endpoint">
@@ -208,5 +282,47 @@
     <%- include('partials/footer') %>
   </div>
 </div>
+<script>
+// Otomatis kasih tombol "Salin" ke SEMUA blok kode (.doc-code) di halaman ini, jadi kalau
+// nambah contoh baru nanti, gak perlu nulis tombolnya manual satu-satu per blok.
+(function () {
+  function fallbackCopy(pre) {
+    var range = document.createRange();
+    range.selectNodeContents(pre);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  }
+  document.querySelectorAll('.doc-code').forEach(function (pre) {
+    var wrap = document.createElement('div');
+    wrap.className = 'doc-code-wrap';
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'doc-copy-btn';
+    btn.title = 'Salin';
+    btn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', function () {
+      var text = pre.textContent;
+      function done() {
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(function () { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1200);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(pre); done(); });
+      } else {
+        fallbackCopy(pre);
+        done();
+      }
+    });
+  });
+})();
+</script>
 </body>
 </html>
