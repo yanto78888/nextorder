@@ -702,6 +702,35 @@ router.post('/digiflazz/:id/unlink', (req, res) => {
   renderDigiflazzPage(req, res, { success: 'Produk dilepas dari Digiflazz, sekarang jadi produk stok manual.' });
 });
 
+// Lepas SEMUA produk Digiflazz sekaligus jadi manual -- biar admin gak perlu klik "Lepas" satu-satu
+// per produk kalau mau berhenti total dari auto top up Digiflazz. Stok manual masing-masing produk
+// tetap kosong (sama kayak lepas 1x1), admin isi stoknya sendiri lewat halaman Kelola Produk kalau perlu.
+router.post('/digiflazz/unlink-all', (req, res) => {
+  const products = getAllProducts().filter(p => p.provider === 'digiflazz');
+  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  renderDigiflazzPage(req, res, {
+    success: products.length > 0
+      ? `${products.length} produk berhasil dilepas dari Digiflazz, sekarang jadi produk stok manual.`
+      : 'Tidak ada produk Digiflazz yang terhubung.'
+  });
+});
+
+// Lepas produk Digiflazz yang DICENTANG doang (bukan semua, bukan satu-satu) -- id dikirim
+// sebagai hidden input 'ids' (bisa banyak) lewat form yang disuntik JS di sisi client.
+router.post('/digiflazz/unlink-selected', (req, res) => {
+  const rawIds = req.body.ids;
+  const ids = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+  // Jaga-jaga: cuma proses id yang beneran produk Digiflazz, biar gak bisa disalahgunakan
+  // buat "lepas" produk manual/indosmm lewat endpoint ini.
+  const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'digiflazz');
+  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  renderDigiflazzPage(req, res, {
+    success: products.length > 0
+      ? `${products.length} produk terpilih berhasil dilepas dari Digiflazz, sekarang jadi produk stok manual.`
+      : 'Tidak ada produk yang dicentang.'
+  });
+});
+
 // Upload/ganti foto folder buat 1 Grup Varian Digiflazz (mis. "Mobile Legends"), dipakai di kartu
 // grup halaman admin ini dan otomatis jadi thumbnail kartu grup di katalog publik.
 router.post('/digiflazz/group/:group/thumbnail', uploadGroupThumbnail, (req, res) => {
@@ -898,6 +927,31 @@ router.post('/indosmm/:id/unlink', (req, res) => {
   } catch (err) {
     renderIndosmmPage(req, res, { error: err.message });
   }
+});
+
+// Lepas SEMUA layanan IndoSMM sekaligus jadi manual -- biar admin gak perlu klik "Lepas" satu-satu
+// per layanan kalau mau berhenti total dari auto-order Jasa Sosmed.
+router.post('/indosmm/unlink-all', (req, res) => {
+  const products = getAllProducts().filter(p => p.provider === 'indosmm');
+  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  renderIndosmmPage(req, res, {
+    success: products.length > 0
+      ? `${products.length} layanan berhasil dilepas dari IndoSMM, sekarang jadi produk manual.`
+      : 'Tidak ada layanan IndoSMM yang terhubung.'
+  });
+});
+
+// Lepas layanan IndoSMM yang DICENTANG doang (bukan semua, bukan satu-satu)
+router.post('/indosmm/unlink-selected', (req, res) => {
+  const rawIds = req.body.ids;
+  const ids = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+  const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'indosmm');
+  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  renderIndosmmPage(req, res, {
+    success: products.length > 0
+      ? `${products.length} layanan terpilih berhasil dilepas dari IndoSMM, sekarang jadi produk manual.`
+      : 'Tidak ada layanan yang dicentang.'
+  });
 });
 
 // ---------- ORDER ----------

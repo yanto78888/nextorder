@@ -6,25 +6,26 @@ import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
-  getMembershipDiscount, upgradeMembership
+  getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey
 } from '../lib/users.js';
-import { getActiveProducts, findProductById, takeProductStock, countStock, updateProduct, getProductCostPrice } from '../lib/products.js';
-import { getOrdersByUser, createOrder, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
+import { getActiveProducts, findProductById, countStock, updateProduct } from '../lib/products.js';
+import { getOrdersByUser, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { getSaldoLedgerByUser, getSaldoLedgerSummary } from '../lib/saldoLedger.js';
-import { notifyOrder } from '../lib/telegram.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
 import { createReview, getReviewsByProduct, getAllReviews } from '../lib/reviews.js';
-import { isDigiflazzEnabled, buildCustomerNo, createTransaction } from '../lib/digiflazz.js';
 import { getGroupThumbnail, getGroupThumbnails } from '../lib/digiflazzGroups.js';
 import {
-  isIndosmmEnabled, placeOrder as placeIndosmmOrder, computeTotalForQty as computeIndosmmTotal,
-  getServices as getIndosmmServices, cancelOrder as cancelIndosmmOrder, requestRefill as requestIndosmmRefill
+  isIndosmmEnabled, getServices as getIndosmmServices, cancelOrder as cancelIndosmmOrder,
+  requestRefill as requestIndosmmRefill
 } from '../lib/indosmm.js';
-import { genId } from '../lib/db.js';
 import { getFlashSaleDisplayItems, getFlashSaleSettings, isFlashSaleRunning, getEffectivePrice, getActiveFlashPriceForProduct, recordFlashSaleSale, createPriceResolver } from '../lib/flashsale.js';
+import {
+  MAX_DIGIFLAZZ_QTY_PER_ORDER, validateQty, computeOrderTotal, formatTargetText,
+  fulfillAndRecordOrders, summarizeOrders
+} from '../lib/orderEngine.js';
 
 const router = express.Router();
 
@@ -39,239 +40,6 @@ function extractTargetData(product, body) {
     if (val) data[f.key] = val;
   });
   return { data, missing };
-}
-
-// Format isian target jadi teks rapi buat disimpan di order & dikirim ke laporan Telegram
-function formatTargetText(product, data) {
-  const fields = product.targetFields || [];
-  return fields
-    .filter(f => data[f.key])
-    .map(f => {
-      let val = data[f.key];
-      if (f.type === 'select' && Array.isArray(f.options)) {
-        const opt = f.options.find(o => o.value === val);
-        if (opt) val = opt.label;
-      }
-      return `${f.label}: ${val}`;
-    })
-    .join(' | ');
-}
-
-// Digiflazz gak punya konsep "quantity" per transaksi -- tiap unit butuh 1 panggilan
-// createTransaction() SENDIRI ke Digiflazz secara berurutan (lihat fulfillAndRecordOrders di
-// bawah). Kalau qty dibiarkan sampai puluhan, 1 request checkout bisa jadi puluhan panggilan API
-// berurutan yang lama & rawan timeout di browser/proxy. Makanya dibatasi wajar di sini (dicek di
-// /order, /order/qris-init, DAN /order/qris-confirm -- bukan cuma di 1 tempat, khususnya jangan
-// sampai baru ketahuan kelebihan qty SETELAH customer bayar QRIS beneran).
-const MAX_DIGIFLAZZ_QTY_PER_ORDER = 10;
-function validateQty(product, qty) {
-  if (product.provider === 'digiflazz' && qty > MAX_DIGIFLAZZ_QTY_PER_ORDER) {
-    return `Maksimal ${MAX_DIGIFLAZZ_QTY_PER_ORDER}x per transaksi untuk produk auto top up ini. Silakan checkout terpisah untuk jumlah lebih banyak.`;
-  }
-  if (product.provider === 'indosmm') {
-    const min = Number(product.indosmmMin) || 1;
-    const max = Number(product.indosmmMax) || min;
-    if (qty < min || qty > max) {
-      return `Jumlah harus antara ${min.toLocaleString('id-ID')} - ${max.toLocaleString('id-ID')} untuk layanan ini.`;
-    }
-  }
-  return null;
-}
-
-// Total harga buat qty tertentu, provider-aware: IndoSMM dihitung dari RATE PER 1000 (qty = jumlah
-// asli, mis. 500 follower -- BUKAN "berapa kali beli"), provider lain tetap unitPrice * qty biasa.
-function computeOrderTotal(product, unitPrice, qty) {
-  if (product.provider === 'indosmm') return computeIndosmmTotal(unitPrice, qty);
-  return unitPrice * qty;
-}
-
-// Kirim produk ke user: stok manual dari sistem, atau auto top up game lewat Digiflazz.
-// Dipanggil setelah saldo user dipotong, jadi kalau Digiflazz gagal, saldo yang sudah dipotong di-refund di sini.
-async function fulfillOrder(product, qty, targetData, targetText) {
-  if (product.provider === 'digiflazz' && isDigiflazzEnabled()) {
-    const customerNo = buildCustomerNo(product, targetData);
-    if (!customerNo) {
-      return {
-        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Gagal top up: ID tujuan tidak lengkap',
-        provider: 'digiflazz', providerRefId: '', providerCustomerNo: '', refund: true
-      };
-    }
-
-    const refId = genId('DGFLZ');
-    try {
-      const result = await createTransaction({
-        buyerSkuCode: product.digiflazzSku,
-        customerNo,
-        refId
-      });
-      const status = String(result.status || '').toLowerCase();
-
-      if (status === 'sukses') {
-        return {
-          status: 'completed', deliveryMode: 'auto', manualRequired: false,
-          detail: result.sn || result.message || 'Top up berhasil',
-          note: 'Top up otomatis berhasil',
-          provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
-        };
-      }
-      if (status === 'gagal') {
-        return {
-          status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-          detail: '', note: 'Top up gagal: ' + (result.message || 'ditolak sistem'),
-          provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
-        };
-      }
-      // Pending: masih diproses Digiflazz di baliknya, dicek ulang otomatis oleh background job
-      // (catatan sengaja gak nyebut nama provider ke customer, lihat validateQty & invoice.ejs juga)
-      return {
-        status: 'processing', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Sedang diproses sistem, tunggu beberapa saat',
-        provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: false
-      };
-    } catch (err) {
-      return {
-        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Gagal menghubungi sistem top up: ' + err.message,
-        provider: 'digiflazz', providerRefId: refId, providerCustomerNo: customerNo, refund: true
-      };
-    }
-  }
-
-  if (product.provider === 'indosmm' && isIndosmmEnabled()) {
-    const link = (targetData.link || '').trim();
-    if (!link) {
-      return {
-        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Gagal memproses: link tujuan tidak diisi',
-        provider: 'indosmm', providerRefId: '', providerCustomerNo: '', refund: true
-      };
-    }
-    try {
-      // qty di sini = jumlah asli (mis. 500 followers) -- BEDA dari Digiflazz, IndoSMM emang
-      // native dukung "quantity" per 1 kali panggilan API, jadi TIDAK di-loop/split per unit
-      // (lihat perUnit di fulfillAndRecordOrders, cuma true buat provider 'digiflazz').
-      const result = await placeIndosmmOrder({ serviceId: product.indosmmServiceId, link, quantity: qty });
-      // Order SMM SELALU mulai dari "diproses" (gak ada status sukses/gagal instan kayak
-      // Digiflazz) -- baru dituntasin belakangan oleh job checkPendingIndosmmOrders().
-      return {
-        status: 'processing', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Sedang diproses sistem, tunggu beberapa saat',
-        provider: 'indosmm', providerRefId: result.orderId, providerCustomerNo: link, refund: false
-      };
-    } catch (err) {
-      return {
-        status: 'cancelled', deliveryMode: 'auto', manualRequired: false,
-        detail: '', note: 'Gagal menghubungi sistem: ' + err.message,
-        provider: 'indosmm', providerRefId: '', providerCustomerNo: link, refund: true
-      };
-    }
-  }
-
-  // Fallback: stok manual dari sistem (perilaku lama)
-  const stockAvailable = countStock(product);
-  const takenStock = stockAvailable >= qty ? takeProductStock(product.id, qty) : null;
-  const isAutoDelivered = Array.isArray(takenStock) && takenStock.length === qty;
-  return {
-    status: isAutoDelivered ? 'completed' : 'processing',
-    deliveryMode: isAutoDelivered ? 'auto' : 'manual',
-    manualRequired: !isAutoDelivered,
-    detail: isAutoDelivered ? takenStock.map((item, i) => qty > 1 ? `${i + 1}. ${item.value}` : item.value).join('\n') : '',
-    note: isAutoDelivered ? 'Dikirim otomatis dari stok sistem' : 'Stok otomatis habis, menunggu admin kirim manual',
-    provider: 'manual', providerRefId: '', providerCustomerNo: '', refund: false
-  };
-}
-
-// Proses 1 aksi checkout (bayar Saldo atau QRIS) jadi 1 ATAU LEBIH order record + kirim produknya.
-//
-// KENAPA BISA LEBIH DARI 1 ORDER: Digiflazz gak punya konsep "quantity" per transaksi -- 1
-// panggilan createTransaction() = 1 unit dikirim ke 1 customer_no. Dulu qty diabaikan sama
-// sekali buat produk Digiflazz (cuma manggil createTransaction() 1x walau qty=3 misalnya),
-// akibatnya customer BAYAR 3x lipat harga tapi Digiflazz cuma memproses ("ke-hit") 1x. Sekarang,
-// khusus produk Digiflazz, benar-benar di-loop sebanyak qty (masing-masing createTransaction()
-// dengan ref_id BEDA -- Digiflazz menganggap ref_id yang SAMA sebagai retry transaksi yang sama,
-// BUKAN transaksi baru), dan masing-masing unit dicatat sebagai order TERPISAH (qty:1). Dengan
-// gitu status/refund/reconcile per unit otomatis akurat lewat logic single-unit yang sudah ada
-// (gak perlu bikin konsep "refund sebagian" yang baru). Produk provider manual/stok TETAP 1
-// order (qty:N) kayak sebelumnya -- itu memang sudah benar (lihat takeProductStock yang emang
-// ngambil N item stok sekaligus).
-async function fulfillAndRecordOrders({ user, product, qty, targetData, targetText, notifySource, paidNote }) {
-  const unitPrice = getEffectivePrice(product, user);
-  const usedFlashPrice = getActiveFlashPriceForProduct(product.id) != null;
-  const perUnit = product.provider === 'digiflazz' && isDigiflazzEnabled();
-  const iterations = perUnit ? qty : 1;
-  const orderQty = perUnit ? 1 : qty;
-  const orderTotal = computeOrderTotal(product, unitPrice, orderQty);
-
-  const orders = [];
-  for (let i = 0; i < iterations; i++) {
-    const delivery = await fulfillOrder(product, orderQty, targetData, targetText);
-
-    const order = createOrder({
-      userId: user.id,
-      username: user.username,
-      productId: product.id,
-      productName: product.name,
-      price: unitPrice,
-      qty: orderQty,
-      total: orderTotal,
-      source: 'user',
-      status: delivery.status,
-      deliveryMode: delivery.deliveryMode,
-      manualRequired: delivery.manualRequired,
-      targetText,
-      detail: delivery.detail,
-      note: delivery.refund ? delivery.note : (paidNote || delivery.note),
-      provider: delivery.provider,
-      providerRefId: delivery.providerRefId,
-      providerCustomerNo: delivery.providerCustomerNo,
-      indosmmServiceId: product.indosmmServiceId || '',
-      costPrice: getProductCostPrice(product),
-      usedFlashPrice
-    });
-    orders.push(order);
-
-    // Refund per-unit kalau gagal -- dipanggil SETELAH createOrder (bukan sebelum, kayak
-    // sebelumnya) supaya order.id sudah ada dan bisa dilampirkan ke catatan ledger-nya,
-    // biar dari halaman Riwayat Saldo jelas refund ini berasal dari order yang mana.
-    if (delivery.refund) {
-      addSaldo(user.id, orderTotal, {
-        reason: `Refund pesanan gagal: ${product.name}`,
-        refType: 'order',
-        refId: order.id
-      });
-    }
-
-    // Catatan: total terjual TIDAK di-increment manual di sini -- dihitung live dari order (lihat
-    // getTotalSoldMap di lib/orders.js), jadi otomatis akurat termasuk kalau order Digiflazz yang
-    // sempat "Pending" ini belakangan ternyata gagal (lihat checkPendingDigiflazzOrders).
-    if (!delivery.refund && usedFlashPrice) recordFlashSaleSale(product.id, orderQty);
-
-    notifyOrder({
-      username: user.username,
-      productName: product.name,
-      total: order.total,
-      orderId: order.id,
-      source: notifySource || (delivery.status === 'completed' ? 'auto' : 'user'),
-      needsManual: delivery.manualRequired,
-      targetText
-    }).catch(() => {});
-  }
-  return orders;
-}
-
-// Ringkas hasil banyak order (qty>1 produk Digiflazz) jadi 1 pesan buat redirect ke /riwayat.
-// Return null kalau cuma 1 order -- biar caller pakai pesan single-order yang lebih spesifik.
-function summarizeOrders(orders) {
-  if (orders.length <= 1) return null;
-  const completed = orders.filter(o => o.status === 'completed').length;
-  const processing = orders.filter(o => o.status === 'processing').length;
-  const cancelled = orders.filter(o => o.status === 'cancelled').length;
-  const parts = [];
-  if (completed) parts.push(`${completed} berhasil dikirim`);
-  if (processing) parts.push(`${processing} masih diproses otomatis`);
-  if (cancelled) parts.push(`${cancelled} gagal & saldo bagian itu sudah dikembalikan`);
-  return `${orders.length} order diproses: ${parts.join(', ')}.`;
 }
 
 // ---------- UPLOAD FOTO PROFIL ----------
@@ -312,6 +80,7 @@ router.get('/profile', requireLogin, (req, res) => {
     totalOrder: orders.length,
     totalSpent: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
     recentOrders: orders.slice(0, 5),
+    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
     noindex: true
   });
 });
@@ -376,6 +145,19 @@ router.post('/profile/google/disconnect', requireLogin, (req, res) => {
   }
   updateUser(user.id, { googleId: '' });
   res.redirect('/profile?success=' + encodeURIComponent('Akun Google berhasil diputuskan dari profil ini'));
+});
+
+// Generate/regenerate API key buat "sistem transaksi via API" (routes/api.js). Regenerate
+// otomatis bikin key LAMA gak berlaku lagi (langsung ketimpa), jadi kalau key lama sempat bocor,
+// tinggal klik generate ulang.
+router.post('/profile/api-key/generate', requireLogin, (req, res) => {
+  generateApiKey(req.session.user.id);
+  res.redirect('/profile?success=' + encodeURIComponent('API key berhasil dibuat. Simpan baik-baik, jangan dibagikan ke orang lain.'));
+});
+
+router.post('/profile/api-key/revoke', requireLogin, (req, res) => {
+  revokeApiKey(req.session.user.id);
+  res.redirect('/profile?success=' + encodeURIComponent('API key berhasil dicabut. Integrasi yang masih pakai key lama otomatis berhenti bisa akses.'));
 });
 
 // Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo
