@@ -50,6 +50,11 @@
           </div>
         </div>
         <div class="helper-text mt-16">Harga jual layanan dihitung dari <b>rate per 1000</b> IndoSMM saat diimport. Kalau harga IndoSMM berubah, edit ulang rate-nya lewat "Edit" per layanan di bawah, atau import ulang layanan yang sama (rate otomatis diperbarui).</div>
+        <% if (indosmmProducts.length > 0) { %>
+        <form method="POST" action="/admin/indosmm/unlink-all" class="mt-16" onsubmit="return confirm('Lepas SEMUA (<%= indosmmProducts.length %>) layanan dari IndoSMM? Semua akan jadi produk manual biasa, checkout otomatis IndoSMM berhenti untuk layanan-layanan ini.')">
+          <button class="btn small danger" type="submit" style="width:100%;"><i class="fa-solid fa-link-slash"></i> Lepas Semua dari IndoSMM</button>
+        </form>
+        <% } %>
       </div>
     </div>
 
@@ -84,14 +89,21 @@
       <% } else { %>
         <% const catOrder = []; const catGroups = {}; %>
         <% indosmmProducts.forEach(p => { const cat = p.category || 'Jasa Sosmed'; if (!catGroups[cat]) { catGroups[cat] = []; catOrder.push(cat); } catGroups[cat].push(p); }) %>
+        <div id="smUnlinkBulkBar" class="df-bulk-bar">
+          <label class="df-select-all"><input type="checkbox" id="smUnlinkSelectAllChk"> Pilih semua</label>
+          <span id="smUnlinkSelectedCount" class="helper-text">0 dipilih</span>
+          <button type="button" class="btn small danger" id="smUnlinkSelectedBtn" disabled><i class="fa-solid fa-link-slash"></i> Lepas yang Dicentang</button>
+        </div>
+        <form method="POST" action="/admin/indosmm/unlink-selected" id="smUnlinkForm" style="display:none;"></form>
         <% catOrder.sort().forEach(cat => { %>
           <% const catProducts = catGroups[cat]; %>
           <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catProducts.length %> layanan</span><div class="line"></div></div>
           <table>
-            <thead><tr><th>Nama</th><th>Min/Maks</th><th>Modal /1000</th><th>Margin</th><th>Harga Jual /1000</th><th>Aksi</th></tr></thead>
+            <thead><tr><th></th><th>Nama</th><th>Min/Maks</th><th>Modal /1000</th><th>Margin</th><th>Harga Jual /1000</th><th>Aksi</th></tr></thead>
             <tbody>
               <% catProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
               <tr>
+                <td><input type="checkbox" class="sm-unlink-cb" value="<%= p.id %>"></td>
                 <td><%= p.name %></td>
                 <td class="mono"><%= (p.indosmmMin||0).toLocaleString('id-ID') %>-<%= (p.indosmmMax||0).toLocaleString('id-ID') %></td>
                 <td class="mono">Rp <%= (p.indosmmRatePer1000 || 0).toLocaleString('id-ID') %></td>
@@ -335,6 +347,49 @@
         alert('Gagal: ' + err.message);
       });
   });
+})();
+
+// ===== Lepas layanan IndoSMM yang dicentang (checkbox per baris + toolbar) =====
+(function () {
+  var selectAllChk = document.getElementById('smUnlinkSelectAllChk');
+  var countEl = document.getElementById('smUnlinkSelectedCount');
+  var btn = document.getElementById('smUnlinkSelectedBtn');
+  var form = document.getElementById('smUnlinkForm');
+  if (!selectAllChk || !btn || !form) return;
+
+  function getCbs() { return Array.prototype.slice.call(document.querySelectorAll('.sm-unlink-cb')); }
+
+  function refresh() {
+    var cbs = getCbs();
+    var checked = cbs.filter(function (c) { return c.checked; });
+    countEl.textContent = checked.length + ' dipilih';
+    btn.disabled = checked.length === 0;
+    selectAllChk.checked = cbs.length > 0 && checked.length === cbs.length;
+  }
+
+  document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('sm-unlink-cb')) refresh();
+  });
+
+  selectAllChk.addEventListener('change', function () {
+    getCbs().forEach(function (c) { c.checked = selectAllChk.checked; });
+    refresh();
+  });
+
+  btn.addEventListener('click', function () {
+    var checked = getCbs().filter(function (c) { return c.checked; });
+    if (checked.length === 0) return;
+    if (!confirm('Lepas ' + checked.length + ' layanan terpilih dari IndoSMM? Semua akan jadi produk manual biasa.')) return;
+    form.innerHTML = '';
+    checked.forEach(function (c) {
+      var input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'ids'; input.value = c.value;
+      form.appendChild(input);
+    });
+    form.submit();
+  });
+
+  refresh();
 })();
 </script>
 </body>

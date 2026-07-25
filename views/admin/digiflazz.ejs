@@ -53,6 +53,11 @@
           <button class="btn ghost" type="submit" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga dari Digiflazz</button>
         </form>
         <div class="helper-text mt-16">Sinkron akan ambil harga modal terbaru dari Digiflazz untuk semua produk yang sudah diimport, lalu hitung ulang harga jual pakai margin masing-masing (atau margin default kalau tidak ada override).</div>
+        <% if (digiflazzProducts.length > 0) { %>
+        <form method="POST" action="/admin/digiflazz/unlink-all" class="mt-16" onsubmit="return confirm('Lepas SEMUA (<%= digiflazzProducts.length %>) produk dari Digiflazz? Semua akan jadi produk stok manual biasa, checkout otomatis Digiflazz berhenti untuk produk-produk ini.')">
+          <button class="btn small danger" type="submit" style="width:100%;"><i class="fa-solid fa-link-slash"></i> Lepas Semua dari Digiflazz</button>
+        </form>
+        <% } %>
       </div>
     </div>
 
@@ -92,6 +97,12 @@
       <% if (digiflazzProducts.length === 0) { %>
         <div class="empty-state mt-16">Belum ada produk yang diimport dari Digiflazz.</div>
       <% } else { %>
+        <div id="dfUnlinkBulkBar" class="df-bulk-bar">
+          <label class="df-select-all"><input type="checkbox" id="dfUnlinkSelectAllChk"> Pilih semua</label>
+          <span id="dfUnlinkSelectedCount" class="helper-text">0 dipilih</span>
+          <button type="button" class="btn small danger" id="dfUnlinkSelectedBtn" disabled><i class="fa-solid fa-link-slash"></i> Lepas yang Dicentang</button>
+        </div>
+        <form method="POST" action="/admin/digiflazz/unlink-selected" id="dfUnlinkForm" style="display:none;"></form>
         <% const dfCatOrder = []; const dfCatGroups = {}; %>
         <% digiflazzProducts.forEach(p => { const cat = p.category || 'Umum'; if (!dfCatGroups[cat]) { dfCatGroups[cat] = []; dfCatOrder.push(cat); } dfCatGroups[cat].push(p); }) %>
         <% dfCatOrder.sort().forEach(cat => { %>
@@ -132,10 +143,11 @@
 
               <div class="df-group-body">
                 <table>
-                  <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+                  <thead><tr><th></th><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
                   <tbody>
                     <% groupProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
                     <tr>
+                      <td><input type="checkbox" class="df-unlink-cb" value="<%= p.id %>"></td>
                       <td><%= p.name %></td>
                       <td class="mono"><%= p.digiflazzSku %></td>
                       <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
@@ -172,10 +184,11 @@
 
           <% if (singles.length > 0) { %>
             <table>
-              <thead><tr><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+              <thead><tr><th></th><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
               <tbody>
                 <% singles.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
                 <tr>
+                  <td><input type="checkbox" class="df-unlink-cb" value="<%= p.id %>"></td>
                   <td><%= p.name %></td>
                   <td class="mono"><%= p.digiflazzSku %></td>
                   <td class="mono">Rp <%= (p.digiflazzBasePrice || 0).toLocaleString('id-ID') %></td>
@@ -513,6 +526,51 @@
         alert('Gagal: ' + err.message);
       });
   });
+})();
+
+// ===== Lepas produk Digiflazz yang dicentang (checkbox per baris + toolbar) =====
+(function () {
+  var selectAllChk = document.getElementById('dfUnlinkSelectAllChk');
+  var countEl = document.getElementById('dfUnlinkSelectedCount');
+  var btn = document.getElementById('dfUnlinkSelectedBtn');
+  var form = document.getElementById('dfUnlinkForm');
+  if (!selectAllChk || !btn || !form) return;
+
+  function getCbs() { return Array.prototype.slice.call(document.querySelectorAll('.df-unlink-cb')); }
+
+  function refresh() {
+    var cbs = getCbs();
+    var checked = cbs.filter(function (c) { return c.checked; });
+    countEl.textContent = checked.length + ' dipilih';
+    btn.disabled = checked.length === 0;
+    selectAllChk.checked = cbs.length > 0 && checked.length === cbs.length;
+  }
+
+  document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('df-unlink-cb')) refresh();
+  });
+
+  selectAllChk.addEventListener('change', function () {
+    getCbs().forEach(function (c) { c.checked = selectAllChk.checked; });
+    refresh();
+  });
+
+  btn.addEventListener('click', function () {
+    var checked = getCbs().filter(function (c) { return c.checked; });
+    if (checked.length === 0) return;
+    if (!confirm('Lepas ' + checked.length + ' produk terpilih dari Digiflazz? Semua akan jadi produk stok manual biasa.')) return;
+    // Form-nya sengaja dikosongin di HTML, hidden input buat tiap id yang dicentang baru
+    // disuntik pas mau submit -- pola yang sama kayak injectTargetFields() di produk-detail.ejs.
+    form.innerHTML = '';
+    checked.forEach(function (c) {
+      var input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'ids'; input.value = c.value;
+      form.appendChild(input);
+    });
+    form.submit();
+  });
+
+  refresh();
 })();
 
 // ===== FOLDER GRUP DIGIFLAZZ: klik header buat buka/tutup isi nominal =====
