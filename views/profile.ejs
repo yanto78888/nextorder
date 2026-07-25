@@ -127,6 +127,46 @@
       </div>
     </div>
 
+    <div class="section-title"><h3>API Reseller</h3><div class="line"></div></div>
+    <div class="card">
+      <div class="helper-text" style="margin-bottom:12px;">
+        Transaksi otomatis lewat API untuk integrasi bot/website kamu sendiri. Semua harga produk lewat API ini otomatis dihitung pakai harga <b>tier Platinum</b>, berapapun membership akun kamu sebenarnya.
+      </div>
+      <% if (user.apiKey) { %>
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">API Key kamu</label>
+        <div class="flex" style="gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="apiKeyField" value="<%= user.apiKey %>" readonly
+                 style="flex:1; min-width:220px; font-family:monospace; font-size:13px;">
+          <button type="button" class="btn small ghost" id="apiKeyCopyBtn" onclick="copyApiKey()">Salin</button>
+        </div>
+        <div class="helper-text" style="margin:8px 0 16px;">Jangan bagikan key ini ke siapa pun -- siapa pun yang pegang key ini bisa transaksi pakai saldo akun kamu. Kalau merasa bocor, langsung generate ulang di bawah.</div>
+        <div class="flex" style="gap:8px; flex-wrap:wrap;">
+          <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API key? Key yang lama langsung berhenti berfungsi, integrasi yang masih pakai key lama harus diperbarui.')" style="margin:0;">
+            <button class="btn small ghost" type="submit">Generate Ulang</button>
+          </form>
+          <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API key? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
+            <button class="btn small danger" type="submit">Cabut API Key</button>
+          </form>
+        </div>
+
+        <div class="line" style="margin:16px 0;"></div>
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Contoh Pemakaian</label>
+        <div class="helper-text" style="margin-bottom:6px;">Base URL: <code><%= apiBaseUrl %></code> &middot; kirim key lewat header <code>X-API-Key</code></div>
+        <pre style="background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:12px; font-size:12px; overflow-x:auto; margin:0;">curl <%= apiBaseUrl %>/pricelist \
+  -H "X-API-Key: <%= user.apiKey %>"
+
+curl -X POST <%= apiBaseUrl %>/order \
+  -H "X-API-Key: <%= user.apiKey %>" \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":"ID_PRODUK","qty":1,"target":{"user_id":"12345"},"ref_id":"order-saya-001"}'</pre>
+      <% } else { %>
+        <p style="margin:0 0 12px; font-size:14px;">Kamu belum punya API key.</p>
+        <form method="POST" action="/profile/api-key/generate" style="margin:0;">
+          <button class="btn small solid" type="submit">Generate API Key</button>
+        </form>
+      <% } %>
+    </div>
+
     <div class="section-title"><h3>Membership</h3><div class="line"></div></div>
     <div class="grid grid-3">
       <% membershipList.filter(t => t.key !== 'reguler').forEach(t => { %>
@@ -153,5 +193,26 @@
     <%- include('partials/footer') %>
   </div>
 </div>
+<script>
+function copyApiKey() {
+  var field = document.getElementById('apiKeyField');
+  var btn = document.getElementById('apiKeyCopyBtn');
+  if (!field) return;
+  field.select();
+  field.setSelectionRange(0, 99999);
+  var done = function () {
+    if (!btn) return;
+    var orig = btn.textContent;
+    btn.textContent = 'Tersalin!';
+    setTimeout(function () { btn.textContent = orig; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(field.value).then(done).catch(function () { document.execCommand('copy'); done(); });
+  } else {
+    document.execCommand('copy');
+    done();
+  }
+}
+</script>
 </body>
 </html>
