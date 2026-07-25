@@ -2262,3 +2262,35 @@ input[type="number"] {
 .connected-account-row .connected-account-status { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
 .connected-account-row .connected-account-status.on { color: var(--success); }
 .connected-account-row .connected-account-status.off { color: var(--text-dim); }
+
+/* ---------- Halaman Dokumentasi API (/dokumentasi-api) ---------- */
+.doc-code {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-main);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 8px 0 0;
+}
+.doc-endpoint-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+.doc-endpoint-head code { color: var(--text-main); font-family: 'Courier New', monospace; }
+.doc-method {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  text-transform: uppercase;
+}
+.doc-method.get { background: rgba(52,152,219,.15); color: var(--cyan); border: 1px solid rgba(52,152,219,.35); }
+.doc-method.post { background: rgba(245,197,24,.15); color: var(--magenta); border: 1px solid rgba(245,197,24,.35); }
+.doc-params { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.doc-params th, .doc-params td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border-glow); }
+.doc-params th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+.doc-params code { color: var(--cyan); }
