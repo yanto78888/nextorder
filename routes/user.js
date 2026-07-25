@@ -350,6 +350,21 @@ router.get('/daftar-harga', (req, res) => {
   });
 });
 
+// Dokumentasi API Reseller -- sengaja PUBLIC (gak requireLogin) biar calon reseller bisa baca-baca
+// dulu sebelum daftar akun, tapi tombol "generate API key" cuma nongol kalau user sudah login.
+router.get('/dokumentasi-api', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  res.render('dokumentasi-api', {
+    user,
+    config: cfg,
+    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
+    maxDigiflazzQty: MAX_DIGIFLAZZ_QTY_PER_ORDER,
+    pageTitle: `Dokumentasi API Reseller - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Dokumentasi API untuk integrasi transaksi otomatis, cek harga, cek saldo, dan deposit di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
 router.post('/order', requireLogin, async (req, res) => {
   const user = findUserById(req.session.user.id);
   const product = findProductById(req.body.productId);

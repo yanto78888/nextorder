@@ -3,6 +3,7 @@ import { requireApiKey } from '../middleware/auth.js';
 import { findUserById, deductSaldo } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, findOrderById, findOrdersByApiRefId } from '../lib/orders.js';
+import { createDeposit, getDeposit, getDepositsByUser } from '../lib/deposit.js';
 import {
   MAX_DIGIFLAZZ_QTY_PER_ORDER, validateQty, computeOrderTotal, formatTargetText,
   getMissingTargetFields, getPlatinumPrice, fulfillAndRecordOrders, summarizeOrders
@@ -41,19 +42,64 @@ function formatOrdersForApi(orders) {
   }));
 }
 
+// Dipakai bareng oleh /pricelist (ringkas) & /product/:id (lengkap, termasuk description/thumbnail/
+// usageInstructions yang gak perlu ikut kekirim di list ratusan produk sekaligus).
+function formatProductForApi(p, { full = false } = {}) {
+  const base = {
+    product_id: p.id,
+    name: p.name,
+    category: p.category || '',
+    group: p.variantGroup || '',
+    provider: p.provider, // manual | digiflazz | indosmm
+    price: getPlatinumPrice(p),
+    stock: p.provider === 'manual' ? countStock(p) : null, // null = otomatis/gak terbatas stok fisik
+    qty_min: p.provider === 'indosmm' ? (Number(p.indosmmMin) || 1) : 1,
+    qty_max: p.provider === 'indosmm' ? (Number(p.indosmmMax) || null)
+      : (p.provider === 'digiflazz' ? MAX_DIGIFLAZZ_QTY_PER_ORDER : null),
+    target_fields: (p.targetFields || []).map(f => ({ key: f.key, label: f.label, required: !!f.required }))
+  };
+  if (!full) return base;
+  return {
+    ...base,
+    description: p.description || '',
+    thumbnail: p.thumbnail || '',
+    usage_instructions: p.usageInstructions || '' // cuma relevan buat provider manual
+  };
+}
+
+function formatDepositForApi(d) {
+  return {
+    trxid: d.trxid,
+    amount: d.amount,
+    fee: d.fee,
+    kode_unik: d.kodeUnik,
+    total: d.total,
+    status: d.status, // pending | paid | expired | cancelled
+    created_at: d.createdAt,
+    expired_at: d.expiredAt,
+    paid_at: d.paidAt || null
+  };
+}
+
 router.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'Nextorder Reseller API v1',
     docs: {
+      full_docs: `${req.protocol}://${req.get('host')}/dokumentasi-api`,
       auth: 'Kirim API key lewat header "X-API-Key" (dapatkan/generate dari halaman Profil setelah login).',
       pricing: 'Semua harga di API ini otomatis harga tier Platinum, terlepas dari membership akun kamu.',
       endpoints: [
         'GET  /api/v1/profile',
+        'GET  /api/v1/saldo',
         'GET  /api/v1/pricelist',
+        'GET  /api/v1/product/:id',
         'POST /api/v1/order        { product_id, qty?, target?, ref_id? }',
         'GET  /api/v1/order/:id',
-        'GET  /api/v1/order?limit=20'
+        'GET  /api/v1/order?limit=20',
+        'POST /api/v1/deposit      { amount }',
+        'GET  /api/v1/deposit/:trxid',
+        'GET  /api/v1/deposit?limit=20'
       ]
     }
   });
@@ -73,23 +119,25 @@ router.get('/profile', requireApiKey, (req, res) => {
   });
 });
 
-// ---------- Daftar harga (SELALU harga Platinum, lihat catatan di atas) ----------
+// ---------- Cek saldo cepat (ambil ulang data TERBARU, gak dari cache req.apiUser awal) ----------
+router.get('/saldo', requireApiKey, (req, res) => {
+  const u = findUserById(req.apiUser.id);
+  res.json({ success: true, data: { saldo: u ? (u.saldo || 0) : 0 } });
+});
+
+// ---------- Daftar harga (ringkas, SELALU harga Platinum, lihat catatan di atas) ----------
 router.get('/pricelist', requireApiKey, (req, res) => {
-  const products = getActiveProducts();
-  const data = products.map(p => ({
-    product_id: p.id,
-    name: p.name,
-    category: p.category || '',
-    group: p.variantGroup || '',
-    provider: p.provider, // manual | digiflazz | indosmm
-    price: getPlatinumPrice(p),
-    stock: p.provider === 'manual' ? countStock(p) : null, // null = otomatis/gak terbatas stok fisik
-    qty_min: p.provider === 'indosmm' ? (Number(p.indosmmMin) || 1) : 1,
-    qty_max: p.provider === 'indosmm' ? (Number(p.indosmmMax) || null)
-      : (p.provider === 'digiflazz' ? MAX_DIGIFLAZZ_QTY_PER_ORDER : null),
-    target_fields: (p.targetFields || []).map(f => ({ key: f.key, label: f.label, required: !!f.required }))
-  }));
+  const data = getActiveProducts().map(p => formatProductForApi(p, { full: false }));
   res.json({ success: true, data });
+});
+
+// ---------- Detail 1 produk (lengkap: nama, harga, deskripsi, thumbnail, cara pakai, dll) ----------
+router.get('/product/:id', requireApiKey, (req, res) => {
+  const product = findProductById(req.params.id);
+  if (!product || product.status !== 'active') {
+    return res.status(404).json({ success: false, message: 'Produk tidak ditemukan / tidak aktif' });
+  }
+  res.json({ success: true, data: formatProductForApi(product, { full: true }) });
 });
 
 // ---------- Riwayat order milik pemilik API key ----------
@@ -198,6 +246,46 @@ router.post('/order', requireApiKey, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// ---------- Deposit / Top Up saldo via API ----------
+// Bikin transaksi QRIS baru buat isi saldo. Pembayaran TETAP lewat scan QR (dibayar dari
+// e-wallet/m-banking mana aja, sama kayak alur web) -- job checkPendingDeposits() di server.js
+// yang jalan di background otomatis nge-cek pembayaran masuk & nambah saldo begitu lunas, JADI
+// TIDAK ADA endpoint/webhook terpisah buat "konfirmasi bayar" -- cukup polling GET /deposit/:trxid
+// dari sisi reseller sampai status-nya berubah jadi "paid".
+router.post('/deposit', requireApiKey, async (req, res) => {
+  try {
+    const amount = parseInt(req.body?.amount);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'amount wajib diisi (angka, dalam Rupiah)' });
+    }
+    const user = findUserById(req.apiUser.id);
+    const dep = await createDeposit(user, amount);
+    res.json({
+      success: true,
+      message: 'Scan QR berikut untuk membayar. Saldo otomatis bertambah begitu pembayaran diterima.',
+      data: { ...formatDepositForApi(dep), qr_image_base64: dep.imageBase64 }
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- Cek status 1 deposit (buat polling sampai status jadi "paid") ----------
+router.get('/deposit/:trxid', requireApiKey, (req, res) => {
+  const dep = getDeposit(req.params.trxid);
+  if (!dep || dep.userId !== req.apiUser.id) {
+    return res.status(404).json({ success: false, message: 'Transaksi deposit tidak ditemukan' });
+  }
+  res.json({ success: true, data: formatDepositForApi(dep) });
+});
+
+// ---------- Riwayat deposit milik pemilik API key ----------
+router.get('/deposit', requireApiKey, (req, res) => {
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+  const deposits = getDepositsByUser(req.apiUser.id).slice(0, limit);
+  res.json({ success: true, data: deposits.map(formatDepositForApi) });
 });
 
 export default router;
