@@ -89,6 +89,26 @@
       <% } %>
     </div>
 
+    <div class="section-title"><h3>FAQ</h3><div class="line"></div></div>
+    <div class="card">
+      <details class="doc-faq">
+        <summary>Berapa lama proses penarikan saldo?</summary>
+        <p>Diproses manual oleh admin, biasanya dalam hitungan jam pada jam operasional. Kamu bisa pantau statusnya di tabel "Riwayat Penarikan" di atas.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Saldo saya sudah terpotong, tapi belum masuk ke e-wallet. Kenapa?</summary>
+        <p>Saldo memang dipotong LANGSUNG saat pengajuan dibuat (bukan pas admin selesai proses), supaya kamu gak bisa ajukan dobel dari saldo yang sama sambil menunggu. Setelah admin transfer manual & tandai "Selesai", uangnya akan masuk ke nomor tujuan yang kamu daftarkan.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Bagaimana kalau pengajuan saya ditolak?</summary>
+        <p>Saldo yang tadi dipotong akan DIKEMBALIKAN PENUH secara otomatis ke akunmu, beserta alasan penolakannya (bisa dilihat di tabel riwayat).</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kenapa saya harus centang konfirmasi nomor tujuan?</summary>
+        <p>Karena sistem tidak bisa memverifikasi kepemilikan nomor e-wallet. Kalau nomor yang diinput salah dan saldo terlanjur dikirim, dana tidak bisa ditarik kembali -- makanya wajib dicek dulu sebelum submit.</p>
+      </details>
+    </div>
+
     <%- include('partials/footer') %>
   </div>
 </div>

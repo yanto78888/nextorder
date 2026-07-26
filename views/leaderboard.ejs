@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'leaderboard', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-trophy"></i> Leaderboard</h2></div>
+    <p class="helper-text" style="margin:0 0 16px;">Peringkat pembeli dengan total transaksi tertinggi. Diperbarui otomatis berdasarkan transaksi yang berhasil.</p>
+
+    <div class="card" style="padding:8px;">
+      <div class="lb-tabs">
+        <button type="button" class="lb-tab active" data-tab="weekly">Mingguan Ini</button>
+        <button type="button" class="lb-tab" data-tab="monthly">Bulanan Ini</button>
+      </div>
+    </div>
+
+    <div class="lb-panel" id="lb-weekly">
+      <% if (weekly.length === 0) { %>
+        <div class="card"><div class="empty-state">Belum ada transaksi minggu ini.</div></div>
+      <% } else { %>
+        <% weekly.forEach(r => { %>
+        <div class="lb-row lb-rank-<%= r.rank <= 3 ? r.rank : 'x' %>">
+          <div class="lb-rank">#<%= r.rank %></div>
+          <div class="lb-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+          <div class="lb-info">
+            <div class="lb-username"><%= r.username %></div>
+            <div class="helper-text"><%= r.orderCount %> transaksi</div>
+          </div>
+          <div class="lb-total">Rp <%= r.total.toLocaleString('id-ID') %></div>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <div class="lb-panel" id="lb-monthly" style="display:none;">
+      <% if (monthly.length === 0) { %>
+        <div class="card"><div class="empty-state">Belum ada transaksi bulan ini.</div></div>
+      <% } else { %>
+        <% monthly.forEach(r => { %>
+        <div class="lb-row lb-rank-<%= r.rank <= 3 ? r.rank : 'x' %>">
+          <div class="lb-rank">#<%= r.rank %></div>
+          <div class="lb-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+          <div class="lb-info">
+            <div class="lb-username"><%= r.username %></div>
+            <div class="helper-text"><%= r.orderCount %> transaksi</div>
+          </div>
+          <div class="lb-total">Rp <%= r.total.toLocaleString('id-ID') %></div>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <div class="section-title"><h3>FAQ</h3><div class="line"></div></div>
+    <div class="card">
+      <details class="doc-faq">
+        <summary>Bagaimana cara masuk leaderboard?</summary>
+        <p>Peringkat dihitung otomatis dari total nominal transaksi yang BERHASIL (bukan dibatalkan) dalam minggu/bulan berjalan. Makin besar & sering transaksi, makin tinggi peringkatnya.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kapan leaderboard di-reset?</summary>
+        <p>Leaderboard Mingguan dihitung ulang dari Senin jam 00:00, dan Leaderboard Bulanan dihitung ulang dari tanggal 1 tiap bulan.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Apakah ada hadiah untuk peringkat teratas?</summary>
+        <p>Admin dapat memberikan reward saldo untuk pembeli dengan peringkat teratas secara berkala. Pantau terus posisimu di sini!</p>
+      </details>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.lb-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('lb-weekly').style.display = tab.dataset.tab === 'weekly' ? '' : 'none';
+      document.getElementById('lb-monthly').style.display = tab.dataset.tab === 'monthly' ? '' : 'none';
+    });
+  });
+})();
+</script>
+</body>
+</html>
