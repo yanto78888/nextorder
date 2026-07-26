@@ -279,6 +279,42 @@
   -H "X-API-Key: API_KEY_KAMU"</pre>
     </div>
 
+    <div class="section-title"><h3>5. FAQ</h3><div class="line"></div></div>
+    <div class="card">
+      <details class="doc-faq">
+        <summary>Bagaimana cara mendapatkan API key?</summary>
+        <p>Login ke akunmu, buka halaman <a href="/profile" style="color:var(--cyan);">Profil</a>, lalu klik "Generate API Key" di card API Reseller. Key langsung aktif dan bisa dipakai saat itu juga.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Apakah harga di API sama dengan harga di website?</summary>
+        <p>Tidak -- harga di API <b>selalu tier Platinum</b> (lebih murah), berapa pun membership akun kamu yang sebenarnya di website. Kalau ada Flash Sale aktif untuk produk itu, harga Flash Sale yang menang.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kenapa order saya ditolak dengan pesan "produk ini bukan produk ..."?</summary>
+        <p>Karena <code>product_id</code> yang kamu kirim jenisnya beda dari endpoint yang dipakai (mis. produk Jasa Sosmed dikirim ke <code>/order/topup</code>). Cek field <code>provider</code> produk itu lewat <code>/pricelist</code> (nilainya <code>topup</code>, <code>smm</code>, atau <code>manual</code>), lalu pakai endpoint order yang sesuai.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Request saya sempat timeout, apakah saldo saya double kepotong kalau saya ulangi?</summary>
+        <p>Tidak, SELAMA kamu mengirim <code>ref_id</code> yang sama persis di request ulanganmu. Lihat penjelasan lengkap idempotency di bagian Transaksi/Order di atas.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Apa arti status <code>processing</code>, <code>completed</code>, dan <code>cancelled</code>?</summary>
+        <p><code>completed</code> = produk sudah terkirim tuntas. <code>processing</code> = masih dikerjakan sistem (poll <code>/order/:id</code> secara berkala sampai berubah). <code>cancelled</code> = gagal diproses, saldo yang terpotong untuk order itu otomatis dikembalikan penuh.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Apakah ada batas jumlah request (rate limit)?</summary>
+        <p>Saat ini belum ada batas keras per menit/detik, tapi tetap pakai secara wajar. Untuk cek status berulang, lakukan polling dengan jeda beberapa detik (jangan looping tanpa jeda), dan selalu sertakan <code>ref_id</code> di setiap <code>POST /order/*</code> supaya aman kalau perlu di-retry.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Bagaimana cara isi saldo untuk dipakai bertransaksi lewat API?</summary>
+        <p>Lewat <code>POST /api/v1/deposit</code> (dapat QR code buat di-scan dari e-wallet/m-banking manapun), atau isi manual lewat halaman <a href="/topup" style="color:var(--cyan);">Deposit / Top Up</a> di website. Saldo sama-sama dipakai baik lewat website maupun API.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Apakah bisa test API tanpa memotong saldo beneran?</summary>
+        <p>Belum ada mode sandbox/testing terpisah saat ini -- setiap <code>POST /order/*</code> yang berhasil akan memotong saldo asli. Pastikan dulu alur integrasimu benar lewat <code>GET /pricelist</code> dan <code>GET /saldo</code> (keduanya aman, tidak memotong apa pun) sebelum coba order sungguhan dengan nominal kecil.</p>
+      </details>
+    </div>
+
     <%- include('partials/footer') %>
   </div>
 </div>

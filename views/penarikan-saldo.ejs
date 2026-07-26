@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'penarikan-saldo', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar">
+      <h2><i class="fa-solid fa-money-bill-transfer"></i> Tarik Saldo</h2>
+      <div class="user-chip"><span class="dot"></span> Saldo: Rp <%= (user.saldo || 0).toLocaleString('id-ID') %></div>
+    </div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% if (!settings.enabled) { %>
+      <div class="card">
+        <div class="empty-state"><i class="fa-solid fa-circle-pause"></i> Fitur penarikan saldo sedang tidak aktif saat ini. Coba lagi lain waktu.</div>
+      </div>
+    <% } else { %>
+    <div class="card">
+      <p class="helper-text" style="margin:0 0 14px;">Cairkan saldo kamu jadi uang asli ke GoPay atau ShopeePay. Pengajuan diproses <b>manual oleh admin</b> (transfer langsung dari HP admin), biasanya butuh beberapa saat sampai beberapa jam tergantung jam operasional.</p>
+
+      <form method="POST" action="/penarikan-saldo" id="withdrawForm">
+        <label>1. Nominal Penarikan (Rp)</label>
+        <input type="number" name="amount" id="wdAmount" min="<%= settings.min %>" placeholder="Contoh: 50000" required>
+        <div class="helper-text" style="margin-top:4px;">Minimal penarikan Rp <%= settings.min.toLocaleString('id-ID') %>. Saldo kamu saat ini: <b>Rp <%= (user.saldo || 0).toLocaleString('id-ID') %></b></div>
+
+        <label class="mt-16">2. Nomor Tujuan (nomor HP yang terdaftar di e-wallet)</label>
+        <input type="text" name="targetNumber" id="wdNumber" placeholder="Contoh: 081234567890" required>
+
+        <label class="mt-16">Nama Pemilik Akun <span class="helper-text">(opsional, bantu admin verifikasi lebih cepat)</span></label>
+        <input type="text" name="targetName" placeholder="Nama sesuai akun e-wallet">
+
+        <label class="mt-16">3. Pilih Metode Penarikan</label>
+        <div class="withdraw-method-grid">
+          <label class="withdraw-method-card">
+            <input type="radio" name="method" value="gopay" required>
+            <span class="withdraw-method-icon" style="color:#00aa13;"><i class="fa-solid fa-wallet"></i></span>
+            <span>GoPay</span>
+          </label>
+          <label class="withdraw-method-card">
+            <input type="radio" name="method" value="shopeepay" required>
+            <span class="withdraw-method-icon" style="color:#ee4d2d;"><i class="fa-solid fa-wallet"></i></span>
+            <span>ShopeePay</span>
+          </label>
+        </div>
+
+        <div class="withdraw-warning mt-24">
+          <div class="withdraw-warning-title"><i class="fa-solid fa-triangle-exclamation"></i> Penting -- baca dulu sebelum mengajukan</div>
+          <p>Pastikan <b>nomor tujuan &amp; metode di atas sudah 100% benar</b>. Kami tidak bisa memverifikasi kepemilikan nomor e-wallet dari sisi sistem. Kalau saldo sudah dikirim ke nomor yang ternyata salah/keliru, <b>dana tidak dapat ditarik kembali dan bukan tanggung jawab admin</b>.</p>
+        </div>
+        <label class="check-row mt-16">
+          <input type="checkbox" name="confirmed" id="wdConfirm" required>
+          Saya sudah memeriksa dan memastikan nomor tujuan di atas benar milik saya sendiri.
+        </label>
+
+        <button class="btn solid mt-24" type="submit" style="width:100%;"><i class="fa-solid fa-paper-plane"></i> Ajukan Penarikan</button>
+      </form>
+    </div>
+    <% } %>
+
+    <div class="section-title"><h3>Riwayat Penarikan</h3><div class="line"></div></div>
+    <div class="card">
+      <% if (withdrawals.length === 0) { %>
+        <div class="empty-state">Belum ada riwayat penarikan saldo.</div>
+      <% } else { %>
+      <table>
+        <thead><tr><th>ID</th><th>Nominal</th><th>Metode</th><th>Nomor Tujuan</th><th>Status</th><th>Tanggal</th></tr></thead>
+        <tbody>
+          <% withdrawals.forEach(w => { %>
+          <tr>
+            <td class="mono"><%= w.id %></td>
+            <td>Rp <%= w.amount.toLocaleString('id-ID') %></td>
+            <td><%= w.method === 'gopay' ? 'GoPay' : 'ShopeePay' %></td>
+            <td class="mono"><%= w.targetNumber %></td>
+            <td>
+              <span class="badge <%= w.status === 'completed' ? 'completed' : (w.status === 'rejected' ? 'cancelled' : 'admin') %>">
+                <%= w.status === 'completed' ? 'Selesai' : (w.status === 'rejected' ? 'Ditolak' : 'Menunggu') %>
+              </span>
+              <% if (w.status === 'rejected' && w.adminNote) { %><div class="helper-text" style="margin-top:4px;"><%= w.adminNote %></div><% } %>
+            </td>
+            <td><%= new Date(w.createdAt).toLocaleString('id-ID') %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('withdrawForm');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    var amount = document.getElementById('wdAmount').value;
+    var number = document.getElementById('wdNumber').value;
+    var ok = confirm('Konfirmasi penarikan saldo:\n\nNominal: Rp ' + Number(amount || 0).toLocaleString('id-ID') + '\nNomor tujuan: ' + number + '\n\nPastikan nomor di atas SUDAH BENAR. Kesalahan input bukan tanggung jawab admin. Lanjutkan?');
+    if (!ok) e.preventDefault();
+  });
+})();
+</script>
+</body>
+</html>
