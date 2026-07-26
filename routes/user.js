@@ -411,9 +411,10 @@ router.get('/live-transaksi/data', (req, res) => {
 // ---------- LEADERBOARD (PUBLIK) ----------
 router.get('/leaderboard', (req, res) => {
   const cfg = getConfig();
+  const maskRows = rows => rows.map(r => ({ ...r, username: maskUsername(r.username) }));
   res.render('leaderboard', {
-    weekly: getWeeklyLeaderboard(10),
-    monthly: getMonthlyLeaderboard(10),
+    weekly: maskRows(getWeeklyLeaderboard(10)),
+    monthly: maskRows(getMonthlyLeaderboard(10)),
     user: req.session.user ? findUserById(req.session.user.id) : null,
     config: cfg,
     pageTitle: `Leaderboard - ${cfg.siteName || 'NEXORDER'}`,
