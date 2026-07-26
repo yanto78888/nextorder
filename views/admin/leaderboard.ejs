@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'leaderboard', config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-trophy"></i> Leaderboard & Reward</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="card" style="padding:8px;">
+      <div class="lb-tabs">
+        <button type="button" class="lb-tab active" data-tab="weekly">Mingguan Ini</button>
+        <button type="button" class="lb-tab" data-tab="monthly">Bulanan Ini</button>
+      </div>
+    </div>
+
+    <div class="lb-panel" id="lb-weekly">
+      <% if (weekly.length === 0) { %>
+        <div class="card"><div class="empty-state">Belum ada transaksi minggu ini.</div></div>
+      <% } else { %>
+        <% weekly.forEach(r => { %>
+        <div class="lb-row lb-rank-<%= r.rank <= 3 ? r.rank : 'x' %>">
+          <div class="lb-rank">#<%= r.rank %></div>
+          <div class="lb-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+          <div class="lb-info">
+            <div class="lb-username"><%= r.username %></div>
+            <div class="helper-text"><%= r.orderCount %> transaksi</div>
+          </div>
+          <div class="lb-total">Rp <%= r.total.toLocaleString('id-ID') %></div>
+          <form method="POST" action="/admin/leaderboard/reward" class="lb-reward-form" onsubmit="return lbConfirmReward(this)">
+            <input type="hidden" name="userId" value="<%= r.userId %>">
+            <input type="hidden" name="username" value="<%= r.username %>">
+            <input type="hidden" name="period" value="weekly">
+            <input type="number" name="amount" placeholder="Nominal" class="lb-reward-input" required min="1">
+            <button class="btn small solid" type="submit"><i class="fa-solid fa-gift"></i> Kirim</button>
+          </form>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <div class="lb-panel" id="lb-monthly" style="display:none;">
+      <% if (monthly.length === 0) { %>
+        <div class="card"><div class="empty-state">Belum ada transaksi bulan ini.</div></div>
+      <% } else { %>
+        <% monthly.forEach(r => { %>
+        <div class="lb-row lb-rank-<%= r.rank <= 3 ? r.rank : 'x' %>">
+          <div class="lb-rank">#<%= r.rank %></div>
+          <div class="lb-avatar"><%= r.username.charAt(0).toUpperCase() %></div>
+          <div class="lb-info">
+            <div class="lb-username"><%= r.username %></div>
+            <div class="helper-text"><%= r.orderCount %> transaksi</div>
+          </div>
+          <div class="lb-total">Rp <%= r.total.toLocaleString('id-ID') %></div>
+          <form method="POST" action="/admin/leaderboard/reward" class="lb-reward-form" onsubmit="return lbConfirmReward(this)">
+            <input type="hidden" name="userId" value="<%= r.userId %>">
+            <input type="hidden" name="username" value="<%= r.username %>">
+            <input type="hidden" name="period" value="monthly">
+            <input type="number" name="amount" placeholder="Nominal" class="lb-reward-input" required min="1">
+            <button class="btn small solid" type="submit"><i class="fa-solid fa-gift"></i> Kirim</button>
+          </form>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <%- include('../partials/footer') %>
+  </div>
+</div>
+<script>
+function lbConfirmReward(form) {
+  var username = form.querySelector('[name="username"]').value;
+  var amount = form.querySelector('[name="amount"]').value;
+  return confirm('Kirim reward Rp ' + Number(amount || 0).toLocaleString('id-ID') + ' ke ' + username + '?');
+}
+(function () {
+  var tabs = document.querySelectorAll('.lb-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('lb-weekly').style.display = tab.dataset.tab === 'weekly' ? '' : 'none';
+      document.getElementById('lb-monthly').style.display = tab.dataset.tab === 'monthly' ? '' : 'none';
+    });
+  });
+})();
+</script>
+</body>
+</html>
