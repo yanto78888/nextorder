@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'live-transaksi', config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar">
+      <h2><i class="fa-solid fa-tower-broadcast"></i> Live Transaksi API</h2>
+      <div class="live-indicator" id="liveIndicator"><span class="live-dot"></span> Live</div>
+    </div>
+
+    <p class="helper-text" style="margin:0 0 16px;">Menampilkan transaksi yang masuk lewat API Reseller (<code>/api/v1/order/*</code>) secara real-time. Halaman ini otomatis memperbarui data tiap beberapa detik.</p>
+
+    <div class="card">
+      <div class="flex" style="gap:10px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="liveSearch" placeholder="Cari ID order / username / produk / ref_id reseller..." value="<%= q %>" style="flex:1; min-width:240px;">
+        <span class="helper-text" id="liveCount"><%= orders.length %> transaksi</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="overflow-x:auto;">
+      <table id="liveTable" style="margin:0;">
+        <thead>
+          <tr>
+            <th>Waktu</th><th>Order ID</th><th>User</th><th>Produk</th><th>Provider</th>
+            <th>Qty</th><th>Total</th><th>Status</th><th>Target</th><th>Ref ID Reseller</th>
+          </tr>
+        </thead>
+        <tbody id="liveTableBody">
+          <%- include('../partials/live-transaksi-rows', { orders }) %>
+        </tbody>
+      </table>
+      </div>
+      <div class="empty-state" id="liveEmpty" style="<%= orders.length > 0 ? 'display:none;' : '' %>">Belum ada transaksi via API.</div>
+    </div>
+
+    <%- include('../partials/footer') %>
+  </div>
+</div>
+<script>
+(function () {
+  var searchInput = document.getElementById('liveSearch');
+  var tbody = document.getElementById('liveTableBody');
+  var emptyBox = document.getElementById('liveEmpty');
+  var countEl = document.getElementById('liveCount');
+  var indicator = document.getElementById('liveIndicator');
+  var searchDebounce = null;
+  var pollTimer = null;
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function fmtRupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+  function statusBadgeClass(s) { return s === 'completed' ? 'completed' : (s === 'cancelled' ? 'cancelled' : 'admin'); }
+  function statusLabel(s) { return s === 'completed' ? 'Selesai' : (s === 'cancelled' ? 'Dibatalkan' : 'Diproses'); }
+  function providerLabel(p) { return p === 'digiflazz' ? 'Digiflazz' : (p === 'indosmm' ? 'IndoSMM' : 'Manual'); }
+
+  function render(orders) {
+    if (orders.length === 0) {
+      tbody.innerHTML = '';
+      emptyBox.style.display = '';
+    } else {
+      emptyBox.style.display = 'none';
+      var html = '';
+      orders.forEach(function (o) {
+        html += '<tr>' +
+          '<td>' + new Date(o.createdAt).toLocaleString('id-ID') + '</td>' +
+          '<td class="mono">' + escapeHtml(o.id) + '</td>' +
+          '<td>' + escapeHtml(o.username) + '</td>' +
+          '<td>' + escapeHtml(o.productName) + '</td>' +
+          '<td>' + providerLabel(o.provider) + '</td>' +
+          '<td>' + o.qty + '</td>' +
+          '<td>' + fmtRupiah(o.total) + '</td>' +
+          '<td><span class="badge ' + statusBadgeClass(o.status) + '">' + statusLabel(o.status) + '</span></td>' +
+          '<td>' + escapeHtml(o.targetText || '-') + '</td>' +
+          '<td class="mono">' + escapeHtml(o.apiRefId || '-') + '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+    countEl.textContent = orders.length + ' transaksi';
+  }
+
+  function fetchData() {
+    var q = searchInput.value.trim();
+    indicator.classList.add('syncing');
+    fetch('/admin/live-transaksi/data?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res && res.success) render(res.data);
+        indicator.classList.remove('syncing');
+      })
+      .catch(function () { indicator.classList.remove('syncing'); });
+  }
+
+  searchInput.addEventListener('input', function () {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(fetchData, 300);
+  });
+
+  // Polling tiap 4 detik -- cukup "live" tanpa bikin server kebanjiran request.
+  pollTimer = setInterval(fetchData, 4000);
+  document.addEventListener('visibilitychange', function () {
+    // Hemat request kalau tab lagi gak aktif dilihat, lanjut lagi begitu dibuka lagi.
+    if (document.hidden) { clearInterval(pollTimer); }
+    else { fetchData(); pollTimer = setInterval(fetchData, 4000); }
+  });
+})();
+</script>
+</body>
+</html>

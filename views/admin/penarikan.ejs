@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'penarikan', config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-money-bill-transfer"></i> Penarikan Saldo</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% const pendingList = withdrawals.filter(w => w.status === 'pending'); %>
+    <% if (pendingList.length > 0) { %>
+      <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= pendingList.length %></b> pengajuan penarikan menunggu diproses.</div>
+    <% } %>
+
+    <div class="card">
+      <h3><i class="fa-solid fa-gear"></i> Pengaturan</h3>
+      <form method="POST" action="/admin/penarikan/settings">
+        <div class="grid grid-2">
+          <div>
+            <label class="check-row" style="margin-top:8px;">
+              <input type="checkbox" name="enabled" <%= settings.enabled ? 'checked' : '' %>>
+              Aktifkan fitur penarikan saldo untuk user
+            </label>
+          </div>
+          <div>
+            <label>Minimal Nominal Penarikan (Rp)</label>
+            <input type="number" name="min" value="<%= settings.min %>" min="0">
+          </div>
+        </div>
+        <button class="btn solid mt-16" type="submit">Simpan Pengaturan</button>
+      </form>
+    </div>
+
+    <div class="section-title"><h3>Daftar Pengajuan</h3><div class="line"></div></div>
+    <div class="card">
+      <input type="text" id="wdSearch" placeholder="Cari ID / username / nomor tujuan..." style="margin-bottom:14px;">
+
+      <% if (withdrawals.length === 0) { %>
+        <div class="empty-state">Belum ada pengajuan penarikan saldo.</div>
+      <% } else { %>
+      <table id="wdTable">
+        <thead><tr><th>ID</th><th>User</th><th>Nominal</th><th>Metode</th><th>Nomor Tujuan</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% withdrawals.forEach(w => { %>
+          <tr class="wd-row" data-search="<%= (w.id + ' ' + w.username + ' ' + w.targetNumber + ' ' + w.targetName).toLowerCase() %>">
+            <td class="mono"><%= w.id %></td>
+            <td><%= w.username %></td>
+            <td>Rp <%= w.amount.toLocaleString('id-ID') %></td>
+            <td><%= w.method === 'gopay' ? 'GoPay' : 'ShopeePay' %></td>
+            <td class="mono"><%= w.targetNumber %><% if (w.targetName) { %><br><span class="helper-text"><%= w.targetName %></span><% } %></td>
+            <td>
+              <span class="badge <%= w.status === 'completed' ? 'completed' : (w.status === 'rejected' ? 'cancelled' : 'admin') %>">
+                <%= w.status === 'completed' ? 'Selesai' : (w.status === 'rejected' ? 'Ditolak' : 'Menunggu') %>
+              </span>
+              <% if (w.adminNote) { %><div class="helper-text" style="margin-top:4px;"><%= w.adminNote %></div><% } %>
+            </td>
+            <td><%= new Date(w.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <% if (w.status === 'pending') { %>
+                <div class="flex" style="gap:6px; flex-wrap:wrap;">
+                  <form method="POST" action="/admin/penarikan/<%= w.id %>/selesai" onsubmit="return confirm('Tandai penarikan ini SELESAI? Pastikan kamu sudah transfer manual ke nomor tujuannya.')">
+                    <button class="btn small solid" type="submit"><i class="fa-solid fa-check"></i> Selesai</button>
+                  </form>
+                  <form method="POST" action="/admin/penarikan/<%= w.id %>/tolak" onsubmit="return withdrawReject(this)">
+                    <input type="hidden" name="adminNote" class="wd-reject-note">
+                    <button class="btn small danger" type="submit"><i class="fa-solid fa-xmark"></i> Tolak</button>
+                  </form>
+                </div>
+              <% } else { %>
+                <span class="helper-text">-</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <div class="empty-state" id="wdEmptySearch" style="display:none;">Tidak ada pengajuan yang cocok dengan pencarian.</div>
+      <% } %>
+    </div>
+
+    <%- include('../partials/footer') %>
+  </div>
+</div>
+<script>
+function withdrawReject(form) {
+  var note = prompt('Alasan penolakan (akan ditampilkan ke user, dan saldo akan dikembalikan penuh):', 'Nomor tujuan tidak valid');
+  if (note === null) return false;
+  form.querySelector('.wd-reject-note').value = note;
+  return true;
+}
+(function () {
+  var input = document.getElementById('wdSearch');
+  if (!input) return;
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.wd-row'));
+  var emptyBox = document.getElementById('wdEmptySearch');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var match = !q || row.dataset.search.indexOf(q) !== -1;
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (emptyBox) emptyBox.style.display = (q && visible === 0) ? '' : 'none';
+  });
+})();
+</script>
+</body>
+</html>
