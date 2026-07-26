@@ -1,0 +1,14 @@
+<% orders.forEach(o => { %>
+<tr>
+  <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
+  <td class="mono"><%= o.id %></td>
+  <td><%= o.username %></td>
+  <td><%= o.productName %></td>
+  <td><%= o.provider === 'digiflazz' ? 'Digiflazz' : (o.provider === 'indosmm' ? 'IndoSMM' : 'Manual') %></td>
+  <td><%= o.qty %></td>
+  <td>Rp <%= o.total.toLocaleString('id-ID') %></td>
+  <td><span class="badge <%= o.status === 'completed' ? 'completed' : (o.status === 'cancelled' ? 'cancelled' : 'admin') %>"><%= o.status === 'completed' ? 'Selesai' : (o.status === 'cancelled' ? 'Dibatalkan' : 'Diproses') %></span></td>
+  <td><%= o.targetText || '-' %></td>
+  <td class="mono"><%= o.apiRefId || '-' %></td>
+</tr>
+<% }) %>
