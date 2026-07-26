@@ -9,8 +9,14 @@ import {
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock, updateProduct } from '../lib/products.js';
-import { getOrdersByUser, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
+import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
+import { maskUsername, maskTarget } from '../lib/masking.js';
+import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
+import {
+  createWithdrawalRecord, getWithdrawalsByUser, getWithdrawSettings
+} from '../lib/withdrawal.js';
+import { notifyWithdrawal } from '../lib/telegram.js';
 import { getSaldoLedgerByUser, getSaldoLedgerSummary } from '../lib/saldoLedger.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
@@ -365,6 +371,56 @@ router.get('/dokumentasi-api', (req, res) => {
   });
 });
 
+// ---------- LIVE TRANSAKSI (PUBLIK, tersensor) ----------
+// Beda dari /admin/live-transaksi (khusus order via API, data lengkap buat admin) -- ini
+// nampilin SEMUA transaksi situs (produk apa aja, checkout web maupun API) ke SIAPA AJA yang buka
+// halamannya (gak perlu login), tapi username & data tujuan SENGAJA disensor (lib/masking.js)
+// biar gak bocorin identitas/data pribadi pembeli ke pengunjung lain.
+function getPublicLiveFeed(limit = 50) {
+  return getAllOrders()
+    .filter(o => o.status !== 'cancelled')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, limit)
+    .map(o => ({
+      id: o.id,
+      username: maskUsername(o.username),
+      productName: o.productName,
+      qty: o.qty,
+      total: o.total,
+      status: o.status,
+      target: maskTarget(o.targetText),
+      createdAt: o.createdAt
+    }));
+}
+
+router.get('/live-transaksi', (req, res) => {
+  const cfg = getConfig();
+  res.render('live-transaksi-publik', {
+    orders: getPublicLiveFeed(),
+    user: req.session.user ? findUserById(req.session.user.id) : null,
+    config: cfg,
+    pageTitle: `Live Transaksi - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Lihat transaksi yang lagi berjalan di ${cfg.siteName || 'NEXORDER'} secara real-time.`
+  });
+});
+
+router.get('/live-transaksi/data', (req, res) => {
+  res.json({ success: true, data: getPublicLiveFeed() });
+});
+
+// ---------- LEADERBOARD (PUBLIK) ----------
+router.get('/leaderboard', (req, res) => {
+  const cfg = getConfig();
+  res.render('leaderboard', {
+    weekly: getWeeklyLeaderboard(10),
+    monthly: getMonthlyLeaderboard(10),
+    user: req.session.user ? findUserById(req.session.user.id) : null,
+    config: cfg,
+    pageTitle: `Leaderboard - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Peringkat pembeli dengan total transaksi tertinggi minggu ini & bulan ini di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
 router.post('/order', requireLogin, async (req, res) => {
   const user = findUserById(req.session.user.id);
   const product = findProductById(req.body.productId);
@@ -609,6 +665,79 @@ router.get('/api/topup/status/:trxid', requireLogin, (req, res) => {
   if (!dep) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
   if (dep.userId !== req.session.user.id) return res.status(403).json({ error: 'Akses ditolak' });
   res.json({ status: dep.status, amount: dep.amount, total: dep.total });
+});
+
+// ---------- PENARIKAN SALDO ----------
+// Kebalikan dari topup: user minta saldo-nya dicairkan jadi uang asli ke GoPay/ShopeePay.
+// Diproses MANUAL oleh admin (gak ada gateway payout otomatis) -- lihat catatan lengkap di
+// lib/withdrawal.js. Saldo dipotong LANGSUNG saat pengajuan dibuat, dikembalikan penuh kalau
+// admin menolak pengajuannya (lihat routes/admin.js).
+router.get('/penarikan-saldo', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  const withdrawals = getWithdrawalsByUser(user.id).slice(0, 20);
+  res.render('penarikan-saldo', {
+    user,
+    withdrawals,
+    settings: getWithdrawSettings(),
+    config: getConfig(),
+    success: req.query.success || null,
+    error: req.query.error || null,
+    pageTitle: `Tarik Saldo - ${getConfig().siteName || 'NEXORDER'}`,
+    noindex: true
+  });
+});
+
+router.post('/penarikan-saldo', requireLogin, (req, res) => {
+  const settings = getWithdrawSettings();
+  if (!settings.enabled) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Fitur penarikan saldo sedang tidak aktif'));
+  }
+
+  const amount = parseInt(req.body.amount);
+  const method = req.body.method; // 'gopay' | 'shopeepay'
+  const targetNumber = String(req.body.targetNumber || '').trim();
+  const targetName = String(req.body.targetName || '').trim();
+  const confirmed = req.body.confirmed === 'on' || req.body.confirmed === 'true';
+
+  if (!amount || amount <= 0) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Nominal tidak valid'));
+  }
+  if (amount < settings.min) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent(`Minimal penarikan Rp ${settings.min.toLocaleString('id-ID')}`));
+  }
+  if (!['gopay', 'shopeepay'].includes(method)) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Metode penarikan tidak valid'));
+  }
+  // Validasi kasar nomor HP Indonesia (angka saja, 9-14 digit, boleh diawali 0/62/+62) -- BUKAN
+  // verifikasi nomor itu beneran terdaftar GoPay/ShopeePay atau bukan (gak ada cara cek itu dari
+  // sini). Makanya ada peringatan wajib centang di bawah: salah input jadi tanggung jawab user.
+  const digitsOnly = targetNumber.replace(/[^0-9]/g, '');
+  if (!targetNumber || digitsOnly.length < 9 || digitsOnly.length > 14) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Nomor tujuan tidak valid, cek kembali nomornya'));
+  }
+  if (!confirmed) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Wajib centang konfirmasi bahwa nomor tujuan sudah benar'));
+  }
+
+  const user = findUserById(req.session.user.id);
+  if ((user.saldo || 0) < amount) {
+    return res.redirect('/penarikan-saldo?error=' + encodeURIComponent('Saldo tidak cukup'));
+  }
+
+  deductSaldo(user.id, amount, {
+    reason: `Pengajuan tarik saldo (${method === 'gopay' ? 'GoPay' : 'ShopeePay'})`,
+    refType: 'withdrawal'
+  });
+
+  const record = createWithdrawalRecord({
+    userId: user.id, username: user.username, amount, method, targetNumber, targetName
+  });
+
+  notifyWithdrawal({
+    username: user.username, amount, method, targetNumber, targetName, withdrawalId: record.id
+  }).catch(() => {});
+
+  res.redirect('/penarikan-saldo?success=' + encodeURIComponent('Pengajuan tarik saldo berhasil dikirim, saldo sudah dipotong dan akan diproses admin secepatnya.'));
 });
 
 // Batal deposit lewat AJAX (dipakai saat QR sedang tampil)

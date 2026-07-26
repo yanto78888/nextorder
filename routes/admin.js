@@ -11,7 +11,11 @@ import {
   getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
-import { notifyOrder } from '../lib/telegram.js';
+import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
+import { notifyOrder, notifyWithdrawal } from '../lib/telegram.js';
+import {
+  getAllWithdrawals, findWithdrawalById, updateWithdrawalStatus, getWithdrawSettings
+} from '../lib/withdrawal.js';
 import { runBackupNow, exportAllData, importAllData } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
@@ -1011,6 +1015,106 @@ router.post('/order/manual', async (req, res) => {
   res.redirect('/admin/order');
 });
 
+// ---------- PENARIKAN SALDO ----------
+router.get('/penarikan', (req, res) => {
+  const withdrawals = getAllWithdrawals().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.render('admin/penarikan', {
+    withdrawals,
+    settings: getWithdrawSettings(),
+    config: getConfig(),
+    success: req.query.success || null,
+    error: req.query.error || null
+  });
+});
+
+router.post('/penarikan/settings', (req, res) => {
+  const enabled = req.body.enabled === 'on';
+  const min = parseInt(req.body.min) || 20000;
+  updateConfig({ withdraw: { enabled, min } });
+  res.redirect('/admin/penarikan?success=' + encodeURIComponent('Pengaturan penarikan saldo disimpan'));
+});
+
+router.post('/penarikan/:id/selesai', (req, res) => {
+  const w = findWithdrawalById(req.params.id);
+  if (!w) return res.redirect('/admin/penarikan?error=' + encodeURIComponent('Pengajuan tidak ditemukan'));
+  if (w.status !== 'pending') return res.redirect('/admin/penarikan?error=' + encodeURIComponent('Pengajuan ini sudah diproses sebelumnya'));
+  updateWithdrawalStatus(w.id, 'completed', req.body.adminNote || '');
+  res.redirect('/admin/penarikan?success=' + encodeURIComponent(`Penarikan ${w.id} ditandai selesai`));
+});
+
+// Tolak pengajuan -- saldo yang tadi dipotong pas pengajuan dibuat DIKEMBALIKAN penuh ke user di sini.
+router.post('/penarikan/:id/tolak', (req, res) => {
+  const w = findWithdrawalById(req.params.id);
+  if (!w) return res.redirect('/admin/penarikan?error=' + encodeURIComponent('Pengajuan tidak ditemukan'));
+  if (w.status !== 'pending') return res.redirect('/admin/penarikan?error=' + encodeURIComponent('Pengajuan ini sudah diproses sebelumnya'));
+  const note = req.body.adminNote || 'Ditolak admin';
+  updateWithdrawalStatus(w.id, 'rejected', note);
+  addSaldo(w.userId, w.amount, {
+    reason: `Refund penarikan saldo ditolak: ${note}`,
+    refType: 'withdrawal',
+    refId: w.id
+  });
+  res.redirect('/admin/penarikan?success=' + encodeURIComponent(`Penarikan ${w.id} ditolak, saldo user dikembalikan`));
+});
+
+// ---------- LIVE TRANSAKSI API ----------
+// Dashboard buat pantau transaksi yang masuk lewat API reseller (routes/api.js, order.source
+// === 'api') secara live. Halaman pertama render langsung isinya (biar first paint gak nunggu
+// JS), lalu JS di halaman polling endpoint /data di bawah tiap beberapa detik buat data terbaru
+// -- dan endpoint yang SAMA juga dipakai buat search (server-side, nyari ke SEMUA histori order
+// API, bukan cuma yang lagi ke-load di layar).
+function getLiveApiTransactions(q = '') {
+  const query = String(q || '').trim().toLowerCase();
+  let list = getAllOrders().filter(o => o.source === 'api');
+  if (query) {
+    list = list.filter(o =>
+      o.id.toLowerCase().includes(query) ||
+      (o.username || '').toLowerCase().includes(query) ||
+      (o.productName || '').toLowerCase().includes(query) ||
+      (o.apiRefId || '').toLowerCase().includes(query) ||
+      (o.providerRefId || '').toLowerCase().includes(query)
+    );
+  }
+  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 200);
+}
+
+router.get('/live-transaksi', (req, res) => {
+  res.render('admin/live-transaksi', {
+    orders: getLiveApiTransactions(req.query.q),
+    q: req.query.q || '',
+    config: getConfig()
+  });
+});
+
+router.get('/live-transaksi/data', (req, res) => {
+  res.json({ success: true, data: getLiveApiTransactions(req.query.q) });
+});
+
+// ---------- LEADERBOARD & REWARD ----------
+router.get('/leaderboard', (req, res) => {
+  res.render('admin/leaderboard', {
+    weekly: getWeeklyLeaderboard(10),
+    monthly: getMonthlyLeaderboard(10),
+    config: getConfig(),
+    success: req.query.success || null,
+    error: req.query.error || null
+  });
+});
+
+router.post('/leaderboard/reward', (req, res) => {
+  const { userId, username, period } = req.body;
+  const amount = parseInt(req.body.amount);
+  if (!userId || !amount || amount <= 0) {
+    return res.redirect('/admin/leaderboard?error=' + encodeURIComponent('Data reward tidak valid'));
+  }
+  const periodLabel = period === 'monthly' ? 'Bulanan' : 'Mingguan';
+  addSaldo(userId, amount, {
+    reason: `Reward Leaderboard ${periodLabel} dari admin`,
+    refType: 'reward'
+  });
+  res.redirect('/admin/leaderboard?success=' + encodeURIComponent(`Reward Rp ${amount.toLocaleString('id-ID')} berhasil dikirim ke ${username}`));
+});
+
 // ---------- USERS ----------
 function renderUsersPage(req, res, extra = {}) {
   res.render('admin/users', {
@@ -1106,7 +1210,7 @@ router.post('/settings', (req, res) => {
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     indosmmEnabled, indosmmApiKey,
     googleEnabled, googleClientId, googleClientSecret,
-    botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister,
+    botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister, notifyOnWithdrawal,
     ownerWhatsapp,
     seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
@@ -1139,7 +1243,7 @@ router.post('/settings', (req, res) => {
       clientId: googleClientId || '',
       clientSecret: googleClientSecret ? googleClientSecret : (getConfig().google || {}).clientSecret || ''
     },
-    telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on' },
+    telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on', notifyOnWithdrawal: notifyOnWithdrawal === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' }
     // NOTE: "banners" sengaja tidak disentuh di sini. Banner dikelola sepenuhnya lewat
