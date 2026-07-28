@@ -157,13 +157,23 @@ router.post('/profile/google/disconnect', requireLogin, (req, res) => {
   res.redirect('/profile?success=' + encodeURIComponent('Akun Google berhasil diputuskan dari profil ini'));
 });
 
-// Validasi format IPv6 SEDERHANA (bukan RFC lengkap) -- cukup buat nyaring salah ketik jelas
-// (IPv4 biasa, teks acak, dll), bukan validator alamat IP yang bulet-bulet benar.
+// Validasi format IP SEDERHANA (bukan RFC lengkap) -- terima IPv4 ATAU IPv6, cukup buat nyaring
+// salah ketik jelas (teks acak, dll), bukan validator alamat IP yang bulet-bulet benar.
+function isValidIpv4(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every(p => /^\d{1,3}$/.test(p) && Number(p) >= 0 && Number(p) <= 255);
+}
+
 function isValidIpv6(ip) {
+  if (!ip.includes(':')) return false;
+  return /^[0-9a-fA-F:]+$/.test(ip) && ip.length >= 3 && ip.length <= 45;
+}
+
+function isValidIp(ip) {
   if (!ip || typeof ip !== 'string') return false;
   const trimmed = ip.trim();
-  if (!trimmed.includes(':')) return false;
-  return /^[0-9a-fA-F:]+$/.test(trimmed) && trimmed.length >= 3 && trimmed.length <= 45;
+  return isValidIpv4(trimmed) || isValidIpv6(trimmed);
 }
 
 // Generate/regenerate API key buat "sistem transaksi via API" (routes/api.js). Regenerate
@@ -177,8 +187,8 @@ router.post('/profile/api-key/generate', requireLogin, (req, res) => {
   const existingIp = scope === 'deposit' ? user.apiKeyDepositIp : user.apiKeyTransactionIp;
   const ipv6 = (req.body.ipv6 || '').trim() || existingIp;
 
-  if (!isValidIpv6(ipv6)) {
-    return res.redirect('/profile?error=' + encodeURIComponent('Alamat IPv6 wajib diisi dengan format yang valid (mis. 2001:db8::1)'));
+  if (!isValidIp(ipv6)) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Alamat IP wajib diisi dengan format IPv4 atau IPv6 yang valid (mis. 103.10.20.30 atau 2001:db8::1)'));
   }
 
   generateApiKey(user.id, scope, ipv6);
