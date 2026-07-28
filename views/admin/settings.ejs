@@ -19,6 +19,7 @@
       const telegram = config.telegram || {};
       const digiflazz = config.digiflazz || {};
       const indosmm = config.indosmm || {};
+      const herosms = config.herosms || {};
       const google = config.google || {};
       const seo = config.seo || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
@@ -115,6 +116,37 @@
           <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
             <button type="button" class="btn small ghost" id="cekSaldoIndosmmBtn">Cek Saldo IndoSMM</button>
             <span id="saldoIndosmmResult" class="helper-text"></span>
+          </div>
+
+          <div class="section-title"><h3>HeroSMS (OTP: Nomor Virtual Terima SMS)</h3><div class="line"></div></div>
+
+          <label class="check-row"><input type="checkbox" name="herosmsEnabled" <%= herosms.enabled ? 'checked' : '' %>> Aktifkan fitur OTP via HeroSMS</label>
+
+          <label>API Key</label>
+          <input type="password" name="herosmsApiKey" value="<%= herosms.apiKey || '' %>" autocomplete="new-password">
+          <div class="helper-text">Ambil di dashboard HeroSMS (hero-sms.com) &rarr; menu API. Setelah diisi dan disimpan, cari &amp; import layanan di halaman <a href="/admin/otp" style="color:#fff; text-decoration:underline;">Kelola OTP</a>.</div>
+
+          <div class="grid grid-2 mt-16">
+            <div>
+              <label>Kurs RUB &rarr; Rupiah</label>
+              <input type="number" name="herosmsRubToIdr" value="<%= herosms.rubToIdr || 170 %>" step="0.01">
+              <div class="helper-text">Harga dari HeroSMS dalam RUB (Rubel). Isi kurs manual karena tidak ada endpoint kurs live -- sesuaikan sendiri kalau kursnya berubah jauh.</div>
+            </div>
+            <div>
+              <label>Margin Default</label>
+              <div class="flex" style="gap:8px;">
+                <select name="herosmsMarginType" style="max-width:130px;">
+                  <option value="percent" <%= (herosms.marginType || 'percent') === 'percent' ? 'selected' : '' %>>Persen (%)</option>
+                  <option value="fixed" <%= herosms.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp)</option>
+                </select>
+                <input type="number" name="herosmsMarginValue" value="<%= herosms.marginValue ?? 30 %>">
+              </div>
+            </div>
+          </div>
+
+          <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
+            <button type="button" class="btn small ghost" id="cekSaldoHerosmsBtn">Cek Saldo HeroSMS</button>
+            <span id="saldoHerosmsResult" class="helper-text"></span>
           </div>
 
           <div class="section-title"><h3>Login dengan Google</h3><div class="line"></div></div>
@@ -291,6 +323,21 @@
     btn.addEventListener('click', function () {
       result.textContent = 'Mengecek...';
       fetch('/admin/settings/indosmm/saldo')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }
+          result.textContent = 'Saldo: ' + Number(data.balance || 0).toLocaleString('id-ID') + ' ' + (data.currency || '');
+        })
+        .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
+    });
+  })();
+  (function () {
+    var btn = document.getElementById('cekSaldoHerosmsBtn');
+    var result = document.getElementById('saldoHerosmsResult');
+    if (!btn || !result) return;
+    btn.addEventListener('click', function () {
+      result.textContent = 'Mengecek...';
+      fetch('/admin/settings/herosms/saldo')
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }

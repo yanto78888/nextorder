@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'otp', config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> Kelola OTP (HeroSMS)</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% const herosms = config.herosms || {}; %>
+    <% if (!herosms.apiKey) { %>
+      <div class="card">
+        <div class="empty-state">
+          <i class="fa-solid fa-triangle-exclamation"></i> API Key HeroSMS belum diatur.
+          Isi dulu di <a href="/admin/settings" style="color:var(--cyan);">Pengaturan &rarr; HeroSMS</a> sebelum bisa cari &amp; tambah produk OTP.
+        </div>
+      </div>
+    <% } else { %>
+
+    <div class="card">
+      <h3><i class="fa-solid fa-magnifying-glass"></i> Cari &amp; Tambah Produk OTP</h3>
+      <div class="grid grid-2 mt-16">
+        <div>
+          <label>Layanan (mis. WhatsApp, Telegram)</label>
+          <input type="text" id="otpServiceSearch" placeholder="Ketik buat cari layanan...">
+          <select id="otpServiceSelect" style="margin-top:8px;"><option value="">-- pilih layanan --</option></select>
+        </div>
+        <div>
+          <label>Negara</label>
+          <input type="text" id="otpCountrySearch" placeholder="Ketik buat cari negara...">
+          <select id="otpCountrySelect" style="margin-top:8px;"><option value="">-- pilih negara --</option></select>
+        </div>
+      </div>
+
+      <button type="button" class="btn small ghost mt-16" id="otpCekHargaBtn"><i class="fa-solid fa-tag"></i> Cek Harga</button>
+      <div id="otpHargaResult" class="helper-text" style="margin-top:8px;"></div>
+
+      <div id="otpAddForm" style="display:none; margin-top:16px; border-top:1px solid var(--border-glow); padding-top:16px;">
+        <label>Nama Produk</label>
+        <input type="text" id="otpProductName" placeholder="Contoh: OTP WhatsApp - Indonesia">
+
+        <label class="mt-16">Kategori</label>
+        <input type="text" id="otpCategory" value="OTP">
+
+        <label class="mt-16">Margin (kosongkan buat pakai margin default HeroSMS)</label>
+        <div class="flex" style="gap:8px;">
+          <select id="otpMarginType" style="max-width:150px;">
+            <option value="">Default</option>
+            <option value="percent">Persen (%)</option>
+            <option value="fixed">Nominal Tetap (Rp)</option>
+          </select>
+          <input type="number" id="otpMarginValue" placeholder="Nilai margin">
+        </div>
+
+        <button type="button" class="btn small solid mt-16" id="otpTambahBtn"><i class="fa-solid fa-plus"></i> Tambah sebagai Produk OTP</button>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Margin Default OTP</h3><div class="line"></div></div>
+    <div class="card">
+      <form method="POST" action="/admin/otp/margin">
+        <div class="flex" style="gap:8px;">
+          <select name="marginType" style="max-width:150px;">
+            <option value="percent" <%= (herosms.marginType || 'percent') === 'percent' ? 'selected' : '' %>>Persen (%)</option>
+            <option value="fixed" <%= herosms.marginType === 'fixed' ? 'selected' : '' %>>Nominal Tetap (Rp)</option>
+          </select>
+          <input type="number" name="marginValue" value="<%= herosms.marginValue ?? 30 %>">
+          <button class="btn small solid" type="submit">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <% } %>
+
+    <div class="section-title"><h3>Produk OTP Terhubung (<%= otpProducts.length %>)</h3><div class="line"></div></div>
+    <% if (otpProducts.length === 0) { %>
+      <div class="card"><div class="empty-state">Belum ada produk OTP yang ditambahkan.</div></div>
+    <% } else { %>
+    <div class="card">
+      <form method="POST" action="/admin/otp/sync-all" class="mt-0">
+        <button class="btn ghost" type="submit" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga OTP</button>
+      </form>
+      <table class="mt-16">
+        <thead><tr><th>Nama</th><th>Layanan</th><th>Negara</th><th>Modal (RUB)</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% otpProducts.forEach(p => { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td><%= p.otpServiceName %></td>
+            <td><%= p.otpCountryName %></td>
+            <td>₽<%= p.otpBaseCostRub %></td>
+            <td>
+              <form method="POST" action="/admin/otp/<%= p.id %>/margin" class="flex" style="gap:4px;">
+                <select name="marginType" style="max-width:90px; padding:6px;">
+                  <option value="" <%= !p.marginType ? 'selected' : '' %>>Default</option>
+                  <option value="percent" <%= p.marginType === 'percent' ? 'selected' : '' %>>%</option>
+                  <option value="fixed" <%= p.marginType === 'fixed' ? 'selected' : '' %>>Rp</option>
+                </select>
+                <input type="number" name="marginValue" value="<%= p.marginValue ?? '' %>" style="width:70px; padding:6px;">
+                <button class="btn small ghost" type="submit"><i class="fa-solid fa-check"></i></button>
+              </form>
+            </td>
+            <td>Rp <%= p.price.toLocaleString('id-ID') %></td>
+            <td>
+              <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
+              <form method="POST" action="/admin/otp/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari OTP? Produk akan jadi produk manual biasa.')">
+                <button class="btn small danger" type="submit">Lepas</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+    <%- include('../partials/footer') %>
+  </div>
+</div>
+<script>
+(function () {
+  var serviceSelect = document.getElementById('otpServiceSelect');
+  var countrySelect = document.getElementById('otpCountrySelect');
+  var serviceSearch = document.getElementById('otpServiceSearch');
+  var countrySearch = document.getElementById('otpCountrySearch');
+  if (!serviceSelect) return; // API key belum diatur, form gak dirender
+
+  var allServices = [];
+  var allCountries = [];
+
+  function fillSelect(select, items, labelFn, valueFn) {
+    select.innerHTML = '<option value="">-- pilih --</option>';
+    items.forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = valueFn(item);
+      opt.textContent = labelFn(item);
+      select.appendChild(opt);
+    });
+  }
+
+  fetch('/admin/otp/services').then(function (r) { return r.json(); }).then(function (res) {
+    if (res.ok) { allServices = res.services; fillSelect(serviceSelect, allServices, function (s) { return s.name + ' (' + s.code + ')'; }, function (s) { return s.code; }); }
+  });
+  fetch('/admin/otp/countries').then(function (r) { return r.json(); }).then(function (res) {
+    if (res.ok) { allCountries = res.countries; fillSelect(countrySelect, allCountries, function (c) { return c.eng || c.name; }, function (c) { return c.id; }); }
+  });
+
+  serviceSearch.addEventListener('input', function () {
+    var q = serviceSearch.value.trim().toLowerCase();
+    var filtered = !q ? allServices : allServices.filter(function (s) { return s.name.toLowerCase().indexOf(q) !== -1; });
+    fillSelect(serviceSelect, filtered, function (s) { return s.name + ' (' + s.code + ')'; }, function (s) { return s.code; });
+  });
+  countrySearch.addEventListener('input', function () {
+    var q = countrySearch.value.trim().toLowerCase();
+    var filtered = !q ? allCountries : allCountries.filter(function (c) { return (c.eng || '').toLowerCase().indexOf(q) !== -1; });
+    fillSelect(countrySelect, filtered, function (c) { return c.eng || c.name; }, function (c) { return c.id; });
+  });
+
+  var lastCost = 0;
+  document.getElementById('otpCekHargaBtn').addEventListener('click', function () {
+    var service = serviceSelect.value, country = countrySelect.value;
+    var resultBox = document.getElementById('otpHargaResult');
+    var addForm = document.getElementById('otpAddForm');
+    if (!service || !country) { resultBox.textContent = 'Pilih layanan dan negara dulu.'; return; }
+    resultBox.textContent = 'Mengecek harga...';
+    addForm.style.display = 'none';
+    fetch('/admin/otp/price?service=' + encodeURIComponent(service) + '&country=' + encodeURIComponent(country))
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) { resultBox.textContent = 'Gagal: ' + res.error; return; }
+        if (!res.found) { resultBox.textContent = 'Harga tidak ditemukan untuk kombinasi ini.'; return; }
+        lastCost = res.cost;
+        resultBox.innerHTML = 'Modal: <b>\u20BD' + res.cost + '</b> &middot; Stok: ' + res.count + ' nomor &middot; Perkiraan harga jual: <b>Rp ' + Number(res.sellPricePreview).toLocaleString('id-ID') + '</b>';
+        var svcName = serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0];
+        var countryName = countrySelect.options[countrySelect.selectedIndex].text;
+        document.getElementById('otpProductName').value = 'OTP ' + svcName + ' - ' + countryName;
+        addForm.style.display = '';
+      })
+      .catch(function (err) { resultBox.textContent = 'Gagal: ' + err.message; });
+  });
+
+  document.getElementById('otpTambahBtn').addEventListener('click', function () {
+    var svcName = serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0];
+    var countryName = countrySelect.options[countrySelect.selectedIndex].text;
+    fetch('/admin/otp/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceCode: serviceSelect.value,
+        serviceName: svcName,
+        countryId: countrySelect.value,
+        countryName: countryName,
+        productName: document.getElementById('otpProductName').value,
+        category: document.getElementById('otpCategory').value,
+        baseCostRub: lastCost,
+        marginType: document.getElementById('otpMarginType').value,
+        marginValue: document.getElementById('otpMarginValue').value
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) { alert('Gagal: ' + res.error); return; }
+        alert(res.message);
+        location.reload();
+      })
+      .catch(function (err) { alert('Gagal: ' + err.message); });
+  });
+})();
+</script>
+</body>
+</html>
