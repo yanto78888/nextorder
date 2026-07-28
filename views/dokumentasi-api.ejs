@@ -24,8 +24,23 @@
     <div class="section-title"><h3>Autentikasi</h3><div class="line"></div></div>
     <div class="card">
       <p style="margin:0 0 8px;">Semua request (kecuali <code>GET /api/v1/</code>) wajib menyertakan API key lewat header berikut:</p>
-      <pre class="doc-code">X-API-Key: nxo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
-      <p style="margin:8px 0 0;" class="helper-text">Base URL: <code><%= apiBaseUrl %></code>. Jangan bagikan API key ke siapa pun -- siapa pun yang pegang key itu bisa transaksi &amp; deposit pakai akun kamu. Kalau bocor, generate ulang lewat halaman Profil (key lama langsung tidak berlaku).</p>
+      <pre class="doc-code">X-API-Key: nxot_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
+      <p style="margin:8px 0 8px;"><b>Ada 2 API key yang TERPISAH</b> (dibuat masing-masing di halaman Profil):</p>
+      <ul style="margin:0 0 8px; padding-left:20px; font-size:13.5px; line-height:1.8;">
+        <li><code>nxot_...</code> -- <b>API Key Transaksi</b>: buat <code>/pricelist</code>, <code>/product/:id</code>, <code>/saldo</code>, <code>/profile</code>, dan semua <code>/order/*</code>.</li>
+        <li><code>nxod_...</code> -- <b>API Key Deposit</b>: KHUSUS buat <code>/deposit</code> dan turunannya.</li>
+      </ul>
+      <p style="margin:0 0 8px;">Key transaksi <b>tidak bisa</b> dipakai buat endpoint deposit, dan sebaliknya -- kalau salah pakai, dapat error 403. Ini sengaja dipisah supaya kebocoran 1 key gak otomatis buka akses ke yang lain.</p>
+      <p style="margin:0 0 8px;">Tiap key <b>wajib didaftarkan ke 1 alamat IPv6</b> saat di-generate. Request yang datang dari IP selain yang terdaftar akan ditolak (403), walau key-nya valid -- update IP terdaftar kapan saja lewat halaman Profil kalau IP kamu berubah.</p>
+      <p style="margin:0;" class="helper-text">Base URL: <code><%= apiBaseUrl %></code>. Jangan bagikan API key ke siapa pun. Kalau bocor, generate ulang lewat halaman Profil (key lama langsung tidak berlaku).</p>
+    </div>
+
+    <div class="section-title"><h3>Rate Limit</h3><div class="line"></div></div>
+    <div class="card">
+      <p style="margin:0 0 8px;">Maksimal <b>60 request per menit</b> untuk masing-masing API key (dihitung terpisah antara key transaksi &amp; deposit). Tiap response menyertakan header berikut buat bantu kamu pantau sisa kuota:</p>
+      <pre class="doc-code">X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 47</pre>
+      <p style="margin:8px 0 0;" class="helper-text">Lewat batas ini, request dibalas <code>429 Too Many Requests</code> sampai jendela 1 menitnya reset. Kalau butuh limit lebih tinggi buat kebutuhan produksi, hubungi admin.</p>
     </div>
 
     <div class="section-title"><h3>Format Response</h3><div class="line"></div></div>
@@ -283,7 +298,19 @@
     <div class="card">
       <details class="doc-faq">
         <summary>Bagaimana cara mendapatkan API key?</summary>
-        <p>Login ke akunmu, buka halaman <a href="/profile" style="color:var(--cyan);">Profil</a>, lalu klik "Generate API Key" di card API Reseller. Key langsung aktif dan bisa dipakai saat itu juga.</p>
+        <p>Login ke akunmu, buka halaman <a href="/profile" style="color:var(--cyan);">Profil</a>. Ada 2 card terpisah: "API Key Transaksi" dan "API Key Deposit" -- isi alamat IPv6 kamu di kolom yang tersedia, lalu klik generate. Key langsung aktif dan bisa dipakai saat itu juga.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kenapa API key transaksi & deposit dipisah?</summary>
+        <p>Supaya lebih aman. Kalau kamu integrasikan key transaksi ke sistem lain (mis. bot jualan), key itu TIDAK BISA dipakai buat bikin transaksi deposit walau bocor -- begitu juga sebaliknya. Tiap key cuma bisa melakukan apa yang scope-nya izinkan.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kenapa saya harus daftarin alamat IPv6?</summary>
+        <p>Sebagai lapisan keamanan tambahan -- request API cuma diterima dari IP yang sudah kamu daftarkan saat generate key. Kalau server/hosting kamu pindah IP, update lagi IP-nya di halaman Profil (tinggal generate ulang dan isi IPv6 baru).</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Saya kena error 429, itu kenapa?</summary>
+        <p>Artinya kamu sudah melebihi 60 request/menit untuk API key itu. Tunggu sampai jendela 1 menitnya reset (cek header <code>X-RateLimit-Remaining</code> di response sebelumnya), atau kurangi frekuensi polling di sisi integrasimu.</p>
       </details>
       <details class="doc-faq">
         <summary>Apakah harga di API sama dengan harga di website?</summary>

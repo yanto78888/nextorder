@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'otp', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> OTP: Nomor Virtual</h2></div>
+    <p class="helper-text" style="margin:0 0 16px;">Sewa nomor virtual buat terima kode OTP/SMS verifikasi (WhatsApp, Telegram, dan berbagai layanan lain). Kode diterima langsung di halaman status setelah nomor didapat.</p>
+
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <% if (!otpEnabled) { %>
+      <div class="card"><div class="empty-state">Layanan OTP sedang tidak aktif.</div></div>
+    <% } else if (Object.keys(groups).length === 0) { %>
+      <div class="card"><div class="empty-state">Belum ada produk OTP yang tersedia.</div></div>
+    <% } else { %>
+      <% Object.keys(groups).sort().forEach(serviceName => { %>
+        <div class="section-title"><h3><%= serviceName %></h3><div class="line"></div></div>
+        <div class="grid grid-4">
+          <% groups[serviceName].forEach(p => { %>
+          <div class="nf-card">
+            <div class="nf-card-body">
+              <div class="nf-card-name"><%= p.otpCountryName %></div>
+              <div class="nf-card-price">Rp <%= p.price.toLocaleString('id-ID') %></div>
+              <% if (user) { %>
+              <form method="POST" action="/otp/order/<%= p.id %>" onsubmit="return confirm('Sewa nomor <%= p.otpServiceName %> - <%= p.otpCountryName %> seharga Rp <%= p.price.toLocaleString('id-ID') %>?')">
+                <button class="btn small solid" type="submit" style="width:100%;">Sewa Nomor</button>
+              </form>
+              <% } else { %>
+              <a href="/login" class="btn small ghost" style="width:100%; text-align:center;">Login buat Sewa</a>
+              <% } %>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <div class="section-title"><h3>FAQ</h3><div class="line"></div></div>
+    <div class="card">
+      <details class="doc-faq">
+        <summary>Berapa lama nomornya bisa dipakai?</summary>
+        <p>Setelah dapat nomor, kamu punya waktu beberapa menit buat masukkan nomor itu ke aplikasi tujuan dan tunggu SMS masuk. Kalau kode gak kunjung masuk, kamu bisa membatalkan (selama kodenya belum diterima) dan saldo dikembalikan penuh.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Bisa dibatalkan kalau salah pilih negara/layanan?</summary>
+        <p>Bisa, SELAMA kode SMS belum masuk ke nomor tersebut. Buka halaman status order-nya dan klik "Batalkan &amp; Refund".</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Kenapa nomornya "Tidak Tersedia" pas mau disewa?</summary>
+        <p>Stok nomor untuk kombinasi layanan+negara itu sedang habis di provider secara real-time. Coba lagi beberapa saat lagi atau pilih negara lain.</p>
+      </details>
+      <details class="doc-faq">
+        <summary>Nomornya bisa dipakai berkali-kali?</summary>
+        <p>Tidak, 1 nomor = 1 kali sewa untuk 1 kode OTP. Setelah kode diterima atau dibatalkan, sewa nomor tersebut otomatis berakhir.</p>
+      </details>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+</body>
+</html>

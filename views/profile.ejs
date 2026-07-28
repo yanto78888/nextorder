@@ -129,45 +129,102 @@
 
     <div class="section-title"><h3>API Reseller</h3><div class="line"></div></div>
     <div class="card">
-      <div class="helper-text" style="margin-bottom:12px;">
-        Transaksi otomatis lewat API untuk integrasi bot/website kamu sendiri. Semua harga produk lewat API ini otomatis dihitung pakai harga <b>tier Platinum</b>, berapapun membership akun kamu sebenarnya.
+      <div class="helper-text">
+        Transaksi otomatis lewat API untuk integrasi bot/website kamu sendiri. Semua harga produk lewat API ini otomatis dihitung pakai harga <b>tier Platinum</b>, berapapun membership akun kamu sebenarnya. API key transaksi &amp; deposit <b>sengaja dipisah</b> (2 key independen) supaya kalau salah satu bocor, yang lain tetap aman. Tiap key WAJIB didaftarkan ke 1 alamat <b>IPv6</b> -- request cuma diterima dari IP itu. Dibatasi <b>60 request/menit</b> per key.
       </div>
-      <% if (user.apiKey) { %>
-        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">API Key kamu</label>
+    </div>
+
+    <!-- API Key TRANSAKSI -->
+    <div class="card">
+      <label style="font-size:14px; font-weight:700; display:block; margin-bottom:10px;"><i class="fa-solid fa-bolt"></i> API Key Transaksi</label>
+      <div class="helper-text" style="margin-bottom:12px;">Buat cek harga, cek saldo, dan bikin order (topup/SMM/manual/OTP). <b>Tidak bisa</b> dipakai untuk endpoint deposit.</div>
+      <% if (user.apiKeyTransaction) { %>
         <div class="flex" style="gap:8px; align-items:center; flex-wrap:wrap;">
-          <input type="text" id="apiKeyField" value="<%= user.apiKey %>" readonly
-                 style="flex:1; min-width:220px; font-family:monospace; font-size:13px;">
-          <button type="button" class="btn small ghost" id="apiKeyCopyBtn" onclick="copyApiKey()">Salin</button>
+          <input type="text" id="apiKeyTransactionField" value="<%= user.apiKeyTransaction %>" readonly style="flex:1; min-width:220px; font-family:monospace; font-size:13px;">
+          <button type="button" class="btn small ghost" onclick="copyKey('apiKeyTransactionField', this)">Salin</button>
         </div>
-        <div class="helper-text" style="margin:8px 0 16px;">Jangan bagikan key ini ke siapa pun -- siapa pun yang pegang key ini bisa transaksi pakai saldo akun kamu. Kalau merasa bocor, langsung generate ulang di bawah.</div>
-        <div class="flex" style="gap:8px; flex-wrap:wrap;">
-          <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API key? Key yang lama langsung berhenti berfungsi, integrasi yang masih pakai key lama harus diperbarui.')" style="margin:0;">
+        <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyTransactionIp || '-' %></code></div>
+        <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Transaksi? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
+          <input type="hidden" name="scope" value="transaction">
+          <label style="font-size:12px;">IPv6 baru (kosongkan buat pakai yang sama: <%= user.apiKeyTransactionIp || '-' %>)</label>
+          <div class="flex" style="gap:8px; margin-top:4px;">
+            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" style="flex:1;">
             <button class="btn small ghost" type="submit">Generate Ulang</button>
-          </form>
-          <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API key? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
-            <button class="btn small danger" type="submit">Cabut API Key</button>
-          </form>
-        </div>
-
-        <div class="line" style="margin:16px 0;"></div>
-        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Contoh Pemakaian</label>
-        <div class="helper-text" style="margin-bottom:6px;">Base URL: <code><%= apiBaseUrl %></code> &middot; kirim key lewat header <code>X-API-Key</code></div>
-        <pre class="doc-code">curl <%= apiBaseUrl %>/pricelist \
-  -H "X-API-Key: <%= user.apiKey %>"
-
-# Order dipisah per jenis produk: /order/topup, /order/smm, /order/manual
-curl -X POST <%= apiBaseUrl %>/order/topup \
-  -H "X-API-Key: <%= user.apiKey %>" \
-  -H "Content-Type: application/json" \
-  -d '{"product_id":"ID_PRODUK","qty":1,"target":{"user_id":"12345"},"ref_id":"order-saya-001"}'</pre>
-        <p style="margin:10px 0 0;"><a href="/dokumentasi-api" style="color:var(--cyan);"><i class="fa-solid fa-book"></i> Lihat dokumentasi API lengkap</a> (semua endpoint: produk, transaksi, deposit, cek saldo)</p>
+          </div>
+        </form>
+        <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API Key Transaksi? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
+          <input type="hidden" name="scope" value="transaction">
+          <button class="btn small danger" type="submit">Cabut Key Transaksi</button>
+        </form>
       <% } else { %>
-        <p style="margin:0 0 12px; font-size:14px;">Kamu belum punya API key.</p>
         <form method="POST" action="/profile/api-key/generate" style="margin:0;">
-          <button class="btn small solid" type="submit">Generate API Key</button>
+          <input type="hidden" name="scope" value="transaction">
+          <label style="font-size:12px;">Alamat IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
+          <div class="flex" style="gap:8px; margin-top:4px;">
+            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" required style="flex:1;">
+            <button class="btn small solid" type="submit">Generate Key Transaksi</button>
+          </div>
         </form>
       <% } %>
     </div>
+
+    <!-- API Key DEPOSIT -->
+    <div class="card">
+      <label style="font-size:14px; font-weight:700; display:block; margin-bottom:10px;"><i class="fa-solid fa-money-bill-transfer"></i> API Key Deposit</label>
+      <div class="helper-text" style="margin-bottom:12px;">Khusus buat bikin &amp; cek transaksi deposit/top up saldo lewat API. <b>Tidak bisa</b> dipakai untuk cek harga atau bikin order.</div>
+      <% if (user.apiKeyDeposit) { %>
+        <div class="flex" style="gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="apiKeyDepositField" value="<%= user.apiKeyDeposit %>" readonly style="flex:1; min-width:220px; font-family:monospace; font-size:13px;">
+          <button type="button" class="btn small ghost" onclick="copyKey('apiKeyDepositField', this)">Salin</button>
+        </div>
+        <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyDepositIp || '-' %></code></div>
+        <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Deposit? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
+          <input type="hidden" name="scope" value="deposit">
+          <label style="font-size:12px;">IPv6 baru (kosongkan buat pakai yang sama: <%= user.apiKeyDepositIp || '-' %>)</label>
+          <div class="flex" style="gap:8px; margin-top:4px;">
+            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" style="flex:1;">
+            <button class="btn small ghost" type="submit">Generate Ulang</button>
+          </div>
+        </form>
+        <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API Key Deposit? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
+          <input type="hidden" name="scope" value="deposit">
+          <button class="btn small danger" type="submit">Cabut Key Deposit</button>
+        </form>
+      <% } else { %>
+        <form method="POST" action="/profile/api-key/generate" style="margin:0;">
+          <input type="hidden" name="scope" value="deposit">
+          <label style="font-size:12px;">Alamat IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
+          <div class="flex" style="gap:8px; margin-top:4px;">
+            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" required style="flex:1;">
+            <button class="btn small solid" type="submit">Generate Key Deposit</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+
+    <% if (user.apiKeyTransaction || user.apiKeyDeposit) { %>
+    <div class="card">
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Contoh Pemakaian</label>
+      <div class="helper-text" style="margin-bottom:6px;">Base URL: <code><%= apiBaseUrl %></code> &middot; kirim key lewat header <code>X-API-Key</code></div>
+      <% if (user.apiKeyTransaction) { %>
+      <pre class="doc-code">curl <%= apiBaseUrl %>/pricelist \
+  -H "X-API-Key: <%= user.apiKeyTransaction %>"
+
+# Order dipisah per jenis produk: /order/topup, /order/smm, /order/manual, /order/otp
+curl -X POST <%= apiBaseUrl %>/order/topup \
+  -H "X-API-Key: <%= user.apiKeyTransaction %>" \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":"ID_PRODUK","qty":1,"target":{"user_id":"12345"},"ref_id":"order-saya-001"}'</pre>
+      <% } %>
+      <% if (user.apiKeyDeposit) { %>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/deposit \
+  -H "X-API-Key: <%= user.apiKeyDeposit %>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":50000}'</pre>
+      <% } %>
+      <p style="margin:10px 0 0;"><a href="/dokumentasi-api" style="color:var(--cyan);"><i class="fa-solid fa-book"></i> Lihat dokumentasi API lengkap</a> (semua endpoint: produk, transaksi, deposit, cek saldo)</p>
+    </div>
+    <% } %>
 
     <div class="section-title"><h3>Membership</h3><div class="line"></div></div>
     <div class="grid grid-3">
@@ -196,9 +253,8 @@ curl -X POST <%= apiBaseUrl %>/order/topup \
   </div>
 </div>
 <script>
-function copyApiKey() {
-  var field = document.getElementById('apiKeyField');
-  var btn = document.getElementById('apiKeyCopyBtn');
+function copyKey(fieldId, btn) {
+  var field = document.getElementById(fieldId);
   if (!field) return;
   field.select();
   field.setSelectionRange(0, 99999);

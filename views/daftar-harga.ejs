@@ -50,15 +50,20 @@
           <div class="section-title"><h3><i class="fa-solid fa-gamepad"></i> <%= g.category %></h3><div class="line"></div></div>
           <div class="price-row-list">
             <% g.products.forEach(p => { %>
-              <a href="/produk/<%= p.id %>" class="price-row" data-name="<%= p.name.toLowerCase() %>">
+              <a href="<%= p.priceListHref %>" class="price-row" data-name="<%= p.name.toLowerCase() %>">
                 <div class="price-row-info">
                   <div class="price-row-name"><%= p.name %></div>
                   <% const isAuto = p.provider === 'digiflazz'; const stockCount = p.stockItems ? p.stockItems.length : 0; %>
-                  <div class="price-row-meta"><%= isAuto ? 'Pengiriman instan otomatis' : (stockCount > 0 ? stockCount + ' stok tersedia' : 'Stok manual diproses admin') %></div>
+                  <div class="price-row-meta">
+                    <%= p.provider === 'otp' ? (p.otpServiceName + ' - ' + p.otpCountryName)
+                      : p.provider === 'indosmm' ? 'Diproses otomatis, min ' + (p.indosmmMin || 1) + ' / maks ' + (p.indosmmMax || '-')
+                      : isAuto ? 'Pengiriman instan otomatis'
+                      : (stockCount > 0 ? stockCount + ' stok tersedia' : 'Stok manual diproses admin') %>
+                  </div>
                 </div>
                 <div class="price-row-price-wrap">
                   <% if (p.finalPrice < p.price) { %><span class="price-row-price-old">Rp <%= p.price.toLocaleString('id-ID') %></span><% } %>
-                  <span class="price-row-price">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
+                  <span class="price-row-price">Rp <%= p.finalPrice.toLocaleString('id-ID') %><%= p.priceListUnit %></span>
                 </div>
               </a>
             <% }) %>

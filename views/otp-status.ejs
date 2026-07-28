@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'otp', user, config }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> Status OTP</h2></div>
+
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="card">
+      <div class="helper-text">Order ID</div>
+      <div class="mono" style="font-size:15px; margin-bottom:16px;"><%= order.id %></div>
+
+      <div class="helper-text">Produk</div>
+      <div style="font-weight:700; margin-bottom:16px;"><%= order.productName %></div>
+
+      <div class="helper-text">Nomor Virtual</div>
+      <div class="mono" id="otpNumber" style="font-size:22px; font-weight:700; color:var(--cyan); margin-bottom:16px;"><%= order.providerCustomerNo %></div>
+
+      <div id="otpStateBox">
+        <% if (order.status === 'processing') { %>
+          <div class="badge admin" id="otpStatusBadge">Menunggu SMS...</div>
+          <p class="helper-text" style="margin-top:10px;">Masukkan nomor di atas ke aplikasi tujuan, lalu tunggu kode OTP muncul di sini secara otomatis.</p>
+        <% } else if (order.status === 'completed') { %>
+          <div class="badge completed" id="otpStatusBadge">Kode Diterima</div>
+          <div style="margin-top:14px;">
+            <div class="helper-text">Kode OTP</div>
+            <div class="mono" id="otpCode" style="font-size:28px; font-weight:700; color:var(--success);"><%= order.detail %></div>
+          </div>
+        <% } else { %>
+          <div class="badge cancelled" id="otpStatusBadge">Dibatalkan</div>
+          <p class="helper-text" style="margin-top:10px;"><%= order.note %></p>
+        <% } %>
+      </div>
+
+      <% if (order.status === 'processing') { %>
+      <form method="POST" action="/otp/status/<%= order.id %>/cancel" class="mt-24" onsubmit="return confirm('Batalkan sewa nomor ini? Saldo akan dikembalikan penuh (hanya bisa dibatalkan selama kode belum masuk).')">
+        <button class="btn small danger" type="submit" style="width:100%;"><i class="fa-solid fa-ban"></i> Batalkan &amp; Refund</button>
+      </form>
+      <% } %>
+    </div>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+<% if (order.status === 'processing') { %>
+<script>
+(function () {
+  var box = document.getElementById('otpStateBox');
+  function poll() {
+    fetch('/otp/status/<%= order.id %>/check')
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.success) return;
+        if (res.status === 'completed') {
+          box.innerHTML = '<div class="badge completed">Kode Diterima</div>' +
+            '<div style="margin-top:14px;"><div class="helper-text">Kode OTP</div>' +
+            '<div class="mono" style="font-size:28px; font-weight:700; color:var(--success);">' + res.detail + '</div></div>';
+          clearInterval(timer);
+          location.reload();
+        } else if (res.status === 'cancelled') {
+          box.innerHTML = '<div class="badge cancelled">Dibatalkan</div><p class="helper-text" style="margin-top:10px;">' + (res.note || '') + '</p>';
+          clearInterval(timer);
+        }
+      })
+      .catch(function () {});
+  }
+  var timer = setInterval(poll, 4000);
+})();
+</script>
+<% } %>
+</body>
+</html>
