@@ -23,6 +23,10 @@ import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigifla
 import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { getBalance as getIndosmmBalance, getServiceCategories as getIndosmmCategories, searchServices as searchIndosmmServices, computeSellPrice as computeIndosmmSellPrice, isIndosmmEnabled } from '../lib/indosmm.js';
 import {
+  isHerosmsEnabled, getBalance as getHerosmsBalance, getServicesList as getHerosmsServicesList,
+  getCountries as getHerosmsCountries, getPrices as getHerosmsPrices, computeSellPrice as computeHerosmsSellPrice
+} from '../lib/herosms.js';
+import {
   getAllFlashSaleItems, getFlashSaleDisplayItems, getFlashSaleSettings, updateFlashSaleSettings,
   addFlashSaleItem, updateFlashSaleItem, deleteFlashSaleItem, reorderFlashSaleItems,
   removeFlashSaleItemsByProductId, utcIsoToWibLocalInput
@@ -958,6 +962,148 @@ router.post('/indosmm/unlink-selected', (req, res) => {
   });
 });
 
+// ---------- OTP (HeroSMS: nomor virtual terima SMS) ----------
+function renderOtpPage(req, res, extra = {}) {
+  const otpProducts = getAllProducts().filter(p => p.provider === 'otp');
+  res.render('admin/otp', {
+    otpProducts,
+    config: getConfig(),
+    success: null,
+    error: null,
+    ...extra
+  });
+}
+
+router.get('/otp', (req, res) => {
+  renderOtpPage(req, res);
+});
+
+router.get('/otp/services', async (req, res) => {
+  try {
+    const services = await getHerosmsServicesList();
+    res.json({ ok: true, services });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/otp/countries', async (req, res) => {
+  try {
+    const countries = await getHerosmsCountries();
+    res.json({ ok: true, countries });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Cek harga live 1 kombinasi service+country sebelum diimport jadi produk (preview harga jual)
+router.get('/otp/price', async (req, res) => {
+  try {
+    const { service, country } = req.query;
+    if (!service || !country) throw new Error('Pilih service dan country dulu');
+    const rows = await getHerosmsPrices(service, country);
+    const match = rows.find(r => String(r.countryId) === String(country) && r.serviceCode === service) || rows[0];
+    if (!match) return res.json({ ok: true, found: false });
+    res.json({
+      ok: true,
+      found: true,
+      cost: match.cost,
+      count: match.count,
+      sellPricePreview: computeHerosmsSellPrice(match.cost, null, null)
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/otp/import', (req, res) => {
+  try {
+    const { serviceCode, serviceName, countryId, countryName, productName, category, baseCostRub, marginType, marginValue } = req.body;
+    if (!serviceCode || !countryId || !productName) throw new Error('Service, negara, dan nama produk wajib diisi');
+
+    const existing = getAllProducts().find(
+      p => p.provider === 'otp' && p.otpServiceCode === serviceCode && p.otpCountryId === String(countryId)
+    );
+    const cost = Number(baseCostRub) || 0;
+    const sellPrice = computeHerosmsSellPrice(cost, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+
+    if (existing) {
+      updateProduct(existing.id, {
+        name: productName,
+        price: sellPrice,
+        otpBaseCostRub: cost,
+        marginType: marginType || '',
+        marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null
+      });
+      return res.json({ ok: true, created: false, message: `Produk "${productName}" sudah ada, harga diperbarui.` });
+    }
+
+    createProduct({
+      name: productName,
+      category: category || 'OTP',
+      price: sellPrice,
+      provider: 'otp',
+      otpServiceCode: serviceCode,
+      otpServiceName: serviceName || serviceCode,
+      otpCountryId: String(countryId),
+      otpCountryName: countryName || '',
+      otpBaseCostRub: cost,
+      marginType: marginType || '',
+      marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null
+    });
+    res.json({ ok: true, created: true, message: `Produk OTP "${productName}" berhasil ditambahkan.` });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/otp/margin', (req, res) => {
+  const { marginType, marginValue } = req.body;
+  updateConfig({ herosms: { marginType, marginValue: marginValue === '' ? null : Number(marginValue) } });
+  renderOtpPage(req, res, { success: 'Margin default OTP berhasil disimpan.' });
+});
+
+router.post('/otp/:id/margin', (req, res) => {
+  const { marginType, marginValue } = req.body;
+  const product = findProductById(req.params.id);
+  if (!product) return renderOtpPage(req, res, { error: 'Produk tidak ditemukan' });
+  const sellPrice = computeHerosmsSellPrice(product.otpBaseCostRub, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+  updateProduct(product.id, {
+    price: sellPrice,
+    marginType: marginType || '',
+    marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null
+  });
+  renderOtpPage(req, res, { success: `Margin produk "${product.name}" disimpan.` });
+});
+
+// Sinkron ulang harga SEMUA produk OTP dari harga live HeroSMS terbaru (mirip /digiflazz/sync-all)
+router.post('/otp/sync-all', async (req, res) => {
+  const products = getAllProducts().filter(p => p.provider === 'otp');
+  let updated = 0;
+  const errors = [];
+  for (const p of products) {
+    try {
+      const rows = await getHerosmsPrices(p.otpServiceCode, p.otpCountryId);
+      const match = rows.find(r => String(r.countryId) === String(p.otpCountryId) && r.serviceCode === p.otpServiceCode) || rows[0];
+      if (!match) { errors.push(`${p.name}: harga tidak ditemukan`); continue; }
+      const sellPrice = computeHerosmsSellPrice(match.cost, p.marginType || null, p.marginValue ?? null);
+      updateProduct(p.id, { price: sellPrice, otpBaseCostRub: match.cost });
+      updated++;
+    } catch (err) {
+      errors.push(`${p.name}: ${err.message}`);
+    }
+  }
+  renderOtpPage(req, res, {
+    success: `${updated} dari ${products.length} produk OTP berhasil disinkron.`,
+    error: errors.length > 0 ? errors.join('; ') : null
+  });
+});
+
+router.post('/otp/:id/unlink', (req, res) => {
+  updateProduct(req.params.id, { provider: 'manual' });
+  renderOtpPage(req, res, { success: 'Produk dilepas dari OTP, jadi produk manual biasa.' });
+});
+
 // ---------- ORDER ----------
 router.get('/order', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -1202,6 +1348,16 @@ router.get('/settings/indosmm/saldo', async (req, res) => {
   }
 });
 
+// Cek saldo HeroSMS via AJAX, ditampilkan di halaman settings
+router.get('/settings/herosms/saldo', async (req, res) => {
+  try {
+    const { balance, currency } = await getHerosmsBalance();
+    res.json({ ok: true, balance, currency });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
@@ -1209,6 +1365,7 @@ router.post('/settings', (req, res) => {
     qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     indosmmEnabled, indosmmApiKey,
+    herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue,
     googleEnabled, googleClientId, googleClientSecret,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister, notifyOnWithdrawal,
     ownerWhatsapp,
@@ -1234,6 +1391,12 @@ router.post('/settings', (req, res) => {
     qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
     indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
+    herosms: {
+      enabled: herosmsEnabled === 'on', apiKey: herosmsApiKey || '',
+      rubToIdr: parseFloat(herosmsRubToIdr) || 170,
+      marginType: herosmsMarginType || 'percent',
+      marginValue: herosmsMarginValue !== undefined ? Number(herosmsMarginValue) : 30
+    },
     // Client Secret: kalau field ini dikosongin pas nyimpen (mis. admin cuma mau ganti Client ID
     // doang, gak pengen ngetik ulang secret-nya), JANGAN ditimpa jadi kosong -- pertahankan yang
     // lama. Ini beda dari field lain karena secret gak pernah ditampilkan balik ke form (lihat

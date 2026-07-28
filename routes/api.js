@@ -1,9 +1,12 @@
 import express from 'express';
 import { requireApiKey } from '../middleware/auth.js';
-import { findUserById, deductSaldo } from '../lib/users.js';
+import { findUserById, deductSaldo, addSaldo } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
-import { getOrdersByUser, findOrderById, findOrdersByApiRefId } from '../lib/orders.js';
+import { getOrdersByUser, findOrderById, findOrdersByApiRefId, createOrder, patchOrder } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser } from '../lib/deposit.js';
+import {
+  isHerosmsEnabled, getNumber as getHerosmsNumber, getActivationStatus, finishActivation, cancelActivation
+} from '../lib/herosms.js';
 import {
   MAX_DIGIFLAZZ_QTY_PER_ORDER, validateQty, computeOrderTotal, formatTargetText,
   getMissingTargetFields, getPlatinumPrice, fulfillAndRecordOrders, summarizeOrders
@@ -33,6 +36,7 @@ const router = express.Router();
 function publicProviderLabel(provider) {
   if (provider === 'digiflazz') return 'topup';
   if (provider === 'indosmm') return 'smm';
+  if (provider === 'otp') return 'otp';
   return 'manual';
 }
 
@@ -61,13 +65,15 @@ function formatProductForApi(p, { full = false } = {}) {
     name: p.name,
     category: p.category || '',
     group: p.variantGroup || '',
-    provider: publicProviderLabel(p.provider), // topup | smm | manual -- lihat catatan publicProviderLabel di atas
+    provider: publicProviderLabel(p.provider), // topup | smm | manual | otp -- lihat catatan publicProviderLabel di atas
     price: getPlatinumPrice(p),
     stock: p.provider === 'manual' ? countStock(p) : null, // null = otomatis/gak terbatas stok fisik
     qty_min: p.provider === 'indosmm' ? (Number(p.indosmmMin) || 1) : 1,
     qty_max: p.provider === 'indosmm' ? (Number(p.indosmmMax) || null)
       : (p.provider === 'digiflazz' ? MAX_DIGIFLAZZ_QTY_PER_ORDER : null),
-    target_fields: (p.targetFields || []).map(f => ({ key: f.key, label: f.label, required: !!f.required }))
+    target_fields: (p.targetFields || []).map(f => ({ key: f.key, label: f.label, required: !!f.required })),
+    otp_service: p.provider === 'otp' ? (p.otpServiceName || '') : undefined,
+    otp_country: p.provider === 'otp' ? (p.otpCountryName || '') : undefined
   };
   if (!full) return base;
   return {
@@ -108,6 +114,8 @@ router.get('/', (req, res) => {
         'POST /api/v1/order/topup  { product_id, qty?, target?, ref_id? }  -- produk Top Up Game/Pulsa',
         'POST /api/v1/order/smm    { product_id, qty?, target?, ref_id? }  -- produk Jasa Sosmed',
         'POST /api/v1/order/manual { product_id, qty?, target?, ref_id? }  -- produk stok manual',
+        'POST /api/v1/order/otp    { product_id, ref_id? }                 -- sewa nomor OTP',
+        'POST /api/v1/order/otp/:id/cancel                                 -- batalkan sewa OTP & refund',
         'GET  /api/v1/order/:id',
         'GET  /api/v1/order?limit=20',
         'POST /api/v1/deposit      { amount }',
@@ -119,7 +127,7 @@ router.get('/', (req, res) => {
 });
 
 // ---------- Profil & saldo akun pemilik API key ----------
-router.get('/profile', requireApiKey, (req, res) => {
+router.get('/profile', requireApiKey('transaction'), (req, res) => {
   const u = req.apiUser;
   res.json({
     success: true,
@@ -133,19 +141,19 @@ router.get('/profile', requireApiKey, (req, res) => {
 });
 
 // ---------- Cek saldo cepat (ambil ulang data TERBARU, gak dari cache req.apiUser awal) ----------
-router.get('/saldo', requireApiKey, (req, res) => {
+router.get('/saldo', requireApiKey('transaction'), (req, res) => {
   const u = findUserById(req.apiUser.id);
   res.json({ success: true, data: { saldo: u ? (u.saldo || 0) : 0 } });
 });
 
 // ---------- Daftar harga (ringkas, SELALU harga Platinum, lihat catatan di atas) ----------
-router.get('/pricelist', requireApiKey, (req, res) => {
+router.get('/pricelist', requireApiKey('transaction'), (req, res) => {
   const data = getActiveProducts().map(p => formatProductForApi(p, { full: false }));
   res.json({ success: true, data });
 });
 
 // ---------- Detail 1 produk (lengkap: nama, harga, deskripsi, thumbnail, cara pakai, dll) ----------
-router.get('/product/:id', requireApiKey, (req, res) => {
+router.get('/product/:id', requireApiKey('transaction'), (req, res) => {
   const product = findProductById(req.params.id);
   if (!product || product.status !== 'active') {
     return res.status(404).json({ success: false, message: 'Produk tidak ditemukan / tidak aktif' });
@@ -154,19 +162,116 @@ router.get('/product/:id', requireApiKey, (req, res) => {
 });
 
 // ---------- Riwayat order milik pemilik API key ----------
-router.get('/order', requireApiKey, (req, res) => {
+router.get('/order', requireApiKey('transaction'), (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
   const orders = getOrdersByUser(req.apiUser.id).slice(0, limit);
   res.json({ success: true, data: formatOrdersForApi(orders) });
 });
 
 // ---------- Cek status 1 order ----------
-router.get('/order/:id', requireApiKey, (req, res) => {
+router.get('/order/:id', requireApiKey('transaction'), async (req, res) => {
   const order = findOrderById(req.params.id);
   if (!order || order.userId !== req.apiUser.id) {
     return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
   }
-  res.json({ success: true, data: formatOrdersForApi([order])[0] });
+  // Order OTP yang masih "processing" dicek LIVE ke HeroSMS di sini -- beda dari order lain
+  // (topup/smm/manual) yang statusnya sudah final begitu fulfillAndRecordOrders() selesai. OTP
+  // butuh dicek ulang tiap kali di-poll karena kodenya bisa masuk kapan saja.
+  let current = order;
+  if (order.provider === 'otp' && order.status === 'processing') {
+    try {
+      const result = await getActivationStatus(order.providerRefId);
+      if (result.state === 'code' || result.state === 'waiting_retry') {
+        current = patchOrder(order.id, { status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
+        finishActivation(order.providerRefId).catch(() => {});
+      } else if (result.state === 'cancelled') {
+        current = patchOrder(order.id, { status: 'cancelled', note: 'Aktivasi dibatalkan oleh provider' });
+      }
+    } catch (_) { /* biarin status apa adanya kalau lagi gagal cek ke provider */ }
+  }
+  res.json({ success: true, data: formatOrdersForApi([current])[0] });
+});
+
+// ---------- OTP: sewa nomor virtual terima SMS ----------
+// Beda dari /order/topup|smm|manual (lewat processOrderRequest generik) -- order OTP siklusnya
+// "beli -> dapat nomor -> tunggu kode (poll GET /order/:id) -> selesai/batal", jadi butuh endpoint
+// sendiri. target/qty TIDAK dipakai di sini (1 request = 1 nomor).
+router.post('/order/otp', requireApiKey('transaction'), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const productId = body.product_id;
+    const refId = body.ref_id ? String(body.ref_id).trim().slice(0, 100) : '';
+    if (!productId) return res.status(400).json({ success: false, message: 'product_id wajib diisi' });
+
+    if (refId) {
+      const existing = findOrdersByApiRefId(req.apiUser.id, refId);
+      if (existing.length > 0) {
+        return res.json({
+          success: true,
+          message: 'ref_id ini sudah pernah diproses sebelumnya, hasil sebelumnya dikembalikan (idempotent).',
+          data: formatOrdersForApi(existing)
+        });
+      }
+    }
+
+    const product = findProductById(productId);
+    if (!product || product.provider !== 'otp' || product.status !== 'active') {
+      return res.status(404).json({ success: false, message: 'Produk OTP tidak ditemukan / tidak aktif' });
+    }
+    if (!isHerosmsEnabled()) {
+      return res.status(400).json({ success: false, message: 'Layanan OTP sedang tidak aktif' });
+    }
+
+    const user = findUserById(req.apiUser.id);
+    if (user.saldo < product.price) {
+      return res.status(402).json({ success: false, message: 'Saldo tidak cukup', data: { saldo: user.saldo, required: product.price } });
+    }
+
+    // Minta nomor DULU, baru potong saldo kalau berhasil -- sama seperti alur web (routes/user.js).
+    let activationId, phoneNumber;
+    try {
+      ({ activationId, phoneNumber } = await getHerosmsNumber({ serviceCode: product.otpServiceCode, countryId: product.otpCountryId }));
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+
+    deductSaldo(user.id, product.price, { reason: `Sewa nomor OTP: ${product.name} (API)`, refType: 'order' });
+
+    const order = createOrder({
+      userId: user.id, username: user.username, productId: product.id, productName: product.name,
+      price: product.price, qty: 1, total: product.price, source: 'api',
+      status: 'processing', deliveryMode: 'auto', manualRequired: false, targetText: '',
+      detail: '', note: 'Menunggu SMS masuk', provider: 'otp',
+      providerRefId: activationId, providerCustomerNo: phoneNumber, costPrice: 0, apiRefId: refId
+    });
+
+    res.json({
+      success: true,
+      message: 'Nomor berhasil didapat, tunggu SMS masuk lalu poll GET /order/:id untuk kodenya.',
+      data: formatOrdersForApi([order])
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Batalkan sewa nomor OTP (HANYA bisa selama kode belum masuk) -- refund penuh kalau berhasil.
+router.post('/order/otp/:id/cancel', requireApiKey('transaction'), async (req, res) => {
+  const order = findOrderById(req.params.id);
+  if (!order || order.userId !== req.apiUser.id || order.provider !== 'otp') {
+    return res.status(404).json({ success: false, message: 'Order OTP tidak ditemukan' });
+  }
+  if (order.status !== 'processing') {
+    return res.status(400).json({ success: false, message: `Order ini sudah berstatus "${order.status}", tidak bisa dibatalkan lagi` });
+  }
+  try {
+    await cancelActivation(order.providerRefId);
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  const updated = patchOrder(order.id, { status: 'cancelled', note: 'Dibatalkan oleh reseller via API, saldo dikembalikan' });
+  addSaldo(order.userId, order.total, { reason: `Refund pembatalan OTP (API): ${order.productName}`, refType: 'order', refId: order.id });
+  res.json({ success: true, message: 'Order dibatalkan, saldo dikembalikan.', data: formatOrdersForApi([updated])[0] });
 });
 
 // ---------- Bikin transaksi baru ----------
@@ -276,17 +381,17 @@ async function processOrderRequest(req, res, { expectedProvider, label }) {
 }
 
 // Top Up Game/Pulsa (produk provider "digiflazz"). target = ID tujuan (mis. {user_id, zone_id}).
-router.post('/order/topup', requireApiKey, (req, res) => processOrderRequest(req, res, {
+router.post('/order/topup', requireApiKey('transaction'), (req, res) => processOrderRequest(req, res, {
   expectedProvider: 'digiflazz', label: 'Top Up Game/Pulsa'
 }));
 
 // Jasa Sosmed / SMM (produk provider "indosmm"). target = { link }. qty = jumlah asli (mis. 1000 followers).
-router.post('/order/smm', requireApiKey, (req, res) => processOrderRequest(req, res, {
+router.post('/order/smm', requireApiKey('transaction'), (req, res) => processOrderRequest(req, res, {
   expectedProvider: 'indosmm', label: 'Jasa Sosmed'
 }));
 
 // Produk stok manual (produk provider "manual"). target biasanya gak dipakai (kosongkan/hilangkan).
-router.post('/order/manual', requireApiKey, (req, res) => processOrderRequest(req, res, {
+router.post('/order/manual', requireApiKey('transaction'), (req, res) => processOrderRequest(req, res, {
   expectedProvider: 'manual', label: 'Manual (Stok)'
 }));
 
@@ -296,7 +401,7 @@ router.post('/order/manual', requireApiKey, (req, res) => processOrderRequest(re
 // yang jalan di background otomatis nge-cek pembayaran masuk & nambah saldo begitu lunas, JADI
 // TIDAK ADA endpoint/webhook terpisah buat "konfirmasi bayar" -- cukup polling GET /deposit/:trxid
 // dari sisi reseller sampai status-nya berubah jadi "paid".
-router.post('/deposit', requireApiKey, async (req, res) => {
+router.post('/deposit', requireApiKey('deposit'), async (req, res) => {
   try {
     const amount = parseInt(req.body?.amount);
     if (!amount || amount <= 0) {
@@ -315,7 +420,7 @@ router.post('/deposit', requireApiKey, async (req, res) => {
 });
 
 // ---------- Cek status 1 deposit (buat polling sampai status jadi "paid") ----------
-router.get('/deposit/:trxid', requireApiKey, (req, res) => {
+router.get('/deposit/:trxid', requireApiKey('deposit'), (req, res) => {
   const dep = getDeposit(req.params.trxid);
   if (!dep || dep.userId !== req.apiUser.id) {
     return res.status(404).json({ success: false, message: 'Transaksi deposit tidak ditemukan' });
@@ -324,7 +429,7 @@ router.get('/deposit/:trxid', requireApiKey, (req, res) => {
 });
 
 // ---------- Riwayat deposit milik pemilik API key ----------
-router.get('/deposit', requireApiKey, (req, res) => {
+router.get('/deposit', requireApiKey('deposit'), (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
   const deposits = getDepositsByUser(req.apiUser.id).slice(0, limit);
   res.json({ success: true, data: deposits.map(formatDepositForApi) });

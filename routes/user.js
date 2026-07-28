@@ -17,6 +17,10 @@ import {
   createWithdrawalRecord, getWithdrawalsByUser, getWithdrawSettings
 } from '../lib/withdrawal.js';
 import { notifyWithdrawal } from '../lib/telegram.js';
+import {
+  isHerosmsEnabled, getNumber as getHerosmsNumber, getActivationStatus, finishActivation, cancelActivation
+} from '../lib/herosms.js';
+import { createOrder } from '../lib/orders.js';
 import { getSaldoLedgerByUser, getSaldoLedgerSummary } from '../lib/saldoLedger.js';
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
@@ -153,17 +157,40 @@ router.post('/profile/google/disconnect', requireLogin, (req, res) => {
   res.redirect('/profile?success=' + encodeURIComponent('Akun Google berhasil diputuskan dari profil ini'));
 });
 
+// Validasi format IPv6 SEDERHANA (bukan RFC lengkap) -- cukup buat nyaring salah ketik jelas
+// (IPv4 biasa, teks acak, dll), bukan validator alamat IP yang bulet-bulet benar.
+function isValidIpv6(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  const trimmed = ip.trim();
+  if (!trimmed.includes(':')) return false;
+  return /^[0-9a-fA-F:]+$/.test(trimmed) && trimmed.length >= 3 && trimmed.length <= 45;
+}
+
 // Generate/regenerate API key buat "sistem transaksi via API" (routes/api.js). Regenerate
 // otomatis bikin key LAMA gak berlaku lagi (langsung ketimpa), jadi kalau key lama sempat bocor,
-// tinggal klik generate ulang.
+// tinggal klik generate ulang. `scope` WAJIB 'transaction' atau 'deposit' -- keduanya key
+// terpisah (lihat catatan lengkap di lib/users.js). `ipv6` WAJIB diisi kalau ini generate
+// PERTAMA KALI; kalau regenerate dan field-nya dikosongkan, IP yang sudah terdaftar dipakai lagi.
 router.post('/profile/api-key/generate', requireLogin, (req, res) => {
-  generateApiKey(req.session.user.id);
-  res.redirect('/profile?success=' + encodeURIComponent('API key berhasil dibuat. Simpan baik-baik, jangan dibagikan ke orang lain.'));
+  const scope = req.body.scope === 'deposit' ? 'deposit' : 'transaction';
+  const user = findUserById(req.session.user.id);
+  const existingIp = scope === 'deposit' ? user.apiKeyDepositIp : user.apiKeyTransactionIp;
+  const ipv6 = (req.body.ipv6 || '').trim() || existingIp;
+
+  if (!isValidIpv6(ipv6)) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Alamat IPv6 wajib diisi dengan format yang valid (mis. 2001:db8::1)'));
+  }
+
+  generateApiKey(user.id, scope, ipv6);
+  const scopeLabel = scope === 'deposit' ? 'Deposit' : 'Transaksi';
+  res.redirect('/profile?success=' + encodeURIComponent(`API Key ${scopeLabel} berhasil dibuat & terdaftar untuk IP ${ipv6}. Simpan baik-baik, jangan dibagikan ke orang lain.`));
 });
 
 router.post('/profile/api-key/revoke', requireLogin, (req, res) => {
-  revokeApiKey(req.session.user.id);
-  res.redirect('/profile?success=' + encodeURIComponent('API key berhasil dicabut. Integrasi yang masih pakai key lama otomatis berhenti bisa akses.'));
+  const scope = req.body.scope === 'deposit' ? 'deposit' : 'transaction';
+  revokeApiKey(req.session.user.id, scope);
+  const scopeLabel = scope === 'deposit' ? 'Deposit' : 'Transaksi';
+  res.redirect('/profile?success=' + encodeURIComponent(`API Key ${scopeLabel} berhasil dicabut. Integrasi yang masih pakai key lama otomatis berhenti bisa akses.`));
 });
 
 // Upgrade membership Gold / Platinum, harga dipotong langsung dari saldo
@@ -334,10 +361,13 @@ router.get('/daftar-harga', (req, res) => {
 
   const resolvePrice = createPriceResolver(user);
   const products = getActiveProducts()
-    .filter(p => p.provider !== 'indosmm') // Jasa Sosmed harganya per 1000, beda format -- ada di /jasa-sosmed sendiri
     .map(p => ({
       ...p,
-      finalPrice: resolvePrice(p)
+      finalPrice: resolvePrice(p),
+      // Link detail beda-beda per jenis produk -- OTP belum punya halaman detail per-produk
+      // (cuma katalog di /otp), jadi diarahkan ke situ aja.
+      priceListHref: p.provider === 'indosmm' ? `/jasa-sosmed/${p.id}` : (p.provider === 'otp' ? '/otp' : `/produk/${p.id}`),
+      priceListUnit: p.provider === 'indosmm' ? '/1000' : '' // Jasa Sosmed dihargai per 1000, lainnya per-item/nomor biasa
     }));
 
   // Termurah ke termahal dalam tiap kategori biar enak dipindai matanya
@@ -368,6 +398,30 @@ router.get('/dokumentasi-api', (req, res) => {
     maxDigiflazzQty: MAX_DIGIFLAZZ_QTY_PER_ORDER,
     pageTitle: `Dokumentasi API Reseller - ${cfg.siteName || 'NEXORDER'}`,
     pageDescription: `Dokumentasi API untuk integrasi transaksi otomatis, cek harga, cek saldo, dan deposit di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
+router.get('/dokumentasi-jasa-sosmed', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  res.render('dokumentasi-jasa-sosmed', {
+    user,
+    config: cfg,
+    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
+    pageTitle: `Dokumentasi Jasa Sosmed - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Cara pakai layanan Jasa Sosmed (followers/likes/views) lewat web maupun API di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
+router.get('/dokumentasi-otp', (req, res) => {
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const cfg = getConfig();
+  res.render('dokumentasi-otp', {
+    user,
+    config: cfg,
+    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
+    pageTitle: `Dokumentasi OTP - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Cara sewa nomor virtual buat terima OTP/SMS lewat web maupun API di ${cfg.siteName || 'NEXORDER'}.`
   });
 });
 
@@ -420,6 +474,151 @@ router.get('/leaderboard', (req, res) => {
     pageTitle: `Leaderboard - ${cfg.siteName || 'NEXORDER'}`,
     pageDescription: `Peringkat pembeli dengan total transaksi tertinggi minggu ini & bulan ini di ${cfg.siteName || 'NEXORDER'}.`
   });
+});
+
+// ---------- OTP (HeroSMS: nomor virtual terima SMS) ----------
+// Alur order OTP BEDA TOTAL dari produk lain (top up/SMM/manual): bukan "bayar -> langsung dapat
+// hasil", tapi "bayar -> dapat NOMOR -> tunggu SMS masuk (dipantau di halaman /otp/status/:id) ->
+// bisa DIBATALKAN selama kodenya belum masuk". Makanya gak lewat fulfillAndRecordOrders() biasa
+// (lib/orderEngine.js) -- order OTP dibuat manual di sini dengan status 'processing' dari awal,
+// lalu diselesaikan/dibatalkan lewat endpoint terpisah di bawah.
+router.get('/otp', (req, res) => {
+  const cfg = getConfig();
+  const products = getActiveProducts().filter(p => p.provider === 'otp');
+  const groups = {};
+  products.forEach(p => {
+    const key = p.otpServiceName || 'Lainnya';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  });
+  res.render('otp', {
+    groups,
+    user: req.session.user ? findUserById(req.session.user.id) : null,
+    config: cfg,
+    otpEnabled: isHerosmsEnabled(),
+    pageTitle: `OTP: Nomor Virtual Terima SMS - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Sewa nomor virtual buat terima kode OTP/SMS verifikasi WhatsApp, Telegram, dan berbagai layanan lain di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
+router.post('/otp/order/:productId', requireLogin, async (req, res) => {
+  const product = findProductById(req.params.productId);
+  if (!product || product.provider !== 'otp' || product.status !== 'active') {
+    return res.redirect('/otp?error=' + encodeURIComponent('Produk OTP tidak ditemukan/tidak aktif'));
+  }
+  if (!isHerosmsEnabled()) {
+    return res.redirect('/otp?error=' + encodeURIComponent('Layanan OTP sedang tidak aktif'));
+  }
+
+  const user = findUserById(req.session.user.id);
+  if ((user.saldo || 0) < product.price) {
+    return res.redirect('/otp?error=' + encodeURIComponent('Saldo tidak cukup'));
+  }
+
+  // PENTING: minta nomor DULU ke HeroSMS, baru potong saldo kalau BERHASIL dapat nomor -- bukan
+  // sebaliknya. Kalau dipotong duluan lalu getNumber() gagal (nomor habis dll), harus nambah
+  // logic refund lagi; dengan urutan ini, gagal minta nomor = saldo user gak kesentuh sama sekali.
+  let activationId, phoneNumber;
+  try {
+    ({ activationId, phoneNumber } = await getHerosmsNumber({
+      serviceCode: product.otpServiceCode,
+      countryId: product.otpCountryId
+    }));
+  } catch (err) {
+    return res.redirect('/otp?error=' + encodeURIComponent(err.message));
+  }
+
+  deductSaldo(user.id, product.price, {
+    reason: `Sewa nomor OTP: ${product.name}`,
+    refType: 'order'
+  });
+
+  const order = createOrder({
+    userId: user.id,
+    username: user.username,
+    productId: product.id,
+    productName: product.name,
+    price: product.price,
+    qty: 1,
+    total: product.price,
+    source: 'user',
+    status: 'processing',
+    deliveryMode: 'auto',
+    manualRequired: false,
+    targetText: '',
+    detail: '',
+    note: 'Menunggu SMS masuk',
+    provider: 'otp',
+    providerRefId: activationId,
+    providerCustomerNo: phoneNumber,
+    costPrice: 0
+  });
+
+  res.redirect(`/otp/status/${order.id}`);
+});
+
+router.get('/otp/status/:id', requireLogin, (req, res) => {
+  const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+  if (!order || order.provider !== 'otp') {
+    return res.redirect('/otp?error=' + encodeURIComponent('Order OTP tidak ditemukan'));
+  }
+  const cfg = getConfig();
+  res.render('otp-status', {
+    order,
+    user: findUserById(req.session.user.id),
+    config: cfg,
+    pageTitle: `Status OTP ${order.id} - ${cfg.siteName || 'NEXORDER'}`,
+    noindex: true
+  });
+});
+
+// Polling JSON -- dipanggil berkala dari halaman status buat cek apakah kode SMS udah masuk.
+router.get('/otp/status/:id/check', requireLogin, async (req, res) => {
+  const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+  if (!order || order.provider !== 'otp') {
+    return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
+  }
+  if (order.status !== 'processing') {
+    return res.json({ success: true, status: order.status, detail: order.detail, note: order.note });
+  }
+  try {
+    const result = await getActivationStatus(order.providerRefId);
+    if (result.state === 'code' || result.state === 'waiting_retry') {
+      patchOrder(order.id, { status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
+      finishActivation(order.providerRefId).catch(() => {});
+      return res.json({ success: true, status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
+    }
+    if (result.state === 'cancelled') {
+      patchOrder(order.id, { status: 'cancelled', note: 'Aktivasi dibatalkan oleh provider' });
+      return res.json({ success: true, status: 'cancelled', detail: '', note: 'Aktivasi dibatalkan oleh provider' });
+    }
+    return res.json({ success: true, status: 'processing', detail: '', note: 'Menunggu SMS masuk' });
+  } catch (err) {
+    return res.json({ success: true, status: 'processing', detail: '', note: 'Menunggu SMS masuk' });
+  }
+});
+
+// Batalkan selama kode BELUM masuk -- refund penuh kalau HeroSMS konfirmasi batal.
+router.post('/otp/status/:id/cancel', requireLogin, async (req, res) => {
+  const order = getOrdersByUser(req.session.user.id).find(o => o.id === req.params.id);
+  if (!order || order.provider !== 'otp') {
+    return res.redirect('/otp?error=' + encodeURIComponent('Order tidak ditemukan'));
+  }
+  if (order.status !== 'processing') {
+    return res.redirect(`/otp/status/${order.id}`);
+  }
+  try {
+    await cancelActivation(order.providerRefId);
+    patchOrder(order.id, { status: 'cancelled', note: 'Dibatalkan oleh user, saldo dikembalikan' });
+    addSaldo(order.userId, order.total, {
+      reason: `Refund pembatalan OTP: ${order.productName}`,
+      refType: 'order',
+      refId: order.id
+    });
+  } catch (err) {
+    return res.redirect(`/otp/status/${order.id}?error=` + encodeURIComponent(err.message));
+  }
+  res.redirect(`/otp/status/${order.id}`);
 });
 
 router.post('/order', requireLogin, async (req, res) => {
