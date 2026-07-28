@@ -31,7 +31,7 @@
         <li><code>nxod_...</code> -- <b>API Key Deposit</b>: KHUSUS buat <code>/deposit</code> dan turunannya.</li>
       </ul>
       <p style="margin:0 0 8px;">Key transaksi <b>tidak bisa</b> dipakai buat endpoint deposit, dan sebaliknya -- kalau salah pakai, dapat error 403. Ini sengaja dipisah supaya kebocoran 1 key gak otomatis buka akses ke yang lain.</p>
-      <p style="margin:0 0 8px;">Tiap key <b>wajib didaftarkan ke 1 alamat IPv6</b> saat di-generate. Request yang datang dari IP selain yang terdaftar akan ditolak (403), walau key-nya valid -- update IP terdaftar kapan saja lewat halaman Profil kalau IP kamu berubah.</p>
+      <p style="margin:0 0 8px;">Tiap key <b>wajib didaftarkan ke 1 alamat IP (IPv4 atau IPv6)</b> saat di-generate. Request yang datang dari IP selain yang terdaftar akan ditolak (403), walau key-nya valid -- update IP terdaftar kapan saja lewat halaman Profil kalau IP kamu berubah.</p>
       <p style="margin:0;" class="helper-text">Base URL: <code><%= apiBaseUrl %></code>. Jangan bagikan API key ke siapa pun. Kalau bocor, generate ulang lewat halaman Profil (key lama langsung tidak berlaku).</p>
     </div>
 
@@ -298,15 +298,15 @@ X-RateLimit-Remaining: 47</pre>
     <div class="card">
       <details class="doc-faq">
         <summary>Bagaimana cara mendapatkan API key?</summary>
-        <p>Login ke akunmu, buka halaman <a href="/profile" style="color:var(--cyan);">Profil</a>. Ada 2 card terpisah: "API Key Transaksi" dan "API Key Deposit" -- isi alamat IPv6 kamu di kolom yang tersedia, lalu klik generate. Key langsung aktif dan bisa dipakai saat itu juga.</p>
+        <p>Login ke akunmu, buka halaman <a href="/profile" style="color:var(--cyan);">Profil</a>. Ada 2 card terpisah: "API Key Transaksi" dan "API Key Deposit" -- isi alamat IP kamu (IPv4 atau IPv6) di kolom yang tersedia, lalu klik generate. Key langsung aktif dan bisa dipakai saat itu juga.</p>
       </details>
       <details class="doc-faq">
         <summary>Kenapa API key transaksi & deposit dipisah?</summary>
         <p>Supaya lebih aman. Kalau kamu integrasikan key transaksi ke sistem lain (mis. bot jualan), key itu TIDAK BISA dipakai buat bikin transaksi deposit walau bocor -- begitu juga sebaliknya. Tiap key cuma bisa melakukan apa yang scope-nya izinkan.</p>
       </details>
       <details class="doc-faq">
-        <summary>Kenapa saya harus daftarin alamat IPv6?</summary>
-        <p>Sebagai lapisan keamanan tambahan -- request API cuma diterima dari IP yang sudah kamu daftarkan saat generate key. Kalau server/hosting kamu pindah IP, update lagi IP-nya di halaman Profil (tinggal generate ulang dan isi IPv6 baru).</p>
+        <summary>Kenapa saya harus daftarin alamat IP?</summary>
+        <p>Sebagai lapisan keamanan tambahan -- request API cuma diterima dari IP yang sudah kamu daftarkan saat generate key. Kalau server/hosting kamu pindah IP, update lagi IP-nya di halaman Profil (tinggal generate ulang dan isi IP baru).</p>
       </details>
       <details class="doc-faq">
         <summary>Saya kena error 429, itu kenapa?</summary>

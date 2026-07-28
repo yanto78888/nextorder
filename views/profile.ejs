@@ -130,7 +130,7 @@
     <div class="section-title"><h3>API Reseller</h3><div class="line"></div></div>
     <div class="card">
       <div class="helper-text">
-        Transaksi otomatis lewat API untuk integrasi bot/website kamu sendiri. Semua harga produk lewat API ini otomatis dihitung pakai harga <b>tier Platinum</b>, berapapun membership akun kamu sebenarnya. API key transaksi &amp; deposit <b>sengaja dipisah</b> (2 key independen) supaya kalau salah satu bocor, yang lain tetap aman. Tiap key WAJIB didaftarkan ke 1 alamat <b>IPv6</b> -- request cuma diterima dari IP itu. Dibatasi <b>60 request/menit</b> per key.
+        Transaksi otomatis lewat API untuk integrasi bot/website kamu sendiri. Semua harga produk lewat API ini otomatis dihitung pakai harga <b>tier Platinum</b>, berapapun membership akun kamu sebenarnya. API key transaksi &amp; deposit <b>sengaja dipisah</b> (2 key independen) supaya kalau salah satu bocor, yang lain tetap aman. Tiap key WAJIB didaftarkan ke 1 alamat <b>IP (IPv4 atau IPv6)</b> -- request cuma diterima dari IP itu. Dibatasi <b>60 request/menit</b> per key.
       </div>
     </div>
 
@@ -146,9 +146,9 @@
         <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyTransactionIp || '-' %></code></div>
         <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Transaksi? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
           <input type="hidden" name="scope" value="transaction">
-          <label style="font-size:12px;">IPv6 baru (kosongkan buat pakai yang sama: <%= user.apiKeyTransactionIp || '-' %>)</label>
+          <label style="font-size:12px;">IP baru (IPv4/IPv6, kosongkan buat pakai yang sama: <%= user.apiKeyTransactionIp || '-' %>)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
-            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" style="flex:1;">
+            <input type="text" name="ipv6" placeholder="mis. 103.10.20.30 atau 2001:db8::1" style="flex:1;">
             <button class="btn small ghost" type="submit">Generate Ulang</button>
           </div>
         </form>
@@ -159,9 +159,9 @@
       <% } else { %>
         <form method="POST" action="/profile/api-key/generate" style="margin:0;">
           <input type="hidden" name="scope" value="transaction">
-          <label style="font-size:12px;">Alamat IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
+          <label style="font-size:12px;">Alamat IP -- IPv4 atau IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
-            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" required style="flex:1;">
+            <input type="text" name="ipv6" placeholder="mis. 103.10.20.30 atau 2001:db8::1" required style="flex:1;">
             <button class="btn small solid" type="submit">Generate Key Transaksi</button>
           </div>
         </form>
@@ -180,9 +180,9 @@
         <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyDepositIp || '-' %></code></div>
         <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Deposit? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
           <input type="hidden" name="scope" value="deposit">
-          <label style="font-size:12px;">IPv6 baru (kosongkan buat pakai yang sama: <%= user.apiKeyDepositIp || '-' %>)</label>
+          <label style="font-size:12px;">IP baru (IPv4/IPv6, kosongkan buat pakai yang sama: <%= user.apiKeyDepositIp || '-' %>)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
-            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" style="flex:1;">
+            <input type="text" name="ipv6" placeholder="mis. 103.10.20.30 atau 2001:db8::1" style="flex:1;">
             <button class="btn small ghost" type="submit">Generate Ulang</button>
           </div>
         </form>
@@ -193,9 +193,9 @@
       <% } else { %>
         <form method="POST" action="/profile/api-key/generate" style="margin:0;">
           <input type="hidden" name="scope" value="deposit">
-          <label style="font-size:12px;">Alamat IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
+          <label style="font-size:12px;">Alamat IP -- IPv4 atau IPv6 (wajib -- request API cuma diterima dari IP ini)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
-            <input type="text" name="ipv6" placeholder="mis. 2001:db8::1" required style="flex:1;">
+            <input type="text" name="ipv6" placeholder="mis. 103.10.20.30 atau 2001:db8::1" required style="flex:1;">
             <button class="btn small solid" type="submit">Generate Key Deposit</button>
           </div>
         </form>
