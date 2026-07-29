@@ -1,5 +1,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// Terapkan mode malam/terang SEBELUM CSS lain dimuat, biar halaman gak
+// "kedip" putih dulu baru gelap saat direfresh dengan mode malam aktif.
+(function () {
+  try {
+    var saved = localStorage.getItem('nx_theme');
+    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  } catch (e) {}
+})();
+</script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/css/style.css">
 <%

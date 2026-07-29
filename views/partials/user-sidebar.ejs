@@ -18,19 +18,25 @@
     <small><%= config.siteTagline %></small>
   </div>
 
-  <% if (isGuest) { %>
-    <a href="/login" class="avatar-btn avatar-guest" title="Masuk / Daftar">
-      <i class="fa-solid fa-user"></i>
-    </a>
-  <% } else { %>
-    <a href="/profile" class="avatar-btn" title="Profil Saya">
-      <% if (avatarUrl) { %>
-        <img src="<%= avatarUrl %>" alt="<%= user.username %>">
-      <% } else { %>
-        <span class="avatar-initial"><%= initial %></span>
-      <% } %>
-    </a>
-  <% } %>
+  <div class="flex" style="gap:8px; align-items:center;">
+    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Ganti Mode Gelap/Terang" aria-label="Ganti mode gelap/terang">
+      <i class="fa-solid fa-moon"></i>
+      <i class="fa-solid fa-sun"></i>
+    </button>
+    <% if (isGuest) { %>
+      <a href="/login" class="avatar-btn avatar-guest" title="Masuk / Daftar">
+        <i class="fa-solid fa-user"></i>
+      </a>
+    <% } else { %>
+      <a href="/profile" class="avatar-btn" title="Profil Saya">
+        <% if (avatarUrl) { %>
+          <img src="<%= avatarUrl %>" alt="<%= user.username %>">
+        <% } else { %>
+          <span class="avatar-initial"><%= initial %></span>
+        <% } %>
+      </a>
+    <% } %>
+  </div>
 </div>
 
 <!-- ===== DRAWER (garis 3 pojok kiri atas) ===== -->
@@ -57,6 +63,14 @@
     <button type="button" class="icon-btn" id="drawerCloseBtn" title="Tutup" aria-label="Tutup menu">
       <i class="fa-solid fa-xmark"></i>
     </button>
+  </div>
+
+  <div class="drawer-theme-row">
+    <span><span class="nav-icon"><i class="fa-solid fa-moon"></i></span> Mode Malam</span>
+    <label class="theme-switch">
+      <input type="checkbox" id="themeSwitchInput" aria-label="Ganti mode gelap/terang">
+      <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+    </label>
   </div>
 
   <nav class="drawer-nav">
@@ -114,6 +128,35 @@
   if (openBtn) openBtn.addEventListener('click', openDrawer);
   if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
   if (overlay) overlay.addEventListener('click', closeDrawer);
+})();
+</script>
+
+<!-- ===== MODE MALAM / TERANG (toggle di topbar & switch di drawer, sinkron & disimpan) ===== -->
+<script>
+(function () {
+  var THEME_KEY = 'nx_theme';
+  var topbarBtn = document.getElementById('themeToggleBtn');
+  var switchInput = document.getElementById('themeSwitchInput');
+
+  function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+
+  function syncSwitch() {
+    if (switchInput) switchInput.checked = isDark();
+  }
+  syncSwitch(); // halaman ini sudah kepasang data-theme dari script anti-kedip di <head>
+
+  function setTheme(dark) {
+    if (dark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) {}
+    syncSwitch();
+  }
+
+  if (topbarBtn) topbarBtn.addEventListener('click', function () { setTheme(!isDark()); });
+  if (switchInput) switchInput.addEventListener('change', function () { setTheme(switchInput.checked); });
 })();
 </script>
 
