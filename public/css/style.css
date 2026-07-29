@@ -2393,3 +2393,255 @@ input[type="number"] {
   70%  { box-shadow: 0 0 0 7px rgba(30,132,73,0); }
   100% { box-shadow: 0 0 0 0 rgba(30,132,73,0); }
 }
+
+/* =====================================================================
+   MODE MALAM (DARK MODE) — diaktifkan lewat atribut data-theme="dark"
+   di <html>, ditoggle dari drawer menu & disimpan di localStorage.
+   Semua komponen di atas sudah pakai var(--...) jadi otomatis ikut
+   ganti begitu variabel di bawah ini di-override.
+   ===================================================================== */
+html[data-theme="dark"] {
+  --bg-deep: #0a0e15;
+  --bg-panel: #131a24;
+  --bg-panel-2: #1b232f;
+  --border-glow: rgba(255, 255, 255, 0.09);
+  --cyan: #4fa8ff;
+  --magenta: #d9a53c;
+  --amber: #e0b341;
+  --success: #35c975;
+  --danger: #ff6b6b;
+  --text-main: #eef2f7;
+  --text-dim: #93a1b0;
+  --gold: #e0b341;
+  --platinum: #a3b6c8;
+}
+html[data-theme="dark"] body {
+  background-image: radial-gradient(ellipse at top, rgba(79,168,255,0.08), transparent 55%);
+}
+html[data-theme="dark"] .phone-topbar {
+  background: linear-gradient(180deg, #131a24 0%, #0f151e 100%);
+}
+html[data-theme="dark"] .app-shell {
+  box-shadow: 0 0 24px rgba(79,168,255,0.08);
+}
+html[data-theme="dark"] .catalog-search-bar input,
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+  color-scheme: dark;
+}
+html[data-theme="dark"] img.theme-fade { opacity: .92; }
+
+/* Tombol toggle mode malam/terang di topbar */
+.theme-toggle-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-glow);
+  background: rgba(21,101,192,0.06);
+  color: var(--text-dim);
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s ease;
+  flex-shrink: 0;
+}
+.theme-toggle-btn:hover { color: var(--cyan); border-color: var(--cyan); background: rgba(21,101,192,0.1); }
+.theme-toggle-btn .fa-sun { display: none; }
+html[data-theme="dark"] .theme-toggle-btn .fa-sun { display: inline-block; }
+html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
+
+/* Baris "Mode Malam" di drawer, pakai switch ala iOS */
+.drawer-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px;
+  margin: 4px 0 8px;
+  border-radius: var(--radius);
+  background: rgba(21,101,192,0.05);
+  border: 1px solid var(--border-glow);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.drawer-theme-row .nav-icon { font-size: 16px; width: 20px; text-align: center; color: var(--cyan); }
+.theme-switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+.theme-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+.theme-switch-track {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: var(--bg-panel-2); border: 1px solid var(--border-glow);
+  transition: background .18s ease;
+}
+.theme-switch-thumb {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform .18s ease;
+}
+.theme-switch input:checked ~ .theme-switch-track { background: var(--cyan); }
+.theme-switch input:checked ~ .theme-switch-track .theme-switch-thumb { transform: translateX(18px); }
+
+/* =====================================================================
+   AKORDEON UMUM (.acc-section) — dipakai di Daftar Harga & Dokumentasi
+   API biar daftar panjang bisa dilipat per kategori, gak sekali tampil
+   semua. Struktur: .acc-section > .acc-header (button) + .acc-body
+   ===================================================================== */
+.acc-section {
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.acc-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-main);
+}
+.acc-header-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; min-width: 0; }
+.acc-header-title i.acc-icon { color: var(--cyan); flex-shrink: 0; }
+.acc-count {
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+  background: var(--bg-panel-2); border-radius: 999px; padding: 2px 9px; flex-shrink: 0;
+}
+.acc-chevron { color: var(--text-dim); font-size: 13px; transition: transform .18s ease; flex-shrink: 0; }
+.acc-section.open .acc-chevron { transform: rotate(180deg); color: var(--cyan); }
+.acc-body { display: none; padding: 0 16px 16px; }
+.acc-section.open .acc-body { display: block; }
+.acc-body .card:first-child { margin-top: 0; }
+.acc-toolbar { display: flex; justify-content: flex-end; gap: 14px; margin-bottom: 10px; font-size: 12px; }
+.acc-toolbar button {
+  background: none; border: none; color: var(--cyan); font-weight: 700; cursor: pointer;
+  font-family: inherit; font-size: 12px; padding: 0;
+}
+.acc-toolbar button:hover { text-decoration: underline; }
+
+/* Tab navigasi antar halaman dokumentasi (API umum / Jasa Sosmed / OTP) */
+.doc-tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; scrollbar-width: none; }
+.doc-tabs::-webkit-scrollbar { display: none; }
+.doc-tabs a {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-panel);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.doc-tabs a.active { border-color: var(--cyan); color: var(--cyan); background: rgba(21,101,192,0.08); }
+.doc-tabs a:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* =====================================================================
+   KOMPONEN FORM UMUM (search / select bergaya kartu gelap) — awalnya
+   cuma dipakai di Jasa Sosmed, sekarang dipakai bareng di OTP juga biar
+   alur pilihnya konsisten (Negara -> Nama Aplikasi ala Kategori -> Layanan).
+   ===================================================================== */
+.order-panel {
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 15px;
+}
+.order-panel .form-group { margin-bottom: 18px; }
+.order-panel .form-group:last-child { margin-bottom: 0; }
+.order-panel .form-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #e1eef4; }
+.order-panel .form-control, .order-panel .form-select {
+  width: 100%;
+  padding: 12px 14px;
+  background: #14171f;
+  border: 1px solid #2a2e39;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+.order-panel .form-control:focus, .order-panel .form-select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(79,168,255,0.15);
+}
+.order-panel .form-select option { background: #1e222d; color: #fff; padding: 10px; }
+.order-panel .service-desc {
+  background: rgba(79,168,255,0.06);
+  border-left: 3px solid var(--cyan);
+  padding: 12px 15px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #bbb;
+  margin-bottom: 18px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.order-panel .helper-text { font-size: 12px; color: #888; margin-top: 6px; display: block; }
+.order-panel .buy-main-btn { border-radius: 8px; }
+
+/* =====================================================================
+   HALAMAN STATUS OTP / INVOICE LENGKAP (/otp/status/:id) — mirror gaya
+   .inv-* dari /invoice biar tampilan konsisten & lengkap, ditambah
+   tombol salin nomor & kode OTP.
+   ===================================================================== */
+.inv-wrap { max-width: 460px; margin: 0 auto; padding: 4px 0 20px; }
+.inv-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; overflow: hidden; }
+.inv-status-band { padding: 20px; text-align: center; }
+.inv-status-band.completed { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(46,204,113,0.05)); }
+.inv-status-band.processing { background: linear-gradient(135deg, rgba(245,197,24,0.18), rgba(245,197,24,0.05)); }
+.inv-status-band.cancelled { background: linear-gradient(135deg, rgba(229,9,20,0.18), rgba(229,9,20,0.05)); }
+.inv-status-icon { font-size: 46px; margin-bottom: 8px; }
+.inv-status-icon.completed { color: #2ecc71; }
+.inv-status-icon.processing { color: #f5c518; }
+.inv-status-icon.cancelled { color: var(--danger); }
+.inv-status-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+.inv-status-sub { font-size: 12px; color: var(--text-dim); }
+.inv-body { padding: 20px; }
+.inv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-glow); font-size: 13px; gap: 12px; }
+.inv-row:last-child { border-bottom: none; }
+.inv-row .inv-label { color: var(--text-dim); flex-shrink: 0; }
+.inv-row .inv-value { text-align: right; font-weight: 600; word-break: break-word; }
+.inv-row .inv-value.mono { font-family: 'Courier New', monospace; }
+.inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--bg-panel-2); }
+.inv-total-label { font-size: 13px; color: var(--text-dim); font-weight: 700; }
+.inv-total-value { font-size: 20px; font-weight: 800; color: var(--cyan); }
+.inv-detail-box { margin: 0 20px 20px; padding: 14px; background: var(--bg-panel-2); border-radius: 10px; border: 1px solid var(--border-glow); }
+.inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
+.inv-detail-content { font-size: 13px; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
+.inv-actions { display: flex; gap: 8px; padding: 0 20px 20px; }
+.inv-barcode { text-align: center; padding: 0 20px 20px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+
+/* Baris nilai + tombol salin (nomor virtual & kode OTP) */
+.copy-field { margin: 0 20px 18px; }
+.copy-field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
+.copy-field-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-panel-2); border: 1px solid var(--border-glow); border-radius: 10px;
+  padding: 12px 14px;
+}
+.copy-field-value {
+  flex: 1; min-width: 0; font-family: 'Courier New', monospace; font-weight: 800;
+  font-size: 20px; color: var(--cyan); word-break: break-all;
+}
+.copy-field-row.otp-code .copy-field-value { color: var(--success); font-size: 26px; }
+.copy-chip-btn {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glow);
+  background: var(--bg-panel); color: var(--text-dim); font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: all .15s ease;
+}
+.copy-chip-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(21,101,192,0.08); }
+.copy-chip-btn.copied { border-color: var(--success); color: var(--success); background: rgba(46,204,113,0.08); }
