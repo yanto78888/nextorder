@@ -2421,6 +2421,21 @@ html[data-theme="dark"] body {
 html[data-theme="dark"] .phone-topbar {
   background: linear-gradient(180deg, #131a24 0%, #0f151e 100%);
 }
+html[data-theme="dark"] .drawer {
+  /* BUG: sebelumnya background drawer di-hardcode putih terus, jadi begitu mode malam
+     nyala teksnya (var(--text-main)) ikut jadi terang -> teks terang di atas putih =
+     nyaris gak kebaca. Background-nya sekarang ikut gelap juga. */
+  background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+}
+html[data-theme="dark"] .group-modal {
+  /* Sama kayak .drawer di atas -- popup "Gabung Komunitas" juga kena bug background putih. */
+  background: linear-gradient(165deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+}
+html[data-theme="dark"] .adm-revenue-card {
+  /* Kartu "Pendapatan" di dashboard admin -- kena bug yang sama juga kalau admin buka
+     dashboard di browser yang lagi mode malam (tema disimpan per-browser, bukan per-halaman). */
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+}
 html[data-theme="dark"] .app-shell {
   box-shadow: 0 0 24px rgba(79,168,255,0.08);
 }
