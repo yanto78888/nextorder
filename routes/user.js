@@ -411,30 +411,6 @@ router.get('/dokumentasi-api', (req, res) => {
   });
 });
 
-router.get('/dokumentasi-jasa-sosmed', (req, res) => {
-  const user = req.session.user ? findUserById(req.session.user.id) : null;
-  const cfg = getConfig();
-  res.render('dokumentasi-jasa-sosmed', {
-    user,
-    config: cfg,
-    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
-    pageTitle: `Dokumentasi Jasa Sosmed - ${cfg.siteName || 'NEXORDER'}`,
-    pageDescription: `Cara pakai layanan Jasa Sosmed (followers/likes/views) lewat web maupun API di ${cfg.siteName || 'NEXORDER'}.`
-  });
-});
-
-router.get('/dokumentasi-otp', (req, res) => {
-  const user = req.session.user ? findUserById(req.session.user.id) : null;
-  const cfg = getConfig();
-  res.render('dokumentasi-otp', {
-    user,
-    config: cfg,
-    apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
-    pageTitle: `Dokumentasi OTP - ${cfg.siteName || 'NEXORDER'}`,
-    pageDescription: `Cara sewa nomor virtual buat terima OTP/SMS lewat web maupun API di ${cfg.siteName || 'NEXORDER'}.`
-  });
-});
-
 // ---------- LIVE TRANSAKSI (PUBLIK, tersensor) ----------
 // Beda dari /admin/live-transaksi (khusus order via API, data lengkap buat admin) -- ini
 // nampilin SEMUA transaksi situs (produk apa aja, checkout web maupun API) ke SIAPA AJA yang buka
