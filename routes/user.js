@@ -494,16 +494,40 @@ router.get('/leaderboard', (req, res) => {
 // lalu diselesaikan/dibatalkan lewat endpoint terpisah di bawah.
 router.get('/otp', (req, res) => {
   const cfg = getConfig();
-  const products = getActiveProducts().filter(p => p.provider === 'otp');
-  const groups = {};
+  const user = req.session.user ? findUserById(req.session.user.id) : null;
+  const products = getActiveProducts()
+    .filter(p => p.provider === 'otp')
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      otpServiceName: p.otpServiceName,
+      otpCountryName: p.otpCountryName,
+      price: p.price
+      // Catatan: OTP checkout (POST /otp/order/:id di bawah) motong saldo pakai product.price
+      // APA ADANYA, BUKAN getEffectivePrice() -- jadi harga yang ditampilkan di sini disengaja
+      // ikut product.price mentah juga, biar gak beda sama yang beneran dipotong pas checkout.
+    })); // hanya field yang aman ditampilkan ke publik -- JANGAN sertakan otpBaseCostRub/marginType/marginValue dkk,
+         // karena objek ini ditulis mentah sebagai JSON ke <script> di halaman (kelihatan siapa saja lewat "view source").
+
+  // Dikelompokkan per NEGARA dulu (bukan per aplikasi lagi) -- biar alur pilihnya
+  // "Pilih Negara" -> "Pilih Nama Aplikasi" di halaman, konsisten sama urutan
+  // yang sama dipakai user buat filter di provider HeroSMS.
+  const countryOrder = [];
+  const grouped = {};
   products.forEach(p => {
-    const key = p.otpServiceName || 'Lainnya';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(p);
+    const key = p.otpCountryName || 'Lainnya';
+    if (!grouped[key]) { grouped[key] = []; countryOrder.push(key); }
+    grouped[key].push(p);
   });
+  // Tiap negara diurut nama aplikasinya biar rapi di dropdown "Nama Aplikasi"
+  const rows = countryOrder.sort((a, b) => a.localeCompare(b)).map(cat => ({
+    category: cat,
+    products: [...grouped[cat]].sort((a, b) => (a.otpServiceName || '').localeCompare(b.otpServiceName || ''))
+  }));
+
   res.render('otp', {
-    groups,
-    user: req.session.user ? findUserById(req.session.user.id) : null,
+    rows,
+    user,
     config: cfg,
     otpEnabled: isHerosmsEnabled(),
     pageTitle: `OTP: Nomor Virtual Terima SMS - ${cfg.siteName || 'NEXORDER'}`,
