@@ -21,6 +21,12 @@
       <% } %>
     </div>
 
+    <div class="doc-tabs">
+      <a href="/dokumentasi-api" class="active"><i class="fa-solid fa-code"></i> API Umum</a>
+      <a href="/dokumentasi-jasa-sosmed"><i class="fa-solid fa-share-nodes"></i> Jasa Sosmed</a>
+      <a href="/dokumentasi-otp"><i class="fa-solid fa-shield-halved"></i> OTP</a>
+    </div>
+
     <div class="section-title"><h3>Autentikasi</h3><div class="line"></div></div>
     <div class="card">
       <p style="margin:0 0 8px;">Semua request (kecuali <code>GET /api/v1/</code>) wajib menyertakan API key lewat header berikut:</p>
@@ -54,7 +60,12 @@ X-RateLimit-Remaining: 47</pre>
       <p style="margin:8px 0 0;" class="helper-text">Selalu cek field <code>success</code> dulu sebelum baca <code>data</code>. HTTP status code juga mengikuti (400 = input salah, 401/403 = auth bermasalah, 402 = saldo kurang, 404 = data tidak ditemukan, 500 = error di server).</p>
     </div>
 
-    <div class="section-title"><h3>1. Akun</h3><div class="line"></div></div>
+    <div class="acc-section open" id="accdoc-1">
+      <button type="button" class="acc-header" aria-expanded="true">
+        <span class="acc-header-title"><i class="fa-solid fa-user acc-icon"></i> 1. Akun</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
 
     <div class="card doc-endpoint">
       <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/profile</code></div>
@@ -75,7 +86,15 @@ X-RateLimit-Remaining: 47</pre>
       <pre class="doc-code">{ "success": true, "data": { "saldo": 150000 } }</pre>
     </div>
 
-    <div class="section-title"><h3>2. Produk &amp; Harga</h3><div class="line"></div></div>
+          </div>
+    </div>
+
+    <div class="acc-section" id="accdoc-2">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-tags acc-icon"></i> 2. Produk &amp; Harga</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
 
     <div class="card doc-endpoint">
       <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/pricelist</code></div>
@@ -112,7 +131,15 @@ X-RateLimit-Remaining: 47</pre>
   -H "X-API-Key: API_KEY_KAMU"</pre>
     </div>
 
-    <div class="section-title"><h3>3. Transaksi / Order</h3><div class="line"></div></div>
+          </div>
+    </div>
+
+    <div class="acc-section" id="accdoc-3">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-cart-shopping acc-icon"></i> 3. Transaksi / Order</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
 
     <div class="card doc-endpoint">
       <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/topup</code> &middot; <code>/order/smm</code> &middot; <code>/order/manual</code></div>
@@ -252,7 +279,15 @@ X-RateLimit-Remaining: 47</pre>
       <p style="margin:8px 0 0;">Kirim <code>ref_id</code> unik tiap transaksi (mis. ID order di sistem kamu sendiri). Kalau ada request kedua masuk dengan <code>ref_id</code> yang SAMA, kami tidak proses ulang -- cukup dibalikin hasil persis yang pertama, saldo tidak terpotong lagi.</p>
     </div>
 
-    <div class="section-title"><h3>4. Deposit / Top Up Saldo</h3><div class="line"></div></div>
+          </div>
+    </div>
+
+    <div class="acc-section" id="accdoc-4">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-wallet acc-icon"></i> 4. Deposit / Top Up Saldo</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
 
     <div class="card doc-endpoint">
       <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/deposit</code></div>
@@ -294,7 +329,15 @@ X-RateLimit-Remaining: 47</pre>
   -H "X-API-Key: API_KEY_KAMU"</pre>
     </div>
 
-    <div class="section-title"><h3>5. FAQ</h3><div class="line"></div></div>
+          </div>
+    </div>
+
+    <div class="acc-section" id="accdoc-5">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-circle-question acc-icon"></i> 5. FAQ</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
     <div class="card">
       <details class="doc-faq">
         <summary>Bagaimana cara mendapatkan API key?</summary>
@@ -342,9 +385,26 @@ X-RateLimit-Remaining: 47</pre>
       </details>
     </div>
 
-    <%- include('partials/footer') %>
+      </div>
+    </div>
+
+        <%- include('partials/footer') %>
   </div>
 </div>
+<script>
+// Toggle buka/tutup tiap bagian bernomor (Akun, Produk & Harga, Transaksi, Deposit, FAQ) --
+// defaultnya cuma "1. Akun" yang terbuka biar halaman gak langsung sepanjang gulungan ombak.
+(function () {
+  document.querySelectorAll('.acc-section .acc-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var section = header.closest('.acc-section');
+      var open = !section.classList.contains('open');
+      section.classList.toggle('open', open);
+      header.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+})();
+</script>
 <script>
 // Otomatis kasih tombol "Salin" ke SEMUA blok kode (.doc-code) di halaman ini, jadi kalau
 // nambah contoh baru nanti, gak perlu nulis tombolnya manual satu-satu per blok.

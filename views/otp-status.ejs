@@ -6,71 +6,171 @@
   <%- include('partials/user-sidebar', { active: 'otp', user, config }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> Status OTP</h2></div>
+    <div class="inv-wrap">
 
-    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+      <% if (typeof error !== 'undefined' && error) { %><div class="alert error" style="margin-bottom:14px;"><%= error %></div><% } %>
 
-    <div class="card">
-      <div class="helper-text">Order ID</div>
-      <div class="mono" style="font-size:15px; margin-bottom:16px;"><%= order.id %></div>
-
-      <div class="helper-text">Produk</div>
-      <div style="font-weight:700; margin-bottom:16px;"><%= order.productName %></div>
-
-      <div class="helper-text">Nomor Virtual</div>
-      <div class="mono" id="otpNumber" style="font-size:22px; font-weight:700; color:var(--cyan); margin-bottom:16px;"><%= order.providerCustomerNo %></div>
-
-      <div id="otpStateBox">
-        <% if (order.status === 'processing') { %>
-          <div class="badge admin" id="otpStatusBadge">Menunggu SMS...</div>
-          <p class="helper-text" style="margin-top:10px;">Masukkan nomor di atas ke aplikasi tujuan, lalu tunggu kode OTP muncul di sini secara otomatis.</p>
-        <% } else if (order.status === 'completed') { %>
-          <div class="badge completed" id="otpStatusBadge">Kode Diterima</div>
-          <div style="margin-top:14px;">
-            <div class="helper-text">Kode OTP</div>
-            <div class="mono" id="otpCode" style="font-size:28px; font-weight:700; color:var(--success);"><%= order.detail %></div>
+      <div class="inv-card">
+        <% const statusClass = order.status === 'completed' ? 'completed' : (order.status === 'cancelled' ? 'cancelled' : 'processing'); %>
+        <div class="inv-status-band <%= statusClass %>" id="otpStatusBand">
+          <div class="inv-status-icon <%= statusClass %>" id="otpStatusIcon">
+            <% if (statusClass === 'completed') { %><i class="fa-solid fa-circle-check"></i>
+            <% } else if (statusClass === 'cancelled') { %><i class="fa-solid fa-circle-xmark"></i>
+            <% } else { %><i class="fa-solid fa-hourglass-half"></i><% } %>
           </div>
-        <% } else { %>
-          <div class="badge cancelled" id="otpStatusBadge">Dibatalkan</div>
-          <p class="helper-text" style="margin-top:10px;"><%= order.note %></p>
+          <div class="inv-status-title" id="otpStatusTitle">
+            <% if (statusClass === 'completed') { %>Kode OTP Diterima
+            <% } else if (statusClass === 'cancelled') { %>Sewa Dibatalkan
+            <% } else { %>Menunggu SMS Masuk<% } %>
+          </div>
+          <div class="inv-status-sub" id="otpStatusSub">
+            <% if (statusClass === 'completed') { %>Kode sudah masuk, tinggal disalin di bawah
+            <% } else if (statusClass === 'cancelled') { %><%= order.note || 'Sewa dibatalkan, saldo dikembalikan penuh' %>
+            <% } else { %>Masukkan nomor di bawah ke aplikasi tujuan, halaman ini update otomatis begitu kode masuk<% } %>
+          </div>
+        </div>
+
+        <div class="inv-body">
+          <div class="inv-row">
+            <span class="inv-label">No. Invoice</span>
+            <span class="inv-value mono"><%= order.id %></span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Layanan</span>
+            <span class="inv-value"><%= order.productName %></span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Metode</span>
+            <span class="inv-value">Saldo</span>
+          </div>
+          <div class="inv-row">
+            <span class="inv-label">Tanggal</span>
+            <span class="inv-value"><%= new Date(order.createdAt).toLocaleString('id-ID') %></span>
+          </div>
+        </div>
+
+        <div class="inv-total-row">
+          <span class="inv-total-label">Total Bayar</span>
+          <span class="inv-total-value">Rp <%= order.total.toLocaleString('id-ID') %></span>
+        </div>
+
+        <!-- Nomor Virtual + tombol salin -->
+        <div class="copy-field" style="margin-top:20px;">
+          <div class="copy-field-label"><i class="fa-solid fa-phone"></i> Nomor Virtual</div>
+          <div class="copy-field-row">
+            <span class="copy-field-value" id="otpNumber"><%= order.providerCustomerNo %></span>
+            <button type="button" class="copy-chip-btn" data-copy-target="otpNumber"><i class="fa-solid fa-copy"></i> Salin</button>
+          </div>
+        </div>
+
+        <div id="otpCodeWrap" class="copy-field" style="<%= order.status === 'completed' ? '' : 'display:none;' %>">
+          <div class="copy-field-label"><i class="fa-solid fa-key"></i> Kode OTP</div>
+          <div class="copy-field-row otp-code">
+            <span class="copy-field-value" id="otpCode"><%= order.status === 'completed' ? order.detail : '' %></span>
+            <button type="button" class="copy-chip-btn" data-copy-target="otpCode"><i class="fa-solid fa-copy"></i> Salin</button>
+          </div>
+        </div>
+
+        <% if (order.status === 'cancelled') { %>
+          <div class="inv-detail-box">
+            <div class="inv-detail-title"><i class="fa-solid fa-circle-info"></i> Catatan</div>
+            <div class="inv-detail-content"><%= order.note || 'Dibatalkan, saldo dikembalikan penuh.' %></div>
+          </div>
         <% } %>
+
+        <div class="inv-barcode">* * * * * <%= order.id %> * * * * *</div>
+
+        <div class="inv-actions">
+          <% if (order.status === 'processing') { %>
+          <form method="POST" action="/otp/status/<%= order.id %>/cancel" style="flex:1;" onsubmit="return confirm('Batalkan sewa nomor ini? Saldo akan dikembalikan penuh (hanya bisa dibatalkan selama kode belum masuk).')">
+            <button class="btn danger" type="submit" style="width:100%;"><i class="fa-solid fa-ban"></i> Batalkan</button>
+          </form>
+          <% } else { %>
+          <a href="/riwayat" class="btn ghost" style="flex:1;">Riwayat Lain</a>
+          <% } %>
+          <a href="/otp" class="btn solid" style="flex:1;"><i class="fa-solid fa-shield-halved"></i> Sewa Lagi</a>
+        </div>
       </div>
 
-      <% if (order.status === 'processing') { %>
-      <form method="POST" action="/otp/status/<%= order.id %>/cancel" class="mt-24" onsubmit="return confirm('Batalkan sewa nomor ini? Saldo akan dikembalikan penuh (hanya bisa dibatalkan selama kode belum masuk).')">
-        <button class="btn small danger" type="submit" style="width:100%;"><i class="fa-solid fa-ban"></i> Batalkan &amp; Refund</button>
-      </form>
-      <% } %>
     </div>
-
-    <%- include('partials/footer') %>
   </div>
 </div>
-<% if (order.status === 'processing') { %>
+
 <script>
 (function () {
-  var box = document.getElementById('otpStateBox');
+  // Tombol salin -- pakai Clipboard API, fallback ke seleksi teks manual di browser lama.
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  function wireCopyButtons() {
+    document.querySelectorAll('.copy-chip-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var targetId = btn.getAttribute('data-copy-target');
+        var el = document.getElementById(targetId);
+        if (!el) return;
+        var text = el.textContent.trim();
+        if (!text) return;
+        function done() {
+          var original = btn.innerHTML;
+          btn.classList.add('copied');
+          btn.innerHTML = '<i class="fa-solid fa-check"></i> Disalin';
+          setTimeout(function () { btn.classList.remove('copied'); btn.innerHTML = original; }, 1500);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text); done(); });
+        } else {
+          fallbackCopy(text);
+          done();
+        }
+      });
+    });
+  }
+  wireCopyButtons();
+
+  <% if (order.status === 'processing') { %>
+  var band = document.getElementById('otpStatusBand');
+  var icon = document.getElementById('otpStatusIcon');
+  var title = document.getElementById('otpStatusTitle');
+  var sub = document.getElementById('otpStatusSub');
+  var codeWrap = document.getElementById('otpCodeWrap');
+  var codeEl = document.getElementById('otpCode');
+
   function poll() {
     fetch('/otp/status/<%= order.id %>/check')
       .then(function (r) { return r.json(); })
       .then(function (res) {
         if (!res.success) return;
         if (res.status === 'completed') {
-          box.innerHTML = '<div class="badge completed">Kode Diterima</div>' +
-            '<div style="margin-top:14px;"><div class="helper-text">Kode OTP</div>' +
-            '<div class="mono" style="font-size:28px; font-weight:700; color:var(--success);">' + res.detail + '</div></div>';
+          band.className = 'inv-status-band completed';
+          icon.className = 'inv-status-icon completed';
+          icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+          title.textContent = 'Kode OTP Diterima';
+          sub.textContent = 'Kode sudah masuk, tinggal disalin di bawah';
+          codeEl.textContent = res.detail;
+          codeWrap.style.display = '';
           clearInterval(timer);
-          location.reload();
         } else if (res.status === 'cancelled') {
-          box.innerHTML = '<div class="badge cancelled">Dibatalkan</div><p class="helper-text" style="margin-top:10px;">' + (res.note || '') + '</p>';
+          band.className = 'inv-status-band cancelled';
+          icon.className = 'inv-status-icon cancelled';
+          icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+          title.textContent = 'Sewa Dibatalkan';
+          sub.textContent = res.note || 'Sewa dibatalkan, saldo dikembalikan penuh';
           clearInterval(timer);
+          setTimeout(function () { location.reload(); }, 1200);
         }
       })
       .catch(function () {});
   }
   var timer = setInterval(poll, 4000);
+  <% } %>
 })();
 </script>
-<% } %>
 </body>
 </html>

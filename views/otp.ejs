@@ -6,36 +6,76 @@
   <%- include('partials/user-sidebar', { active: 'otp', user, config }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> OTP: Nomor Virtual</h2></div>
-    <p class="helper-text" style="margin:0 0 16px;">Sewa nomor virtual buat terima kode OTP/SMS verifikasi (WhatsApp, Telegram, dan berbagai layanan lain). Kode diterima langsung di halaman status setelah nomor didapat.</p>
+    <div class="topbar">
+      <h2 style="margin:0;"><i class="fa-solid fa-shield-halved"></i> OTP: Nomor Virtual</h2>
+      <div class="flex" style="gap:8px; margin-left:auto;">
+        <% if (user) { %>
+          <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
+        <% } else { %>
+          <a href="/login" class="user-chip guest-chip"><span class="dot guest"></span> Masuk / Daftar</a>
+        <% } %>
+      </div>
+    </div>
+    <p class="helper-text" style="margin:0 0 16px;">Sewa nomor virtual buat terima kode OTP/SMS verifikasi (WhatsApp, Telegram, dan berbagai layanan lain). Pilih negara dulu, lalu pilih nama aplikasinya -- kode diterima langsung di halaman status setelah nomor didapat.</p>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
 
+    <% if (!user) { %>
+      <div class="alert guest-alert" style="margin-bottom: 15px;"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk menyewa nomor.</div>
+    <% } %>
+
     <% if (!otpEnabled) { %>
       <div class="card"><div class="empty-state">Layanan OTP sedang tidak aktif.</div></div>
-    <% } else if (Object.keys(groups).length === 0) { %>
+    <% } else if (rows.length === 0) { %>
       <div class="card"><div class="empty-state">Belum ada produk OTP yang tersedia.</div></div>
     <% } else { %>
-      <% Object.keys(groups).sort().forEach(serviceName => { %>
-        <div class="section-title"><h3><%= serviceName %></h3><div class="line"></div></div>
-        <div class="grid grid-4">
-          <% groups[serviceName].forEach(p => { %>
-          <div class="nf-card">
-            <div class="nf-card-body">
-              <div class="nf-card-name"><%= p.otpCountryName %></div>
-              <div class="nf-card-price">Rp <%= p.price.toLocaleString('id-ID') %></div>
-              <% if (user) { %>
-              <form method="POST" action="/otp/order/<%= p.id %>" onsubmit="return confirm('Sewa nomor <%= p.otpServiceName %> - <%= p.otpCountryName %> seharga Rp <%= p.price.toLocaleString('id-ID') %>?')">
-                <button class="btn small solid" type="submit" style="width:100%;">Sewa Nomor</button>
-              </form>
-              <% } else { %>
-              <a href="/login" class="btn small ghost" style="width:100%; text-align:center;">Login buat Sewa</a>
-              <% } %>
-            </div>
-          </div>
+    <div class="order-panel">
+
+      <!-- Pencarian -->
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Pencarian</label>
+        <input type="text" id="searchInput" class="form-control" placeholder="Cari negara atau nama aplikasi...">
+      </div>
+
+      <!-- 1. Negara -->
+      <div class="form-group">
+        <label class="form-label">Negara</label>
+        <select id="negaraSelect" class="form-select">
+          <option value="">Pilih Negara...</option>
+          <% rows.forEach(row => { %>
+            <option value="<%= row.category %>"><%= row.category %></option>
           <% }) %>
+        </select>
+      </div>
+
+      <!-- 2. Nama Aplikasi (baru bisa dipilih setelah Negara dipilih) -->
+      <div class="form-group">
+        <label class="form-label">Nama Aplikasi / Layanan</label>
+        <select id="aplikasiSelect" class="form-select">
+          <option value="">Pilih Negara Terlebih Dahulu</option>
+        </select>
+      </div>
+
+      <!-- Detail & aksi sewa (disembunyikan sebelum aplikasi dipilih) -->
+      <div id="serviceDetails" style="display:none; margin-top:25px; border-top:1px dashed #2a2e39; padding-top:25px;">
+
+        <div class="service-desc" id="serviceDesc"></div>
+
+        <div class="form-group">
+          <label class="form-label" style="color:var(--cyan);">Harga Sewa Nomor</label>
+          <input type="text" id="hargaTampil" class="form-control" readonly value="Rp 0" style="font-weight:bold; font-size:16px; color:var(--cyan); background:rgba(79,168,255,0.05); border-color:var(--cyan);">
         </div>
-      <% }) %>
+
+        <% if (user) { %>
+        <form method="POST" id="otpOrderForm" action="/otp/order/">
+        </form>
+        <button type="button" class="btn solid buy-main-btn" id="btnSewa" style="width:100%; padding:14px; font-size:15px;"><i class="fa-solid fa-shield-halved"></i> Sewa Nomor Sekarang</button>
+        <div class="alert error" id="saldoWarning" style="margin-top:12px; font-size:13px; display:none;">Saldo tidak cukup -- silakan <a href="/topup" style="color:inherit; text-decoration:underline;">isi saldo</a> dulu.</div>
+        <% } else { %>
+        <a href="/login" class="btn solid" style="width:100%; text-align:center; display:block; padding:14px; font-size:15px;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Login untuk Sewa Nomor</a>
+        <% } %>
+      </div>
+    </div>
     <% } %>
 
     <div class="section-title"><h3>FAQ</h3><div class="line"></div></div>
@@ -61,5 +101,112 @@
     <%- include('partials/footer') %>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var otpData = <%- JSON.stringify(rows).replace(/</g, '\\u003c') %>;
+
+  var negSelect = document.getElementById('negaraSelect');
+  var appSelect = document.getElementById('aplikasiSelect');
+  var searchInput = document.getElementById('searchInput');
+  if (!negSelect || !appSelect) return; // OTP disabled / kosong, gak ada panel
+
+  var serviceDetails = document.getElementById('serviceDetails');
+  var serviceDesc = document.getElementById('serviceDesc');
+  var hargaTampil = document.getElementById('hargaTampil');
+  var btnSewa = document.getElementById('btnSewa');
+  var otpOrderForm = document.getElementById('otpOrderForm');
+  var saldoWarning = document.getElementById('saldoWarning');
+  var userSaldo = <%= user ? user.saldo : 0 %>;
+  var selectedProduct = null;
+
+  function fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+
+  function resetDetails() {
+    serviceDetails.style.display = 'none';
+    selectedProduct = null;
+  }
+
+  // 1. Saat Negara dipilih -> isi dropdown Nama Aplikasi
+  negSelect.addEventListener('change', function () {
+    var countryName = this.value;
+    appSelect.innerHTML = '<option value="">Pilih Nama Aplikasi...</option>';
+    resetDetails();
+    if (!countryName) return;
+
+    var row = otpData.find(function (r) { return r.category === countryName; });
+    if (row && row.products) {
+      row.products.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.otpServiceName + ' - Rp ' + p.price.toLocaleString('id-ID');
+        appSelect.appendChild(opt);
+      });
+    }
+  });
+
+  // 2. Saat Nama Aplikasi dipilih -> tampilkan detail + tombol sewa
+  appSelect.addEventListener('change', function () {
+    var pid = this.value;
+    if (!pid) { resetDetails(); return; }
+
+    selectedProduct = null;
+    otpData.forEach(function (row) {
+      row.products.forEach(function (p) {
+        if (String(p.id) === String(pid)) selectedProduct = p;
+      });
+    });
+    if (!selectedProduct) return;
+
+    serviceDetails.style.display = 'block';
+    serviceDesc.innerHTML = '<b><i class="fa-solid fa-mobile-screen-button"></i> ' + selectedProduct.otpServiceName + '</b> - ' + selectedProduct.otpCountryName +
+      '<br>Nomor virtual langsung tampil setelah kamu klik "Sewa Nomor Sekarang", lalu tinggal tunggu kode OTP masuk otomatis di halaman status (bisa disalin sekali klik).';
+    hargaTampil.value = fmt(selectedProduct.price);
+    if (otpOrderForm) otpOrderForm.setAttribute('action', '/otp/order/' + selectedProduct.id);
+    if (saldoWarning) saldoWarning.style.display = (userSaldo < selectedProduct.price) ? 'block' : 'none';
+  });
+
+  // 3. Pencarian lintas negara (langsung isi dropdown Nama Aplikasi hasil cari)
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      var q = this.value.toLowerCase().trim();
+      if (!q) {
+        negSelect.value = '';
+        appSelect.innerHTML = '<option value="">Pilih Negara Terlebih Dahulu</option>';
+        resetDetails();
+        return;
+      }
+      negSelect.value = '';
+      appSelect.innerHTML = '<option value="">Pilih Layanan Hasil Pencarian...</option>';
+      resetDetails();
+
+      var found = 0;
+      otpData.forEach(function (row) {
+        row.products.forEach(function (p) {
+          var hay = (p.otpServiceName + ' ' + row.category).toLowerCase();
+          if (hay.indexOf(q) !== -1) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = '[' + row.category + '] ' + p.otpServiceName + ' - Rp ' + p.price.toLocaleString('id-ID');
+            appSelect.appendChild(opt);
+            found++;
+          }
+        });
+      });
+      if (found === 0) appSelect.innerHTML = '<option value="">Tidak ditemukan</option>';
+    });
+  }
+
+  // 4. Submit sewa nomor
+  if (btnSewa) {
+    btnSewa.addEventListener('click', function () {
+      if (!selectedProduct) { alert('Pilih negara dan nama aplikasi dulu.'); return; }
+      if (userSaldo < selectedProduct.price) return;
+      var ok = confirm('Sewa nomor ' + selectedProduct.otpServiceName + ' - ' + selectedProduct.otpCountryName + ' seharga ' + fmt(selectedProduct.price) + '?');
+      if (ok && otpOrderForm) otpOrderForm.submit();
+    });
+  }
+});
+</script>
 </body>
 </html>

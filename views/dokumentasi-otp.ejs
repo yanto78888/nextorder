@@ -12,11 +12,17 @@
       <p style="margin:0;">Panduan lengkap fitur <b>OTP</b> (sewa nomor virtual buat terima kode SMS/OTP verifikasi WhatsApp, Telegram, dan berbagai layanan lain) di <%= config.siteName || 'situs ini' %> -- cara pakai lewat website, dan cara integrasi otomatis lewat API kalau kamu reseller.</p>
     </div>
 
+    <div class="doc-tabs">
+      <a href="/dokumentasi-api"><i class="fa-solid fa-code"></i> API Umum</a>
+      <a href="/dokumentasi-jasa-sosmed"><i class="fa-solid fa-share-nodes"></i> Jasa Sosmed</a>
+      <a href="/dokumentasi-otp" class="active"><i class="fa-solid fa-shield-halved"></i> OTP</a>
+    </div>
+
     <div class="section-title"><h3>Cara Pakai Lewat Website</h3><div class="line"></div></div>
     <div class="card doc-endpoint">
-      <p style="margin:0 0 10px;">1. Buka menu <a href="/otp" style="color:var(--cyan);">OTP</a>, pilih layanan (mis. WhatsApp) dan negara nomornya.</p>
-      <p style="margin:0 0 10px;">2. Klik "Sewa Nomor" -- saldo dipotong dan kamu langsung dapat nomor virtualnya.</p>
-      <p style="margin:0 0 10px;">3. Masukkan nomor itu ke aplikasi/layanan tujuan buat verifikasi. Halaman status akan otomatis menampilkan kode OTP begitu SMS-nya masuk (dicek berkala, tidak perlu refresh manual).</p>
+      <p style="margin:0 0 10px;">1. Buka menu <a href="/otp" style="color:var(--cyan);">OTP</a>, pilih <b>negara</b> dulu, baru pilih <b>nama aplikasi/layanan</b>-nya (mis. WhatsApp) -- bisa juga langsung cari lewat kolom pencarian.</p>
+      <p style="margin:0 0 10px;">2. Klik "Sewa Nomor Sekarang" -- saldo dipotong dan kamu langsung dapat nomor virtualnya, plus tombol salin nomornya.</p>
+      <p style="margin:0 0 10px;">3. Masukkan nomor itu ke aplikasi/layanan tujuan buat verifikasi. Halaman status akan otomatis menampilkan kode OTP begitu SMS-nya masuk (dicek berkala, tidak perlu refresh manual), lengkap dengan tombol salin kode-nya.</p>
       <p style="margin:0;">4. Kalau kode gak kunjung masuk atau kamu berubah pikiran, klik "Batalkan &amp; Refund" -- saldo kembali penuh. Tombol ini hilang begitu kode sudah diterima (karena nomornya sudah terpakai).</p>
     </div>
 
