@@ -6,7 +6,14 @@
 .qris-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; padding: 24px 20px; text-align: center; }
 .qris-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
 .qris-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
-.qris-img { width: 220px; height: 220px; border-radius: 12px; border: 2px solid var(--border-glow); object-fit: contain; background: #fff; margin: 0 auto 18px; display: block; }
+.qris-img { width: 220px; height: 220px; border-radius: 12px; border: 2px solid var(--border-glow); object-fit: contain; background: #fff; margin: 0 auto 10px; display: block; }
+.qris-download-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 auto 18px;
+  font-size: 12px; font-weight: 700; color: var(--cyan); background: none;
+  border: 1px solid var(--border-glow); border-radius: 999px; padding: 7px 14px;
+  cursor: pointer; font-family: inherit;
+}
+.qris-download-btn:hover { border-color: var(--cyan); background: rgba(21,101,192,0.06); }
 .qris-amount { font-size: 26px; font-weight: 700; color: var(--cyan); margin-bottom: 4px; }
 .qris-note { font-size: 11px; color: var(--text-dim); margin-bottom: 18px; }
 .qris-status { padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
@@ -27,7 +34,7 @@
     <div class="qris-wrap">
       <div class="qris-card">
         <div class="qris-title">Bayar via QRIS</div>
-        <div class="qris-sub">Scan QR di bawah menggunakan m-banking atau e-wallet manapun</div>
+        <div class="qris-sub">Scan QR di bawah menggunakan m-banking atau e-wallet manapun. Pesanan langsung diproses otomatis begitu QRIS ini terbayar -- tidak lewat saldo.</div>
 
         <div class="qris-product-info">
           <div class="pname"><%= product.name %></div>
@@ -37,16 +44,17 @@
           <% } %>
         </div>
 
-        <img class="qris-img" src="<%= deposit.imageBase64 %>" alt="QRIS">
+        <img class="qris-img" id="qrisImg" src="<%= payment.imageBase64 %>" alt="QRIS">
+        <button type="button" class="qris-download-btn" id="btnDownloadQr"><i class="fa-solid fa-download"></i> Download QR</button>
 
-        <div class="qris-amount">Rp <%= total.toLocaleString('id-ID') %></div>
+        <div class="qris-amount">Rp <%= payment.total.toLocaleString('id-ID') %></div>
         <div class="qris-note"><i class="fa-solid fa-triangle-exclamation"></i> Bayar tepat nominal di atas (sudah termasuk kode unik & biaya layanan). Jangan lebih, jangan kurang.</div>
 
         <div class="qris-timer" id="timerEl">--:--</div>
 
         <div class="qris-status pending" id="statusEl"><i class="fa-solid fa-hourglass-half"></i> Menunggu pembayaran...</div>
 
-        <a href="/produk/<%= product.id %>" class="btn ghost" style="width:100%; margin-top:8px;">Batal / Kembali</a>
+        <button type="button" class="btn ghost" id="btnBatal" style="width:100%; margin-top:8px;">Batal / Kembali</button>
       </div>
     </div>
   </div>
@@ -54,11 +62,34 @@
 
 <script>
 (function () {
-  var trxid = '<%= deposit.trxid %>';
-  var expiredAt = new Date('<%= deposit.expiredAt %>').getTime();
+  var trxid = '<%= payment.trxid %>';
+  var productId = '<%= product.id %>';
+  var expiredAt = new Date('<%= payment.expiredAt %>').getTime();
   var statusEl = document.getElementById('statusEl');
   var timerEl = document.getElementById('timerEl');
-  var redirected = false;
+  var settled = false;
+
+  // Download QR sebagai file PNG (gambarnya sudah base64 inline, jadi tinggal di-download langsung
+  // tanpa perlu request lagi ke server).
+  var downloadBtn = document.getElementById('btnDownloadQr');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', function () {
+      var link = document.createElement('a');
+      link.href = document.getElementById('qrisImg').src;
+      link.download = 'QRIS-' + trxid + '.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
+
+  document.getElementById('btnBatal').addEventListener('click', function () {
+    if (settled) { window.location.href = '/produk/' + productId; return; }
+    if (!confirm('Batalkan pembayaran ini?')) return;
+    fetch('/order/qris-status/' + trxid + '/cancel', { method: 'POST' })
+      .catch(function () {})
+      .finally(function () { window.location.href = '/produk/' + productId; });
+  });
 
   function updateTimer() {
     var now = Date.now();
@@ -66,8 +97,8 @@
     var m = Math.floor(diff / 60000);
     var s = Math.floor((diff % 60000) / 1000);
     if (timerEl) timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-    if (diff <= 0 && !redirected) {
-      redirected = true;
+    if (diff <= 0 && !settled) {
+      settled = true;
       if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
       clearInterval(timerInterval);
       clearInterval(pollInterval);
@@ -77,28 +108,37 @@
   var timerInterval = setInterval(updateTimer, 1000);
 
   function pollStatus() {
-    fetch('/api/topup/status/' + trxid)
+    fetch('/order/qris-status/' + trxid)
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (!data.success) return;
         if (data.status === 'paid') {
-          clearInterval(pollInterval);
-          clearInterval(timerInterval);
-          redirected = true;
-          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pembayaran diterima! Memproses pesanan...'; statusEl.className = 'qris-status paid'; }
-          // saldo sudah ditambah oleh deposit handler, sekarang buat order via redirect
-          setTimeout(function () {
-            window.location.href = '/order/qris-confirm?trxid=' + trxid;
-          }, 1500);
+          settled = true;
+          if (data.redirectUrl) {
+            clearInterval(pollInterval);
+            clearInterval(timerInterval);
+            if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pembayaran diterima! Pesanan sudah dibuat, mengalihkan...'; statusEl.className = 'qris-status paid'; }
+            setTimeout(function () { window.location.href = data.redirectUrl; }, 1200);
+          } else {
+            // Sudah kebayar tapi order-nya masih diproses di background (kejadian sepersekian
+            // detik) -- tetap polling sampai redirectUrl-nya kekirim.
+            if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pembayaran diterima! Sedang membuat pesanan...'; statusEl.className = 'qris-status paid'; }
+          }
         } else if (data.status === 'expired' || data.status === 'cancelled') {
+          settled = true;
           clearInterval(pollInterval);
           clearInterval(timerInterval);
-          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> Waktu habis. Silakan buat pesanan baru.'; statusEl.className = 'qris-status expired'; }
+          var msg = data.status === 'cancelled' ? 'Pembayaran dibatalkan.' : 'Waktu habis. Silakan buat pesanan baru.';
+          if (statusEl) { statusEl.innerHTML = '<i class="fa-solid fa-hourglass-end"></i> ' + msg; statusEl.className = 'qris-status expired'; }
         }
       })
       .catch(function() {});
   }
 
-  var pollInterval = setInterval(pollStatus, 5000);
+  // Server-side job cek mutasi QRIS tiap 10 detik (lihat lib/orderQris.js + server.js) -- polling
+  // dari browser ke server SENDIRI dibuat lebih cepat dari itu (3 detik) supaya begitu backend
+  // ketemu pembayarannya, halaman ini langsung update tanpa nunggu putaran poll berikutnya.
+  var pollInterval = setInterval(pollStatus, 3000);
 })();
 </script>
 </body>
