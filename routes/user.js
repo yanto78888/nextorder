@@ -14,6 +14,9 @@ import { maskUsername, maskTarget } from '../lib/masking.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import {
+  createOrderQrisPayment, getOrderQrisPayment, cancelOrderQrisPayment
+} from '../lib/orderQris.js';
+import {
   createWithdrawalRecord, getWithdrawalsByUser, getWithdrawSettings
 } from '../lib/withdrawal.js';
 import { notifyWithdrawal } from '../lib/telegram.js';
@@ -970,65 +973,31 @@ router.post('/topup/:trxid/batal', requireLogin, async (req, res) => {
   }
 });
 
-// Setelah QRIS terbayar, buat order otomatis dari saldo yang sudah masuk
-router.get('/order/qris-confirm', requireLogin, async (req, res) => {
+// Dipoll oleh halaman order-qris.ejs tiap beberapa detik buat cek status pembayaran.
+// Order-nya SENDIRI dibuat otomatis di background (lihat checkPendingOrderQrisPayments di
+// lib/orderQris.js) begitu QRIS-nya kebayar -- endpoint ini cuma NGELAPORIN status yang
+// sudah kejadian di background itu, gak ikut motong saldo atau bikin order di sini.
+router.get('/order/qris-status/:trxid', requireLogin, (req, res) => {
+  const payment = getOrderQrisPayment(req.params.trxid);
+  if (!payment || payment.userId !== req.session.user.id) {
+    return res.status(404).json({ success: false, error: 'Transaksi tidak ditemukan' });
+  }
+  res.json({
+    success: true,
+    status: payment.status,
+    orderIds: payment.orderIds || [],
+    redirectUrl: (payment.status === 'paid' && payment.orderIds && payment.orderIds.length > 0)
+      ? (payment.orderIds.length === 1 ? `/riwayat/${payment.orderIds[0]}` : '/riwayat')
+      : null
+  });
+});
+
+router.post('/order/qris-status/:trxid/cancel', requireLogin, async (req, res) => {
   try {
-    const pending = req.session.pendingQrisOrder;
-    const { trxid } = req.query;
-
-    if (!pending || pending.depositTrxid !== trxid) {
-      return res.redirect('/produk?error=' + encodeURIComponent('Sesi order tidak ditemukan'));
-    }
-
-    const dep = getDeposit(trxid);
-    if (!dep || dep.status !== 'paid') {
-      return res.redirect('/produk?error=' + encodeURIComponent('Pembayaran belum dikonfirmasi'));
-    }
-
-    const user = findUserById(req.session.user.id);
-    const product = findProductById(pending.productId);
-    const qty = pending.qty || 1;
-
-    if (!product || product.status !== 'active') {
-      return res.redirect('/produk?error=' + encodeURIComponent('Produk tidak tersedia'));
-    }
-
-    const unitPrice = getEffectivePrice(product, user);
-    const total = computeOrderTotal(product, unitPrice, qty);
-
-    if (user.saldo < total) {
-      return res.redirect('/produk?error=' + encodeURIComponent('Saldo tidak cukup setelah deposit'));
-    }
-
-    deductSaldo(user.id, total, {
-      reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''} (QRIS)`,
-      refType: 'order'
-    });
-
-    const orders = await fulfillAndRecordOrders({
-      user, product, qty, targetData: pending.targetData || {}, targetText: pending.targetText || '',
-      notifySource: 'qris', paidNote: 'Dibayar via QRIS'
-    });
-
-    delete req.session.pendingQrisOrder;
-
-    if (orders.every(o => o.status === 'cancelled')) {
-      return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
-    }
-
-    if (orders.length === 1) {
-      const order = orders[0];
-      const msg = order.status === 'completed'
-        ? 'Pembayaran QRIS berhasil! Produk sudah dikirim.'
-        : order.status === 'processing' && (order.provider === 'digiflazz' || order.provider === 'indosmm')
-          ? 'Pembayaran QRIS berhasil! Sedang diproses otomatis.'
-          : 'Pembayaran QRIS berhasil! Pesanan menunggu admin kirim manual.';
-      return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
-    }
-
-    res.redirect('/riwayat?success=' + encodeURIComponent('Pembayaran QRIS berhasil! ' + summarizeOrders(orders)));
+    await cancelOrderQrisPayment(req.params.trxid, req.session.user.id);
+    res.json({ success: true });
   } catch (err) {
-    res.redirect('/produk?error=' + encodeURIComponent(err.message));
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
@@ -1228,24 +1197,17 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     const targetText = formatTargetText(product, targetData);
 
     const unitPrice = getEffectivePrice(product, user);
-    const total = computeOrderTotal(product, unitPrice, qty);
+    const orderTotal = computeOrderTotal(product, unitPrice, qty);
 
-    const deposit = await createDeposit(user, total);
-
-    // Simpan info order pending ke session supaya bisa dikonfirmasi setelah deposit berhasil
-    req.session.pendingQrisOrder = {
-      productId: product.id,
-      qty,
-      targetText,
-      targetData,
-      depositTrxid: deposit.trxid
-    };
+    // Langsung ke pembayaran QRIS buat order ini -- TIDAK lewat sistem deposit/saldo sama
+    // sekali (lihat catatan di lib/orderQris.js). Order-nya otomatis kebuat di background pas
+    // QRIS-nya kebayar, gak butuh sesi/tab browser buat "konfirmasi" kayak alur lama.
+    const payment = await createOrderQrisPayment({ user, product, qty, targetData, targetText, unitPrice, orderTotal });
 
     res.render('order-qris', {
-      deposit,
+      payment,
       product,
       qty,
-      total,
       targetText,
       user,
       config: getConfig(),
