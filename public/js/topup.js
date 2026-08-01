@@ -57,6 +57,17 @@ function showQr(deposit) {
   startPolling(deposit.trxid);
 }
 
+document.getElementById('btn-download-qr').addEventListener('click', () => {
+  const img = document.getElementById('qr-image');
+  if (!img || !img.src) return;
+  const link = document.createElement('a');
+  link.href = img.src;
+  link.download = 'QRIS-' + (currentTrxid || 'deposit') + '.png';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+
 document.getElementById('btn-cancel').addEventListener('click', async () => {
   if (!currentTrxid) return;
   if (!confirm('Batalkan transaksi top up ini?')) return;
