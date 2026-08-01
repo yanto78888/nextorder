@@ -8,6 +8,7 @@ import { attachUser } from './middleware/auth.js';
 import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
+import { checkPendingOrderQrisPayments } from './lib/orderQris.js';
 import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
 import { checkPendingIndosmmOrders, checkPendingIndosmmRefills } from './lib/indosmm.js';
 import { scheduleAutoBackup } from './lib/backup.js';
@@ -161,9 +162,19 @@ app.use((req, res) => {
 // For VPS/local usage, the interval still runs normally.
 if (process.env.VERCEL !== '1') {
   const cfgStart = getConfig();
-  const pollMs = (cfgStart.qris?.pollIntervalSeconds || 30) * 1000;
+  // Default diturunin dari 30s -> 10s biar pembayaran QRIS (baik top up saldo maupun order
+  // langsung) kedeteksi lebih cepat. Kalau qris.pollIntervalSeconds sudah pernah diisi manual
+  // di data/config.json, nilai itu yang dipakai -- ganti juga jadi 10 di sana kalau mau ikut.
+  const pollMs = (cfgStart.qris?.pollIntervalSeconds || 10) * 1000;
   setInterval(() => {
     checkPendingDeposits().catch(err => console.error('[job] checkPendingDeposits error:', err.message));
+  }, pollMs);
+
+  // Order yang dibayar QRIS langsung (bukan lewat deposit saldo) -- dicek di interval YANG SAMA
+  // biar konsisten & satu-satunya sumber kebenaran soal "kapan mutasi terakhir dicek" gampang
+  // dipantau dari satu angka ini.
+  setInterval(() => {
+    checkPendingOrderQrisPayments().catch(err => console.error('[job] checkPendingOrderQrisPayments error:', err.message));
   }, pollMs);
 
   // Cek ulang status order Digiflazz yang masih "Pending" tiap 20 detik
