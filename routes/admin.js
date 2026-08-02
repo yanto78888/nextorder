@@ -1401,7 +1401,7 @@ router.post('/settings', (req, res) => {
     siteName, siteTagline,
     catalogCategories,
     qrString, merchantCode, apiKey, secretKey, feePercent, depositMin, expiredMinutes,
-    digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
+    digiflazzEnabled, digiflazzUsername, digiflazzApiKey, digiflazzWebhookSecret,
     indosmmEnabled, indosmmApiKey,
     herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue,
     googleEnabled, googleClientId, googleClientSecret,
@@ -1427,7 +1427,7 @@ router.post('/settings', (req, res) => {
     },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, secretKey: (secretKey || '').trim(), feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
-    digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
+    digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '', webhookSecret: (digiflazzWebhookSecret || '').trim() },
     indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
     herosms: {
       enabled: herosmsEnabled === 'on', apiKey: herosmsApiKey || '',

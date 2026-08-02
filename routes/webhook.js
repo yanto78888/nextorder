@@ -2,6 +2,7 @@ import express from 'express';
 import { getConfig } from '../lib/config.js';
 import { processQiospayCallback } from '../lib/deposit.js';
 import { processQiospayCallbackForOrder } from '../lib/orderQris.js';
+import { processDigiflazzWebhook, verifyDigiflazzSignature } from '../lib/digiflazz.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const router = express.Router();
 // satunya proteksi adalah secret_key di URL, makanya WAJIB diisi & dijaga kerahasiaannya di
 // Admin > Pengaturan > QRIS. Tanpa secret_key yang cocok, request ditolak (403) sebelum
 // body-nya bahkan disentuh.
-router.post('/accept/:secretKey', async (req, res) => {
+router.post('/callback/accept/:secretKey', async (req, res) => {
   try {
     const cfg = getConfig();
     const configuredKey = (cfg.qris && cfg.qris.secretKey) || '';
@@ -67,6 +68,54 @@ router.post('/accept/:secretKey', async (req, res) => {
     // sini, notifikasi pembayaran yang mungkin genuinely valid ini hilang permanen gak ke-retry
     // sama sekali, padahal errornya bisa jadi cuma sementara di sisi kita.
     res.status(500).json({ status: 'error', message: 'Gagal diproses, coba lagi', data: null });
+  }
+});
+
+// Webhook callback dari Digiflazz -- URL-nya BEBAS kita pilih (beda dari QIOSPAY yang fixed),
+// daftarkan PERSIS url ini di dashboard Digiflazz (member.digiflazz.com -> Atur Koneksi > API >
+// Webhook): https://domain-kamu.com/api/webhooks/digiflazz. Dipanggil Digiflazz tiap ada transaksi
+// baru (event "create") ATAU transaksi Pending yang berubah status (event "update") -- pelengkap
+// checkPendingDigiflazzOrders() yang polling tiap interval di lib/digiflazz.js, jadi order yang
+// tadinya "Pending" bisa langsung ke-update begitu Digiflazz tau hasilnya, gak perlu nunggu siklus
+// polling berikutnya.
+//
+// PENTING soal keamanan: BEDA dari QIOSPAY (proteksi via secret di URL), Digiflazz pakai HMAC
+// signature (header X-Hub-Signature) yang WAJIB divalidasi -- tanpa ini, siapa pun bisa kirim
+// payload palsu "status: Gagal" buat order yang SEBENARNYA sukses, minta di-refund padahal
+// produknya udah kepakai/terkirim (modus dobel untung). Makanya kalau Webhook Secret belum diisi
+// di Admin > Pengaturan, SEMUA callback ditolak (403) -- bukan diterima tanpa validasi.
+router.post('/webhooks/digiflazz', async (req, res) => {
+  try {
+    const cfg = getConfig();
+    const secret = (cfg.digiflazz && cfg.digiflazz.webhookSecret) || '';
+
+    if (!secret) {
+      console.error('[digiflazz-webhook] Callback ditolak: Webhook Secret belum diisi di Admin > Pengaturan');
+      return res.status(403).json({ status: 'reject', message: 'Webhook secret belum dikonfigurasi di server' });
+    }
+
+    const signature = req.get('X-Hub-Signature');
+    if (!verifyDigiflazzSignature(req.rawBody, signature, secret)) {
+      console.error('[digiflazz-webhook] Callback ditolak: X-Hub-Signature tidak valid/tidak ada');
+      return res.status(403).json({ status: 'reject', message: 'Invalid signature' });
+    }
+
+    const result = await processDigiflazzWebhook(req.body);
+    if (result.matched) {
+      console.log(`[digiflazz-webhook] Order ${result.orderId} -> ${result.outcome} via webhook`);
+    } else {
+      // Sama alasannya kayak QIOSPAY -- bukan berarti error, bisa jadi event duplikat (create+update
+      // buat transaksi yang sama) atau ref_id yang gak dikenal (mis. testing dari dashboard
+      // Digiflazz). Tetap 200 biar Digiflazz gak nganggep ini gagal & retry percuma.
+      console.log(`[digiflazz-webhook] Callback diterima tapi tidak diproses: ${result.reason}`);
+    }
+
+    res.status(200).json({ status: 'ok', matched: result.matched });
+  } catch (err) {
+    console.error('[digiflazz-webhook] Error tak terduga:', err);
+    // 500 (bukan 200) buat error TAK TERDUGA -- sama alasannya kayak QIOSPAY, kasih kesempatan
+    // Digiflazz retry kalau errornya cuma sementara, daripada notifikasi status ini hilang gitu aja.
+    res.status(500).json({ status: 'error', message: 'Gagal diproses, coba lagi' });
   }
 });
 
