@@ -1107,58 +1107,78 @@ router.post('/otp/:id/unlink', (req, res) => {
 // ---------- ORDER ----------
 router.get('/order', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  res.render('admin/order', { orders, config: getConfig(), products: getAllProducts(), users: getAllUsers() });
+  res.render('admin/order', {
+    orders, config: getConfig(), products: getAllProducts(), users: getAllUsers(),
+    success: req.query.success || null,
+    error: req.query.error || null
+  });
 });
 
+// BUG: handler ini async tapi TIDAK ada try/catch -- updateOrderStatus() throw Error('Order tidak
+// ditemukan') kalau id-nya gak match (mis. order sudah kehapus, atau double-submit form yang telat).
+// Di async function, throw sinkron kayak gitu jadi PROMISE REJECTED, bukan exception biasa -- Express
+// 4 gak otomatis nangkep itu, jadinya unhandled rejection. Sejak Node 15+, unhandled rejection bikin
+// SELURUH PROSES CRASH (sudah dicoba reproduksi manual, proses langsung mati kena 1 request ini doang)
+// -- bukan cuma request itu yang gagal, tapi WHOLE SITE down buat semua user sampai PM2 restart.
 router.post('/order/:id/status', async (req, res) => {
-  const { status, detail } = req.body;
-  updateOrderStatus(req.params.id, status, detail);
-  res.redirect('/admin/order');
+  try {
+    const { status, detail } = req.body;
+    updateOrderStatus(req.params.id, status, detail);
+    res.redirect('/admin/order');
+  } catch (err) {
+    res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
+  }
 });
 
 // Kirim pesanan manual oleh admin
 router.post('/order/manual', async (req, res) => {
-  const { userId, productId, customName, customPrice, note, detail, status } = req.body;
-  const user = findUserById(userId);
-  if (!user) return res.redirect('/admin/order?error=User tidak ditemukan');
+  try {
+    const { userId, productId, customName, customPrice, note, detail, status } = req.body;
+    const user = findUserById(userId);
+    if (!user) return res.redirect('/admin/order?error=' + encodeURIComponent('User tidak ditemukan'));
 
-  let productName, price, costPrice = 0;
-  if (productId) {
-    const product = findProductById(productId);
-    if (!product) return res.redirect('/admin/order?error=Produk tidak ditemukan');
-    productName = product.name;
-    price = product.price;
-    costPrice = getProductCostPrice(product);
-  } else {
-    productName = customName || 'Order Manual';
-    price = Number(customPrice) || 0;
+    let productName, price, costPrice = 0;
+    if (productId) {
+      const product = findProductById(productId);
+      if (!product) return res.redirect('/admin/order?error=' + encodeURIComponent('Produk tidak ditemukan'));
+      productName = product.name;
+      price = product.price;
+      costPrice = getProductCostPrice(product);
+    } else {
+      productName = customName || 'Order Manual';
+      price = Number(customPrice) || 0;
+    }
+
+    const order = createOrder({
+      userId: user.id,
+      username: user.username,
+      productId: productId || null,
+      productName,
+      price,
+      qty: 1,
+      source: 'admin',
+      status: status || 'completed',
+      deliveryMode: 'manual',
+      manualRequired: false,
+      note: note || '',
+      detail: detail || '',
+      costPrice
+    });
+
+    notifyOrder({
+      username: user.username,
+      productName,
+      total: order.total,
+      orderId: order.id,
+      source: 'admin'
+    }).catch(() => {});
+
+    res.redirect('/admin/order');
+  } catch (err) {
+    // Sama alasannya kayak /order/:id/status di atas -- jaga-jaga kalau createOrder/getProductCostPrice
+    // dst suatu saat throw (mis. data produk korup), 1 request salah gak boleh nge-down-in seluruh app.
+    res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
   }
-
-  const order = createOrder({
-    userId: user.id,
-    username: user.username,
-    productId: productId || null,
-    productName,
-    price,
-    qty: 1,
-    source: 'admin',
-    status: status || 'completed',
-    deliveryMode: 'manual',
-    manualRequired: false,
-    note: note || '',
-    detail: detail || '',
-    costPrice
-  });
-
-  notifyOrder({
-    username: user.username,
-    productName,
-    total: order.total,
-    orderId: order.id,
-    source: 'admin'
-  }).catch(() => {});
-
-  res.redirect('/admin/order');
 });
 
 // ---------- PENARIKAN SALDO ----------

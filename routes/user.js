@@ -515,59 +515,69 @@ router.get('/otp', (req, res) => {
 });
 
 router.post('/otp/order/:productId', requireLogin, async (req, res) => {
-  const product = findProductById(req.params.productId);
-  if (!product || product.provider !== 'otp' || product.status !== 'active') {
-    return res.redirect('/otp?error=' + encodeURIComponent('Produk OTP tidak ditemukan/tidak aktif'));
-  }
-  if (!isHerosmsEnabled()) {
-    return res.redirect('/otp?error=' + encodeURIComponent('Layanan OTP sedang tidak aktif'));
-  }
-
-  const user = findUserById(req.session.user.id);
-  if ((user.saldo || 0) < product.price) {
-    return res.redirect('/otp?error=' + encodeURIComponent('Saldo tidak cukup'));
-  }
-
-  // PENTING: minta nomor DULU ke HeroSMS, baru potong saldo kalau BERHASIL dapat nomor -- bukan
-  // sebaliknya. Kalau dipotong duluan lalu getNumber() gagal (nomor habis dll), harus nambah
-  // logic refund lagi; dengan urutan ini, gagal minta nomor = saldo user gak kesentuh sama sekali.
-  let activationId, phoneNumber;
   try {
-    ({ activationId, phoneNumber } = await getHerosmsNumber({
-      serviceCode: product.otpServiceCode,
-      countryId: product.otpCountryId
-    }));
+    const product = findProductById(req.params.productId);
+    if (!product || product.provider !== 'otp' || product.status !== 'active') {
+      return res.redirect('/otp?error=' + encodeURIComponent('Produk OTP tidak ditemukan/tidak aktif'));
+    }
+    if (!isHerosmsEnabled()) {
+      return res.redirect('/otp?error=' + encodeURIComponent('Layanan OTP sedang tidak aktif'));
+    }
+
+    const user = findUserById(req.session.user.id);
+    if (!user) {
+      return res.redirect('/login?error=' + encodeURIComponent('Sesi kamu tidak valid, silakan login ulang'));
+    }
+    if ((user.saldo || 0) < product.price) {
+      return res.redirect('/otp?error=' + encodeURIComponent('Saldo tidak cukup'));
+    }
+
+    // PENTING: minta nomor DULU ke HeroSMS, baru potong saldo kalau BERHASIL dapat nomor -- bukan
+    // sebaliknya. Kalau dipotong duluan lalu getNumber() gagal (nomor habis dll), harus nambah
+    // logic refund lagi; dengan urutan ini, gagal minta nomor = saldo user gak kesentuh sama sekali.
+    let activationId, phoneNumber;
+    try {
+      ({ activationId, phoneNumber } = await getHerosmsNumber({
+        serviceCode: product.otpServiceCode,
+        countryId: product.otpCountryId
+      }));
+    } catch (err) {
+      return res.redirect('/otp?error=' + encodeURIComponent(err.message));
+    }
+
+    deductSaldo(user.id, product.price, {
+      reason: `Sewa nomor OTP: ${product.name}`,
+      refType: 'order'
+    });
+
+    const order = createOrder({
+      userId: user.id,
+      username: user.username,
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      qty: 1,
+      total: product.price,
+      source: 'user',
+      status: 'processing',
+      deliveryMode: 'auto',
+      manualRequired: false,
+      targetText: '',
+      detail: '',
+      note: 'Menunggu SMS masuk',
+      provider: 'otp',
+      providerRefId: activationId,
+      providerCustomerNo: phoneNumber,
+      costPrice: 0
+    });
+
+    res.redirect(`/otp/status/${order.id}`);
   } catch (err) {
-    return res.redirect('/otp?error=' + encodeURIComponent(err.message));
+    // Sama alasannya kayak POST /order (lihat lib/asyncHandler pattern di server.js) -- jaga-jaga
+    // supaya 1 error gak nge-down-in seluruh app, bukan cuma checkout produk digital yang dilindungi.
+    console.error('[otp/order] Gagal:', err);
+    res.redirect('/otp?error=' + encodeURIComponent('Terjadi kesalahan: ' + err.message));
   }
-
-  deductSaldo(user.id, product.price, {
-    reason: `Sewa nomor OTP: ${product.name}`,
-    refType: 'order'
-  });
-
-  const order = createOrder({
-    userId: user.id,
-    username: user.username,
-    productId: product.id,
-    productName: product.name,
-    price: product.price,
-    qty: 1,
-    total: product.price,
-    source: 'user',
-    status: 'processing',
-    deliveryMode: 'auto',
-    manualRequired: false,
-    targetText: '',
-    detail: '',
-    note: 'Menunggu SMS masuk',
-    provider: 'otp',
-    providerRefId: activationId,
-    providerCustomerNo: phoneNumber,
-    costPrice: 0
-  });
-
-  res.redirect(`/otp/status/${order.id}`);
 });
 
 router.get('/otp/status/:id', requireLogin, (req, res) => {
@@ -634,52 +644,68 @@ router.post('/otp/status/:id/cancel', requireLogin, async (req, res) => {
   res.redirect(`/otp/status/${order.id}`);
 });
 
+// BUG: sama kayak /admin/order/:id/status -- handler ini async tapi sebelumnya TANPA try/catch,
+// dan `user` dari findUserById() gak pernah dicek null sebelum dipakai (`user.saldo` baris di bawah)
+// -- kalau sesi user mengarah ke akun yang datanya udah gak ada lagi di database (mis. restore
+// backup lama sementara user itu masih login di browser), baris itu throw TypeError, jadi unhandled
+// rejection, dan (sudah dicoba reproduksi manual) itu CRASH SELURUH PROSES NODE -- bukan cuma
+// checkout user itu yang gagal, tapi WHOLE SITE down buat SEMUA user sampai PM2 restart. Ini route
+// PALING SERING DIPANGGIL di seluruh app (tiap kali ada yang belanja), jadi paling kritis buat dikasih
+// try/catch dibanding route lain manapun.
 router.post('/order', requireLogin, async (req, res) => {
-  const user = findUserById(req.session.user.id);
-  const product = findProductById(req.body.productId);
-  const qty = Math.max(1, parseInt(req.body.qty) || 1);
+  try {
+    const user = findUserById(req.session.user.id);
+    if (!user) {
+      return res.redirect('/login?error=' + encodeURIComponent('Sesi kamu tidak valid, silakan login ulang'));
+    }
+    const product = findProductById(req.body.productId);
+    const qty = Math.max(1, parseInt(req.body.qty) || 1);
 
-  if (!product || product.status !== 'active') {
-    return res.redirect('/produk?error=Produk tidak tersedia');
+    if (!product || product.status !== 'active') {
+      return res.redirect('/produk?error=Produk tidak tersedia');
+    }
+
+    const qtyError = validateQty(product, qty);
+    if (qtyError) return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(qtyError));
+
+    const { data: targetData, missing } = extractTargetData(product, req.body);
+    if (missing.length > 0) {
+      return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(`Lengkapi dulu: ${missing.join(', ')}`));
+    }
+    const targetText = formatTargetText(product, targetData);
+
+    const unitPrice = getEffectivePrice(product, user);
+    const total = computeOrderTotal(product, unitPrice, qty);
+    if (user.saldo < total) {
+      return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
+    }
+
+    deductSaldo(user.id, total, {
+      reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''}`,
+      refType: 'order'
+    });
+
+    const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText });
+
+    if (orders.every(o => o.status === 'cancelled')) {
+      return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
+    }
+
+    if (orders.length === 1) {
+      const order = orders[0];
+      const msg = order.status === 'completed'
+        ? 'Order berhasil, produk sudah dikirim.'
+        : order.status === 'processing' && (order.provider === 'digiflazz' || order.provider === 'indosmm')
+          ? 'Order berhasil, sedang diproses otomatis.'
+          : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
+      return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
+    }
+
+    res.redirect('/riwayat?success=' + encodeURIComponent(summarizeOrders(orders)));
+  } catch (err) {
+    console.error('[order] Gagal checkout:', err);
+    res.redirect('/produk?error=' + encodeURIComponent('Terjadi kesalahan saat checkout: ' + err.message));
   }
-
-  const qtyError = validateQty(product, qty);
-  if (qtyError) return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(qtyError));
-
-  const { data: targetData, missing } = extractTargetData(product, req.body);
-  if (missing.length > 0) {
-    return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(`Lengkapi dulu: ${missing.join(', ')}`));
-  }
-  const targetText = formatTargetText(product, targetData);
-
-  const unitPrice = getEffectivePrice(product, user);
-  const total = computeOrderTotal(product, unitPrice, qty);
-  if (user.saldo < total) {
-    return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
-  }
-
-  deductSaldo(user.id, total, {
-    reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''}`,
-    refType: 'order'
-  });
-
-  const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText });
-
-  if (orders.every(o => o.status === 'cancelled')) {
-    return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
-  }
-
-  if (orders.length === 1) {
-    const order = orders[0];
-    const msg = order.status === 'completed'
-      ? 'Order berhasil, produk sudah dikirim.'
-      : order.status === 'processing' && (order.provider === 'digiflazz' || order.provider === 'indosmm')
-        ? 'Order berhasil, sedang diproses otomatis.'
-        : 'Order berhasil, stok otomatis sedang habis. Pesanan menunggu admin kirim manual.';
-    return res.redirect(`/riwayat/${order.id}?success=` + encodeURIComponent(msg));
-  }
-
-  res.redirect('/riwayat?success=' + encodeURIComponent(summarizeOrders(orders)));
 });
 
 router.get('/riwayat', requireLogin, async (req, res) => {
