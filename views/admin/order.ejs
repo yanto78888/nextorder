@@ -8,6 +8,9 @@
   <div class="main no-bottom-nav">
     <div class="topbar"><h2>Kelola Order</h2></div>
 
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
+
     <% const waitingManual = orders.filter(o => o.manualRequired && o.status === 'processing'); %>
     <% if (waitingManual.length > 0) { %>
       <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
