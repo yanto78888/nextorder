@@ -19,6 +19,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import adminRoutes from './routes/admin.js';
 import apiRoutes from './routes/api.js';
+import webhookRoutes from './routes/webhook.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -122,6 +123,11 @@ app.use('/', authRoutes);
 app.use('/', userRoutes);
 app.use('/admin', adminRoutes);
 app.use('/api/v1', apiRoutes);
+// Path ini FIXED oleh QIOSPAY sendiri (lihat dokumentasi API mereka: "Full Implementation
+// Script") -- endpoint yang didaftarkan di dashboard merchant QIOSPAY harus PERSIS
+// domain-kamu.com/api/callback/accept/{secret_key}, makanya dipasang di /api/callback (bukan
+// ikut /api/v1 yang dipakai reseller API).
+app.use('/api/callback', webhookRoutes);
 
 // ---------- SEO: robots.txt & sitemap.xml ----------
 // Halaman privat (butuh login) & panel admin sengaja di-disallow -- gak ada nilai SEO buat
