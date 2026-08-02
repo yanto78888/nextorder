@@ -113,6 +113,15 @@
             <span id="saldoDigiflazzResult" class="helper-text"></span>
           </div>
 
+          <label style="margin-top:16px;">Webhook Secret</label>
+          <input type="text" name="digiflazzWebhookSecret" value="<%= digiflazz.webhookSecret || '' %>" placeholder="Isi bebas, ini bukan dari Digiflazz -- kamu yang buat sendiri">
+          <div class="helper-text">
+            Opsional, pelengkap sistem cek-status berkala yang sudah jalan (bukan pengganti) -- kalau diisi, order yang tadinya "Pending" bisa langsung ke-update SAAT ITU JUGA begitu Digiflazz tau hasilnya, gak perlu nunggu siklus cek berikutnya.
+            Isi bebas string apa aja (bukan didapat dari Digiflazz), simpan, lalu di dashboard Digiflazz (member.digiflazz.com) &rarr; Atur Koneksi &gt; API &gt; Webhook, isi:
+            <br>URL: <code><%= siteOrigin %>/api/webhooks/digiflazz</code>
+            <br>Secret: <code><%= digiflazz.webhookSecret || '(isi & simpan dulu field di atas)' %></code>
+          </div>
+
           <div class="section-title"><h3>IndoSMM (Jasa Sosmed: Followers/Likes/Views)</h3><div class="line"></div></div>
 
           <label class="check-row"><input type="checkbox" name="indosmmEnabled" <%= indosmm.enabled ? 'checked' : '' %>> Aktifkan Jasa Sosmed via IndoSMM</label>
