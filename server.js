@@ -24,6 +24,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// JARING PENGAMAN TERAKHIR: kalau ada throw sinkron di dalam route handler `async (req, res) => {...}`
+// yang KELEWAT gak ke-try/catch (ketemu beberapa kasus konkret pas audit: mis. POST /order & POST
+// /admin/order/:id/status sebelum diperbaiki -- user.saldo dipanggil padahal user-nya bisa null),
+// itu jadi "unhandled promise rejection". Express 4 GAK nangkep itu otomatis, dan sejak Node 15+ efek
+// baliknya proses Node LANGSUNG MATI TOTAL -- bukan cuma 1 request gagal, tapi SELURUH SITUS down
+// buat SEMUA user sampai PM2 restart (sudah dicoba reproduksi manual, konsisten crash).
+//
+// Listener ini jadi jaring pengaman paling akhir: request yang kena tetap gantung/gagal (gak dapat
+// respons yang bagus), TAPI prosesnya sendiri gak mati, jadi user LAIN yang lagi buka situs gak ikut
+// kena imbas. ITU TETAP CUMA JARING PENGAMAN, BUKAN PENGGANTI try/catch yang benar di tiap handler --
+// tempat yang udah ketauan rawan (checkout, update status order) sudah dikasih try/catch masing-
+// masing secara langsung juga.
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection] Ada error async yang lolos gak ke-tangkep:', err);
+});
+
 // Nextorder biasanya jalan di belakang reverse proxy (lihat deploy/Caddyfile.example: Caddy
 // terima HTTPS lalu forward polos ke 127.0.0.1:3000). Tanpa "trust proxy", req.protocol Express
 // selalu kebaca "http" walau situsnya beneran https -- akibatnya URL di meta OG/canonical/sitemap
