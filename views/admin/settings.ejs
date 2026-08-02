@@ -74,6 +74,14 @@
           <label>API Key Mutasi</label>
           <input type="text" name="apiKey" value="<%= qris.apiKey || '' %>">
 
+          <label>Secret Key Callback (Webhook)</label>
+          <input type="text" name="secretKey" value="<%= qris.secretKey || '' %>" placeholder="Isi sesuai Secret Key dari dashboard QIOSPAY">
+          <div class="helper-text">
+            Buat notifikasi pembayaran masuk LEBIH CEPAT (real-time, gak nunggu polling) -- opsional, pelengkap "API Key Mutasi" di atas, bukan pengganti.
+            Generate Secret Key di dashboard merchant QIOSPAY, tempel di sini, lalu daftarkan URL callback berikut di dashboard QIOSPAY (menu Callback/Webhook):
+            <br><code id="qiospay-callback-url"><%= siteOrigin %>/api/callback/accept/<%= qris.secretKey || '{SECRET_KEY}' %></code>
+          </div>
+
           <div class="grid grid-3 form-mini-grid">
             <div>
               <label>Fee (%)</label>

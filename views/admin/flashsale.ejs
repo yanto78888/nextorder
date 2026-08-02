@@ -101,7 +101,12 @@
             <option value="">-- pilih produk --</option>
             <% availableProducts.forEach(p => { %>
               <option value="<%= p.id %>" data-category="<%= p.category || 'Umum' %>">
-                <%= (p.variantGroup || p.name) + ' — Rp ' + p.price.toLocaleString('id-ID') + ' [' + (p.provider === 'digiflazz' ? '⚡ Auto' : '🛠️ Manual') + ']' %>
+                <%# BUG: sebelumnya (p.variantGroup || p.name) -- variantGroup cuma nama brand (mis.
+                    "Free Fire" doang), jadi beberapa nominal beda (70/140/355 Diamond dst) semua
+                    kelihatan sama persis di dropdown ini, cuma beda harga. Admin bisa gampang salah
+                    pilih nominal. Helper text di bawah dropdown ini sendiri bilang "nama ditampilkan
+                    lengkap tanpa dipotong" -- kode-nya sekarang match sama itu. %>
+                <%= p.name + ' — Rp ' + p.price.toLocaleString('id-ID') + ' [' + (p.provider === 'digiflazz' ? '⚡ Auto' : '🛠️ Manual') + ']' %>
               </option>
             <% }) %>
           </select>
