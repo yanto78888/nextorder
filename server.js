@@ -51,7 +51,14 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// { verify: ... } nyimpen raw body (Buffer, SEBELUM di-parse jadi objek JS) ke req.rawBody -- WAJIB
+// buat validasi HMAC signature webhook Digiflazz (X-Hub-Signature dihitung dari raw body, bukan dari
+// JSON.stringify ulang hasil parse, yang urutan key/whitespace-nya bisa beda dan bikin HMAC gak
+// pernah cocok). Gak ngubah perilaku body-parsing yang sudah ada sama sekali -- cuma nambah 1
+// referensi buffer yang emang udah kebaca.
+app.use(express.json({
+  verify: (req, res, buf) => { req.rawBody = buf; }
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/healthz', (req, res) => {
@@ -123,11 +130,11 @@ app.use('/', authRoutes);
 app.use('/', userRoutes);
 app.use('/admin', adminRoutes);
 app.use('/api/v1', apiRoutes);
-// Path ini FIXED oleh QIOSPAY sendiri (lihat dokumentasi API mereka: "Full Implementation
-// Script") -- endpoint yang didaftarkan di dashboard merchant QIOSPAY harus PERSIS
-// domain-kamu.com/api/callback/accept/{secret_key}, makanya dipasang di /api/callback (bukan
-// ikut /api/v1 yang dipakai reseller API).
-app.use('/api/callback', webhookRoutes);
+// Router ini nge-handle callback dari provider eksternal (QIOSPAY, Digiflazz). Path lengkapnya
+// didefinisikan DI DALAM routes/webhook.js sendiri (beda provider, beda aturan path -- QIOSPAY
+// fixed harus /api/callback/accept/{key}, Digiflazz bebas kita pilih), makanya di-mount di /api aja
+// (prefix umum), bukan /api/callback kayak sebelumnya.
+app.use('/api', webhookRoutes);
 
 // ---------- SEO: robots.txt & sitemap.xml ----------
 // Halaman privat (butuh login) & panel admin sengaja di-disallow -- gak ada nilai SEO buat
