@@ -8,7 +8,7 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice
+  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
@@ -20,7 +20,7 @@ import { runBackupNow, exportAllData, importAllData } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice } from '../lib/digiflazz.js';
-import { getGroupThumbnails, setGroupThumbnail } from '../lib/digiflazzGroups.js';
+import { getGroupThumbnails, setGroupThumbnail, deleteGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { getBalance as getIndosmmBalance, getServiceCategories as getIndosmmCategories, searchServices as searchIndosmmServices, computeSellPrice as computeIndosmmSellPrice, isIndosmmEnabled } from '../lib/indosmm.js';
 import {
   isHerosmsEnabled, getBalance as getHerosmsBalance, getServicesList as getHerosmsServicesList,
@@ -461,7 +461,10 @@ function renderDigiflazzPage(req, res, extra = {}) {
 }
 
 router.get('/digiflazz', (req, res) => {
-  renderDigiflazzPage(req, res);
+  renderDigiflazzPage(req, res, {
+    error: req.query.error || null,
+    success: req.query.success || null
+  });
 });
 
 // Daftar kategori Digiflazz (Games, Pulsa, Data, PLN, dst) buat dropdown filter di halaman kelola
@@ -747,6 +750,21 @@ router.post('/digiflazz/group/:group/thumbnail', uploadGroupThumbnail, (req, res
     if (!req.file) return renderDigiflazzPage(req, res, { error: 'Pilih file foto dulu' });
     setGroupThumbnail(groupName, '/uploads/digiflazz-groups/' + req.file.filename);
     renderDigiflazzPage(req, res, { success: `Foto grup "${groupName}" berhasil diperbarui.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Hapus SATU GRUP Digiflazz sekaligus (semua nominal di dalamnya), bukan satu-satu manual --
+// dipakai tombol "Hapus Grup" di kartu folder halaman ini. Ikut bersihin: item Flash Sale yang
+// masih nunjuk ke produk-produk itu (biar gak jadi data nyangkut), dan foto grupnya.
+router.post('/digiflazz/group/:group/hapus', (req, res) => {
+  const groupName = decodeURIComponent(req.params.group);
+  try {
+    const deleted = deleteProductsByGroup(groupName, 'digiflazz');
+    deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
+    deleteGroupThumbnail(groupName);
+    renderDigiflazzPage(req, res, { success: `Grup "${groupName}" dihapus (${deleted.length} produk).` });
   } catch (err) {
     renderDigiflazzPage(req, res, { error: err.message });
   }
@@ -1382,7 +1400,7 @@ router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
     catalogCategories,
-    qrString, merchantCode, apiKey, feePercent, depositMin, expiredMinutes,
+    qrString, merchantCode, apiKey, secretKey, feePercent, depositMin, expiredMinutes,
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey,
     indosmmEnabled, indosmmApiKey,
     herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue,
@@ -1408,7 +1426,7 @@ router.post('/settings', (req, res) => {
       ogImage: String(seoOgImage || '').trim()
     },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
-    qris: { qrString, merchantCode, apiKey, feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
+    qris: { qrString, merchantCode, apiKey, secretKey: (secretKey || '').trim(), feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '' },
     indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
     herosms: {
