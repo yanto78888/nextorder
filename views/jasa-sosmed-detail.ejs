@@ -64,9 +64,6 @@
 
       <div class="detail-buy-box">
         <div class="detail-price-main">
-          <% if (finalPrice < product.price) { %>
-            <span class="detail-price-old">Rp <%= product.price.toLocaleString('id-ID') %></span>
-          <% } %>
           <span class="detail-price-now">Rp <%= finalPrice.toLocaleString('id-ID') %> <span style="font-size:13px; font-weight:400; color:var(--text-dim);">/1000</span></span>
         </div>
 

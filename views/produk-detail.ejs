@@ -15,7 +15,7 @@
     <!-- Hero Image -->
     <div class="detail-hero">
       <% if (displayThumbnail) { %>
-        <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= displayName %>">
+        <img class="detail-thumb" src="<%= displayThumbnail %>" alt="<%= displayName %>" onload="this.classList.add('is-loaded')">
       <% } else { %>
         <div class="detail-thumb detail-thumb-placeholder"><%= displayName.charAt(0).toUpperCase() %></div>
       <% } %>
@@ -177,9 +177,6 @@
         <% } %>
 
         <div class="detail-price-main">
-          <% if (finalPrice < product.price) { %>
-            <span class="detail-price-old" id="priceOld">Rp <%= product.price.toLocaleString('id-ID') %></span>
-          <% } %>
           <span class="detail-price-now" id="priceNow">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
         </div>
 
@@ -492,20 +489,7 @@
       variantGrid.querySelectorAll('.variant-card').forEach(function(c){c.classList.remove('selected');});
       card.classList.add('selected');
 
-      var priceOld=document.getElementById('priceOld');
       var priceNow=document.getElementById('priceNow');
-      if(v.finalPrice < v.price){
-        if(!priceOld){
-          priceOld=document.createElement('span');
-          priceOld.className='detail-price-old';
-          priceOld.id='priceOld';
-          priceNow.parentNode.insertBefore(priceOld, priceNow);
-        }
-        priceOld.textContent=fmt(v.price);
-        priceOld.style.display='';
-      } else if(priceOld){
-        priceOld.style.display='none';
-      }
       if(priceNow) priceNow.textContent=fmt(v.finalPrice);
 
       var idSaldo=document.getElementById('productIdSaldo');
