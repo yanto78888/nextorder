@@ -1417,13 +1417,28 @@ router.post('/settings', (req, res) => {
     .map(c => c.trim())
     .filter(Boolean);
 
+  // PROTEKSI: field identitas & SEO ini kalau kekirim KOSONG pas Simpan, JANGAN ditimpa jadi
+  // kosong -- pertahankan nilai yang lama (sama pola kayak googleClientSecret di bawah). User
+  // melaporkan field-field ini "tiba-tiba hilang semua" walau siteName itu required di HTML
+  // (harusnya browser nolak kirim kosong) -- belum ketemu satu penyebab pasti yang bisa
+  // direproduksi dari kode, tapi apa pun pemicunya, proteksi ini nutup jalan buat data penting
+  // ke-timpa jadi kosong tanpa sengaja. Kalau admin BENERAN mau ngosongin salah satu field ini
+  // (mis. WhatsApp Owner), tetap bisa lewat isi spasi lalu simpan, atau minta bantuan lagi.
+  const prevCfg = getConfig();
+  const keepIfBlank = (newVal, oldVal) => {
+    const trimmed = String(newVal || '').trim();
+    return trimmed ? newVal : (oldVal || '');
+  };
+
   updateConfig({
-    siteName, siteTagline, ownerWhatsapp,
+    siteName: keepIfBlank(siteName, prevCfg.siteName),
+    siteTagline: keepIfBlank(siteTagline, prevCfg.siteTagline),
+    ownerWhatsapp: keepIfBlank(ownerWhatsapp, prevCfg.ownerWhatsapp),
     seo: {
-      siteUrl: String(seoSiteUrl || '').trim().replace(/\/+$/, ''),
-      metaDescription: String(seoMetaDescription || '').trim().slice(0, 160),
+      siteUrl: keepIfBlank(String(seoSiteUrl || '').trim().replace(/\/+$/, ''), (prevCfg.seo || {}).siteUrl),
+      metaDescription: keepIfBlank(String(seoMetaDescription || '').trim().slice(0, 160), (prevCfg.seo || {}).metaDescription),
       metaKeywords: String(seoMetaKeywords || '').trim(),
-      ogImage: String(seoOgImage || '').trim()
+      ogImage: keepIfBlank(String(seoOgImage || '').trim(), (prevCfg.seo || {}).ogImage)
     },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, secretKey: (secretKey || '').trim(), feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
