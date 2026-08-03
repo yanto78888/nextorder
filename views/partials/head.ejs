@@ -10,6 +10,13 @@
   } catch (e) {}
 })();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- BUG LAMA: --font-display/--font-body di style.css udah nunjuk ke 'Bebas Neue'/'Inter' dari
+     awal, tapi gak ada satupun <link> yang beneran nge-load font-nya -- jadi selama ini SELALU
+     fallback ke font sistem default browser (nyaris gak ada device yang punya 'Bebas Neue'
+     ter-install lokal), bukan cuma di brand doang tapi di SEMUA heading di seluruh situs. -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/css/style.css">
 <%
