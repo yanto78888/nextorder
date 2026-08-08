@@ -713,7 +713,7 @@ input[type="file"]::file-selector-button {
 }
 .nf-card-thumb {
   position: relative;
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 2 / 3;
   background: linear-gradient(135deg, #f4f5f7, #e9ebee);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
@@ -1166,7 +1166,7 @@ input[type="file"]::file-selector-button {
 .detail-hero {
   position: relative;
   width: 100%;
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 2 / 3;
   max-height: 480px;
   overflow: hidden;
   flex-shrink: 0;
@@ -1665,7 +1665,15 @@ input[type="file"]::file-selector-button {
   background:var(--bg-panel);
   border:1.5px solid var(--border-glow);
   position:relative; overflow:hidden;
+  animation: nfCardIn .4s cubic-bezier(.16,1,.3,1) both;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
+.adm-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.08); }
+.adm-kpi-grid .adm-kpi-card:nth-child(1) { animation-delay: 0ms; }
+.adm-kpi-grid .adm-kpi-card:nth-child(2) { animation-delay: 60ms; }
+.adm-kpi-grid .adm-kpi-card:nth-child(3) { animation-delay: 120ms; }
+.adm-kpi-grid .adm-kpi-card:nth-child(4) { animation-delay: 180ms; }
+@media (prefers-reduced-motion: reduce) { .adm-kpi-card { animation: none; } }
 .adm-kpi-card::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; border-radius:14px 14px 0 0; }
 .kpi-red::before { background:linear-gradient(90deg,#e50914,#ff4d4d); box-shadow:0 0 12px rgba(229,9,20,0.23); }
 .kpi-green::before { background:linear-gradient(90deg,#2ecc71,#27ae60); box-shadow:0 0 12px rgba(30,132,73,0.18); }
@@ -1687,7 +1695,10 @@ input[type="file"]::file-selector-button {
   border:1.5px solid rgba(21,101,192,0.25);
   border-radius:14px; padding:18px 16px; margin-bottom:14px;
   box-shadow:0 0 30px rgba(21,101,192,0.08) inset;
+  animation: nfCardIn .4s cubic-bezier(.16,1,.3,1) both;
+  animation-delay: 220ms;
 }
+@media (prefers-reduced-motion: reduce) { .adm-revenue-card { animation: none; } }
 .adm-rev-eyebrow { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin-bottom:4px; }
 .adm-rev-main { font-family:var(--font-display); font-size:26px; color:var(--success); margin-bottom:8px; }
 .adm-rev-sub { display:flex; gap:6px; flex-wrap:wrap; }
@@ -1706,7 +1717,10 @@ input[type="file"]::file-selector-button {
 .adm-chart-card {
   background:var(--bg-panel); border:1.5px solid var(--border-glow);
   border-radius:14px; padding:16px; margin-bottom:16px;
+  animation: nfCardIn .45s cubic-bezier(.16,1,.3,1) both;
+  animation-delay: 260ms;
 }
+@media (prefers-reduced-motion: reduce) { .adm-chart-card { animation: none; } }
 .adm-chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
 .adm-chart-title { font-size:14px; font-weight:700; }
 .adm-chart-tabs { display:flex; gap:6px; }
@@ -1808,6 +1822,26 @@ input[type="file"]::file-selector-button {
 .review-login-prompt { font-size:12px; color:var(--text-dim); padding:10px 0; margin-bottom:10px; }
 .reviews-empty { font-size:13px; color:var(--text-dim); padding:16px; text-align:center; background:var(--bg-panel); border-radius:10px; border:1px dashed var(--border-glow); }
 
+/* ---- Breakdown rating (rata-rata besar + batang jumlah per bintang) ---- */
+.rating-breakdown {
+  display:flex; gap:18px; align-items:center;
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:12px;
+  padding:16px; margin-bottom:16px;
+}
+.rb-avg { flex-shrink:0; text-align:center; padding-right:16px; border-right:1px solid var(--border-glow); }
+.rb-avg-num { font-family:var(--font-display); font-size:32px; line-height:1; color:var(--text-main); }
+.rb-avg-stars { display:flex; gap:1px; justify-content:center; margin:4px 0 2px; font-size:12px; }
+.rb-avg-stars .star.filled { color:#f5c518; }
+.rb-avg-stars .star:not(.filled) { color:var(--border-glow); }
+.rb-avg-count { font-size:10.5px; color:var(--text-dim); white-space:nowrap; }
+.rb-bars { flex:1; display:flex; flex-direction:column; gap:5px; min-width:0; }
+.rb-bar-row { display:flex; align-items:center; gap:8px; font-size:10.5px; color:var(--text-dim); }
+.rb-bar-label { flex-shrink:0; width:26px; display:flex; align-items:center; gap:2px; }
+.rb-bar-label i { color:#f5c518; font-size:8px; }
+.rb-bar-track { flex:1; height:6px; border-radius:999px; background:var(--bg-panel-2); overflow:hidden; }
+.rb-bar-fill { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, #f5c518, #e0a800); }
+.rb-bar-count { flex-shrink:0; width:22px; text-align:right; }
+
 .review-list { display:flex; flex-direction:column; gap:12px; }
 .review-card {
   background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px; padding:12px;
@@ -1827,6 +1861,35 @@ input[type="file"]::file-selector-button {
 .rstar-on { color:#f5c518; font-size:13px; }
 .rstar-off { color:var(--border-glow); font-size:13px; }
 .review-comment { font-size:13px; color:var(--text-main); line-height:1.6; padding-left:44px; }
+
+/* ---- Daftar ulasan geser horizontal otomatis ----
+   Kalau ulasan >=4, konten daftarnya DIDOBELIN di EJS (reviews.concat(reviews)) lalu geser
+   -50% terus-menerus -- pas nyampe -50% itu PERSIS sama posisinya kayak 0% (karena kontennya
+   dobel), jadi loop-nya mulus gak ada "patahan"/lompatan yang kelihatan. Kalau ulasan <4,
+   ditampilin diam aja (gak didobelin, gak discroll) -- geser otomatis buat cuma 1-3 kartu
+   kurang berguna, malah keliatan aneh bolak-balik konten dikit doang. */
+.review-marquee-wrap { overflow:hidden; }
+.review-marquee-track { display:flex; gap:12px; }
+.review-marquee-track .review-card { flex:0 0 auto; width:260px; }
+.review-marquee-track.is-scrolling {
+  width:max-content;
+  animation: reviewMarquee 28s linear infinite;
+}
+.review-marquee-track.is-scrolling:hover,
+.review-marquee-track.is-scrolling:focus-within { animation-play-state: paused; }
+@keyframes reviewMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-marquee-track.is-scrolling { animation: none; overflow-x: auto; }
+}
+@media (max-width: 619px) {
+  /* Kartu ulasan gak didobelin lagi (JS udah nyiapin 2x kalau is-scrolling), tapi lebarnya
+     dikecilin dikit di HP biar minimal 1.3 kartu kelihatan sekaligus, ngasih tau user ada yang
+     bisa digeser/nunggu jalan sendiri. */
+  .review-marquee-track .review-card { width:220px; }
+}
 
 /* =====================================================================
    LIPAT / TAMPILKAN SEMUA PER KATEGORI (beranda: 3 kolom x 3 baris dulu,
@@ -2155,12 +2218,16 @@ input[type="file"]::file-selector-button {
   box-shadow: 0 2px 8px rgba(21,101,192,0.23);
 }
 .fs-card-thumb {
-  height: 90px;
+  aspect-ratio: 2 / 3;
   background: linear-gradient(135deg, #f4f5f7, #e9ebee);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
-.fs-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.fs-card-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity .35s ease;
+}
+.fs-card-thumb img.is-loaded { opacity: 1; }
 .fs-card-body { padding: 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .fs-card-name {
   font-size: 12px; font-weight: 700; line-height: 1.25;
@@ -2168,6 +2235,7 @@ input[type="file"]::file-selector-button {
 }
 .fs-card-cat { font-size: 9.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; }
 .fs-card-price { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.fs-price-old { font-size: 11px; color: var(--text-dim); text-decoration: line-through; }
 
 .fs-stock { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .fs-stock-label { font-size: 9.5px; color: var(--text-dim); text-transform: uppercase; flex-shrink: 0; }
@@ -2192,6 +2260,88 @@ input[type="file"]::file-selector-button {
 @media (min-width: 620px) {
   .fs-card { width: 168px; }
   .fs-track.fs-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ====== BESTSELLER (6 kategori paling laris, carousel geser) ======
+   Struktur & mekanisme scroll SAMA kayak .fs-* di atas (biar konsisten), bedanya cuma badge
+   ranking (nomor urut #1-#6, bukan persen diskon) dan gak ada elemen stok/countdown. */
+.bs-section { margin-bottom: 26px; }
+.bs-heading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--text-main);
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+}
+.bs-heading i { color: #e6a817; }
+.bs-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.bs-track::-webkit-scrollbar { display: none; }
+.bs-card {
+  flex: 0 0 auto;
+  width: 148px;
+  scroll-snap-align: start;
+  background: linear-gradient(160deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+  border: 1.5px solid var(--border-glow);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.bs-card:hover { transform: translateY(-3px); border-color: #e6a817; }
+.bs-rank {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(10,14,21,0.55);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+/* Podium 1-2-3 dikasih warna medali biar nyari yang paling laris kerasa "juara", bukan cuma
+   angka polos -- 4-6 tetap konsisten netral (badge gelap biasa) biar gak berlebihan semua warna-warni. */
+.bs-rank-1 { background: linear-gradient(135deg, #f5c518, #e0a800); color: #241a00; }
+.bs-rank-2 { background: linear-gradient(135deg, #d7dce1, #a9b2bb); color: #1a1e22; }
+.bs-rank-3 { background: linear-gradient(135deg, #d99a5b, #b9713a); color: #2b1400; }
+.bs-card-thumb {
+  aspect-ratio: 2 / 3;
+  background: linear-gradient(135deg, #f4f5f7, #e9ebee);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.bs-card-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity .35s ease;
+}
+.bs-card-thumb img.is-loaded { opacity: 1; }
+.bs-card-body { padding: 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.bs-card-name {
+  font-size: 12px; font-weight: 700; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bs-card-sold { font-size: 10px; color: var(--text-dim); }
+.bs-card-price { font-size: 13px; font-weight: 800; color: var(--cyan); margin-top: 2px; }
+
+html[data-theme="dark"] .bs-card-thumb {
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+}
+
+@media (min-width: 620px) {
+  .bs-card { width: 168px; }
 }
 @media (min-width: 900px) {
   .fs-track.fs-grid { grid-template-columns: repeat(5, 1fr); }
@@ -2487,6 +2637,12 @@ html[data-theme="dark"] .group-modal {
 html[data-theme="dark"] .adm-revenue-card {
   /* Kartu "Pendapatan" di dashboard admin -- kena bug yang sama juga kalau admin buka
      dashboard di browser yang lagi mode malam (tema disimpan per-browser, bukan per-halaman). */
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+}
+html[data-theme="dark"] .nf-card-thumb,
+html[data-theme="dark"] .fs-card-thumb {
+  /* Placeholder background thumbnail produk (kalau belum ada foto) -- sama pola bug-nya kayak
+     di atas: abu-abu terang yang ketinggalan gak ikut gelap pas mode malam nyala. */
   background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
 }
 html[data-theme="dark"] .app-shell {
