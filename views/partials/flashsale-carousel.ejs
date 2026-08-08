@@ -25,13 +25,13 @@ const _showSeeAll = typeof fsShowSeeAll !== 'undefined' ? fsShowSeeAll : true;
       <a href="/produk/<%= item.productId %>" class="fs-card">
         <% if (item.badge) { %><span class="fs-badge"><i class="fa-solid fa-bolt"></i> <%= item.badge %></span><% } %>
         <div class="fs-card-thumb">
-          <% if (item.thumbnail) { %><img src="<%= item.thumbnail %>" alt="<%= item.name %>" loading="lazy"><% } else { %><span class="nf-noimg"><%= item.name.slice(0,1) %></span><% } %>
+          <% if (item.thumbnail) { %><img src="<%= item.thumbnail %>" alt="<%= item.name %>" loading="lazy" onload="this.classList.add('is-loaded')"><% } else { %><span class="nf-noimg"><%= item.name.slice(0,1) %></span><% } %>
         </div>
         <div class="fs-card-body">
           <div class="fs-card-name"><%= item.name %></div>
           <% if (item.category) { %><div class="fs-card-cat"><%= item.category %></div><% } %>
           <div class="fs-card-price">
-            <% if (item.originalPrice > item.flashPrice) { %><span class="nf-price-old">Rp <%= item.originalPrice.toLocaleString('id-ID') %></span><% } %>
+            <% if (item.originalPrice > item.flashPrice) { %><span class="fs-price-old">Rp <%= item.originalPrice.toLocaleString('id-ID') %></span><% } %>
             <span class="nf-price-now"><b>Rp <%= item.flashPrice.toLocaleString('id-ID') %></b></span>
           </div>
           <%

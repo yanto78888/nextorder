@@ -1,0 +1,24 @@
+<!-- ====== 6 KATEGORI BESTSELLER (carousel geser horizontal) ======
+     Konsisten sama flashsale-carousel.ejs (partial terpisah, carousel geser), tapi beda tujuan:
+     ini nunjukkin produk PALING LARIS (ranking #1-#6 by Terjual asli), bukan promo diskon
+     terbatas waktu -- makanya badge-nya nomor urut, bukan persen diskon. -->
+<% if (bestsellers && bestsellers.length > 0) { %>
+<div class="bs-section">
+  <div class="bs-heading"><i class="fa-solid fa-fire"></i> Paling Laris</div>
+  <div class="bs-track">
+    <% bestsellers.forEach((item, idx) => { %>
+      <a href="/produk/<%= item.id %>" class="bs-card">
+        <span class="bs-rank bs-rank-<%= idx + 1 %>">#<%= idx + 1 %></span>
+        <div class="bs-card-thumb">
+          <% if (item.thumbnail) { %><img src="<%= item.thumbnail %>" alt="<%= item.name %>" loading="lazy" onload="this.classList.add('is-loaded')"><% } else { %><span class="nf-noimg"><%= item.name.slice(0,1) %></span><% } %>
+        </div>
+        <div class="bs-card-body">
+          <div class="bs-card-name"><%= item.name %></div>
+          <div class="bs-card-sold"><%= item.totalSold.toLocaleString('id-ID') %> terjual</div>
+          <div class="bs-card-price">Rp <%= item.finalPrice.toLocaleString('id-ID') %></div>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</div>
+<% } %>
