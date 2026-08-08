@@ -80,6 +80,9 @@
     <!-- ====== FLASH SALE (carousel geser, harga sama semua role) ====== -->
     <%- include('partials/flashsale-carousel', { flashSaleItems, flashSaleSettings }) %>
 
+    <!-- ====== 6 KATEGORI BESTSELLER (carousel geser, ranking Terjual asli) ====== -->
+    <%- include('partials/bestseller-carousel', { bestsellers }) %>
+
     <% if (!user) { %>
       <div class="alert guest-alert"><i class="fa-solid fa-hand"></i> Kamu sedang menjelajah sebagai <b>Tamu</b>. Silakan <a href="/login" style="color:var(--cyan); text-decoration:underline;">masuk</a> atau <a href="/register" style="color:var(--cyan); text-decoration:underline;">daftar</a> untuk melakukan pemesanan.</div>
     <% } %>
@@ -124,7 +127,7 @@
                   </div>
                   <div class="nf-card-price">
                     <% if (p.isVariantGroup) { %>
-                      <span class="nf-price-now">Mulai Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
+                      <span class="nf-price-now">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
                     <% } else { %>
                       <span class="nf-price-now">Rp <%= p.finalPrice.toLocaleString('id-ID') %></span>
                     <% } %>
