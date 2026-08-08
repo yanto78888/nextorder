@@ -8,7 +8,7 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup
+  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup, renameProductGroup
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
@@ -20,7 +20,7 @@ import { runBackupNow, exportAllData, importAllData } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
 import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice } from '../lib/digiflazz.js';
-import { getGroupThumbnails, setGroupThumbnail, deleteGroupThumbnail } from '../lib/digiflazzGroups.js';
+import { getGroupThumbnails, getGroupThumbnail, setGroupThumbnail, deleteGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { getBalance as getIndosmmBalance, getServiceCategories as getIndosmmCategories, searchServices as searchIndosmmServices, computeSellPrice as computeIndosmmSellPrice, isIndosmmEnabled } from '../lib/indosmm.js';
 import {
   isHerosmsEnabled, getBalance as getHerosmsBalance, getServicesList as getHerosmsServicesList,
@@ -765,6 +765,28 @@ router.post('/digiflazz/group/:group/hapus', (req, res) => {
     deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
     deleteGroupThumbnail(groupName);
     renderDigiflazzPage(req, res, { success: `Grup "${groupName}" dihapus (${deleted.length} produk).` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+// Ganti nama tampilan 1 grup (mis. brand mentah dari Digiflazz "ML" -> nama custom "Mobile
+// Legends: Bang Bang") -- semua nominal di dalamnya ikut pindah otomatis. Foto folder yang udah
+// di-upload (kalau ada) ikut dipindah ke nama baru juga, biar gak "ilang" gara-gara nyangkut di
+// nama lama yang udah gak dipakai produk manapun lagi.
+router.post('/digiflazz/group/:group/rename', (req, res) => {
+  const oldName = decodeURIComponent(req.params.group);
+  const newName = String(req.body.newName || '').trim();
+  try {
+    const count = renameProductGroup(oldName, newName, 'digiflazz');
+    if (count > 0) {
+      const thumb = getGroupThumbnail(oldName);
+      if (thumb) {
+        setGroupThumbnail(newName, thumb);
+        deleteGroupThumbnail(oldName);
+      }
+    }
+    renderDigiflazzPage(req, res, { success: `Grup "${oldName}" diganti nama jadi "${newName}" (${count} produk).` });
   } catch (err) {
     renderDigiflazzPage(req, res, { error: err.message });
   }

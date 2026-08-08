@@ -8,7 +8,7 @@ import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey
 } from '../lib/users.js';
-import { getActiveProducts, findProductById, countStock, updateProduct } from '../lib/products.js';
+import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
 import { maskUsername, maskTarget } from '../lib/masking.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
@@ -28,7 +28,7 @@ import { getSaldoLedgerByUser, getSaldoLedgerSummary } from '../lib/saldoLedger.
 import { getConfig } from '../lib/config.js';
 import { getMembershipList, getMembershipTier } from '../lib/membership.js';
 import { getGameIcon } from '../lib/gamePresets.js';
-import { createReview, getReviewsByProduct, getAllReviews } from '../lib/reviews.js';
+import { createReview, getReviewsByGroup, getReviewStats, getAllReviewStatsMap, hasUserReviewedGroup, hasUserPurchasedGroup, resolveReviewGroupKey } from '../lib/reviews.js';
 import { getGroupThumbnail, getGroupThumbnails } from '../lib/digiflazzGroups.js';
 import {
   isIndosmmEnabled, getServices as getIndosmmServices, cancelOrder as cancelIndosmmOrder,
@@ -313,6 +313,10 @@ router.get('/produk', (req, res) => {
   // counter tersimpan di produk -- lihat getTotalSoldMap() di lib/orders.js buat alasannya (bug
   // lama: order Digiflazz "Pending" yang belakangan gagal gak pernah ke-kurangi lagi dari counter).
   const soldMap = getTotalSoldMap();
+  // Rating juga dihitung LIVE per GRUP (bukan field rating/ratingCount yang dulu disimpan nempel
+  // di produk) -- 1x baca reviews.json buat SELURUH request ini (lihat getAllReviewStatsMap di
+  // lib/reviews.js), sama pola efisiensinya kayak soldMap di atas.
+  const reviewStatsMap = getAllReviewStatsMap();
   // resolvePrice & thumbByGroup masing-masing baca file terkait SEKALI buat seluruh request ini
   // (bukan per produk) -- lihat lib/flashsale.js createPriceResolver() & catatan di
   // collapseVariantGroups() di atas. Ini yang paling kerasa mempercepat katalog kalau produknya
@@ -321,20 +325,38 @@ router.get('/produk', (req, res) => {
   const thumbByGroup = new Map(Object.entries(getGroupThumbnails()));
   const products = getActiveProducts()
     .filter(p => p.provider !== 'indosmm') // Jasa Sosmed punya katalog terpisah di /jasa-sosmed
-    .map(p => ({
-      ...p,
-      totalSold: soldMap[p.id] || 0,
-      finalPrice: resolvePrice(p),
-      icon: getGameIcon(p.gamePreset)
-    }));
+    .map(p => {
+      const stats = reviewStatsMap[resolveReviewGroupKey(p)];
+      return {
+        ...p,
+        totalSold: soldMap[p.id] || 0,
+        rating: stats ? stats.avg : 0,
+        ratingCount: stats ? stats.count : 0,
+        finalPrice: resolvePrice(p),
+        icon: getGameIcon(p.gamePreset)
+      };
+    });
 
   const rows = groupProductsByCategory(products, cfg)
     .map(g => ({ category: g.category, products: collapseVariantGroups(g.items, thumbByGroup) }));
   const categoryOrder = rows.map(r => r.category);
 
+  // 6 KATEGORI BESTSELLER: produk/grup dengan Terjual TERTINGGI, digabung dulu per Grup Varian
+  // (sama kayak kartu katalog biasa, misal semua nominal "Mobile Legends" jadi 1 kartu) SEBELUM
+  // di-ranking -- biar yang tampil beneran GAME/KATEGORI paling laris, bukan kebetulan 1 nominal
+  // spesifik doang. Dihitung dari SELURUH produk lintas kategori (bukan per-kategori), pakai
+  // totalSold yang SAMA persis dengan yang ditampilkan di kartu biasa (lihat catatan MAX di
+  // collapseVariantGroups) -- biar angka yang keliatan di sini konsisten sama yang keliatan
+  // kalau discroll ke kategori aslinya, gak ada hitungan tersembunyi yang beda.
+  const bestsellers = collapseVariantGroups(products, thumbByGroup)
+    .filter(p => (p.totalSold || 0) > 0)
+    .sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0))
+    .slice(0, 6);
+
   res.render('produk', {
     products,
     rows,
+    bestsellers,
     memberDiscount: discountPercent,
     user,
     config: cfg,
@@ -1053,18 +1075,15 @@ router.get('/produk/:id', (req, res) => {
   // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
   product.totalSold = getTotalSoldMap()[product.id] || 0;
 
-  // Baca reviews.json SEKALI buat seluruh request ini (bukan sekali per varian nominal) -- sama
-  // pola dengan resolvePrice/thumbByGroup di atas. Dipakai ulang buat: (1) produk utama yang lagi
-  // dibuka, dan (2) tiap varian nominal di grup yang sama, supaya kartu ⭐ rating & daftar ulasan
-  // di halaman ini BISA ikut berganti kalau user pilih nominal lain lewat JS (dulu bagian ini diam
-  // aja pas ganti varian -- rating/ulasan yang ditampilkan nyangkut di SKU pertama yang dibuka,
-  // padahal harga/stok/kolom target semua sudah ikut berubah).
-  const allReviews = getAllReviews();
-  const reviewsForProductId = (id) => allReviews
-    .filter(r => r.productId === id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const reviews = reviewsForProductId(product.id);
-  const hasReviewed = user ? reviews.some(r => r.userId === user.id) : false;
+  // Ulasan sekarang GLOBAL PER GRUP (mis. semua nominal "Mobile Legends" berbagi ulasan yang
+  // sama), bukan per SKU/nominal persis kayak dulu -- jadi 1x dihitung buat produk yang dibuka
+  // (dan otomatis berlaku sama buat SEMUA variannya, gak perlu dihitung ulang per varian atau
+  // di-swap lewat JS pas ganti pilihan nominal kayak versi sebelumnya).
+  const groupKey = resolveReviewGroupKey(product);
+  const reviews = getReviewsByGroup(groupKey);
+  const reviewStats = getReviewStats(groupKey);
+  const hasReviewed = user ? hasUserReviewedGroup(user.id, groupKey) : false;
+  const canReview = user ? (hasUserPurchasedGroup(user.id, groupKey) && !hasReviewed) : false;
   const displayThumbnail = product.thumbnail || (product.variantGroup ? getGroupThumbnail(product.variantGroup) : '') || '';
 
   // Kalau produk ini punya variantGroup (mis. "Mobile Legends"), tampilkan juga produk lain
@@ -1072,23 +1091,16 @@ router.get('/produk/:id', (req, res) => {
   const variants = product.variantGroup
     ? activeProducts
         .filter(p => p.variantGroup === product.variantGroup)
-        .map(p => {
-          const variantReviews = reviewsForProductId(p.id);
-          return {
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            finalPrice: resolvePrice(p),
-            thumbnail: p.thumbnail,
-            targetFields: p.targetFields || [],
-            stockCount: countStock(p),
-            provider: p.provider,
-            rating: p.rating || 0,
-            ratingCount: p.ratingCount || 0,
-            reviews: variantReviews,
-            hasReviewed: user ? variantReviews.some(r => r.userId === user.id) : false
-          };
-        })
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          finalPrice: resolvePrice(p),
+          thumbnail: p.thumbnail,
+          targetFields: p.targetFields || [],
+          stockCount: countStock(p),
+          provider: p.provider
+        }))
         .sort((a, b) => a.price - b.price)
     : [];
 
@@ -1106,7 +1118,9 @@ router.get('/produk/:id', (req, res) => {
     displayThumbnail,
     variants,
     reviews,
+    reviewStats,
     hasReviewed,
+    canReview,
     user,
     config: cfgDetail,
     maxDigiflazzQty: MAX_DIGIFLAZZ_QTY_PER_ORDER,
@@ -1176,25 +1190,22 @@ router.get('/jasa-sosmed/:id', (req, res) => {
   });
 });
 
-// Submit ulasan (rating + komentar) — 1x per user per produk
+// Submit ulasan (rating + komentar) — 1x per user per GRUP, wajib udah pernah beli & selesai
+// pesan produk di grup ini (dicek di dalam createReview -> hasUserPurchasedGroup).
 router.post('/produk/:id/review', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const product = findProductById(req.params.id);
   if (!product) return res.redirect('/produk');
 
   try {
-    const { avg, count } = createReview({
+    createReview({
       userId: user.id,
       username: user.username,
       productId: product.id,
-      productName: product.name,
+      productName: product.variantGroup || product.name,
+      groupKey: resolveReviewGroupKey(product),
       rating: req.body.rating,
       comment: req.body.comment
-    });
-    // Sync rating ke produk
-    updateProduct(product.id, {
-      rating: Math.round(avg * 10) / 10,
-      ratingCount: count
     });
     res.redirect(`/produk/${product.id}?success=Ulasan kamu berhasil dikirim! ⭐`);
   } catch (err) {
