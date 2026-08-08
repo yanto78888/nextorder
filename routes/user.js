@@ -1080,13 +1080,27 @@ router.get('/produk/:id', (req, res) => {
   // 20+ kali baca file kalau variannya banyak). Ini penyebab utama "lag"-nya.
   const resolvePrice = createPriceResolver(user);
   const finalPrice = resolvePrice(product);
-  // totalSold dihitung live dari order (lihat catatan di route /produk di atas), bukan counter tersimpan.
-  product.totalSold = getTotalSoldMap()[product.id] || 0;
+
+  // ===== FIX BUG "Terjual" =====
+  // Sebelumnya totalSold di halaman detail dihitung cuma dari SKU/nominal yang lagi dibuka
+  // (getTotalSoldMap()[product.id]), padahal kartu di katalog/bestseller nampilin MAX totalSold
+  // di ANTARA SEMUA nominal segrup (lihat collapseVariantGroups() di route /produk atas). Karena
+  // kartu grup selalu link ke nominal TERMURAH (bukan yang paling laris), 2 angka ini seringkali
+  // BEDA -- user klik kartu "500 terjual" tapi begitu masuk ke detail malah nampilin "12 Terjual"
+  // punya nominal termurah itu doang. Sekarang disamakan: kalau produk ini punya variantGroup,
+  // Terjual dihitung MAX di antara semua nominal segrup juga (SAMA PERSIS logikanya kayak kartu),
+  // biar angka gak pernah kelihatan "turun" pas diklik dari katalog.
+  const soldMap = getTotalSoldMap();
+  product.totalSold = product.variantGroup
+    ? Math.max(0, ...activeProducts.filter(p => p.variantGroup === product.variantGroup).map(p => soldMap[p.id] || 0))
+    : (soldMap[product.id] || 0);
 
   // Ulasan sekarang GLOBAL PER GRUP (mis. semua nominal "Mobile Legends" berbagi ulasan yang
   // sama), bukan per SKU/nominal persis kayak dulu -- jadi 1x dihitung buat produk yang dibuka
   // (dan otomatis berlaku sama buat SEMUA variannya, gak perlu dihitung ulang per varian atau
-  // di-swap lewat JS pas ganti pilihan nominal kayak versi sebelumnya).
+  // di-swap lewat JS pas ganti pilihan nominal kayak versi sebelumnya). Terjual sekarang ikut
+  // filosofi yang sama persis: level GRUP, gak berubah pas ganti nominal -- makanya JS switch
+  // varian di bawah SENGAJA gak nyentuh angka Terjual sama sekali (lihat produk-detail.ejs).
   const groupKey = resolveReviewGroupKey(product);
   const reviews = getReviewsByGroup(groupKey);
   const reviewStats = getReviewStats(groupKey);
@@ -1096,6 +1110,10 @@ router.get('/produk/:id', (req, res) => {
 
   // Kalau produk ini punya variantGroup (mis. "Mobile Legends"), tampilkan juga produk lain
   // di grup yang sama sebagai pilihan nominal yang bisa diklik di halaman yang sama (tanpa reload).
+  // finalPrice & stockCount SENGAJA ikut dikirim ke client (dipakai JS buat update stat "Harga"
+  // & "Stok" pas ganti nominal -- lihat FIX BUG di produk-detail.ejs, sebelumnya 2 angka itu diam
+  // di tempat / stale walau nominal udah diganti, cuma harga di kotak beli bawah yang kebetulan
+  // ikut update).
   const variants = product.variantGroup
     ? activeProducts
         .filter(p => p.variantGroup === product.variantGroup)
@@ -1111,6 +1129,7 @@ router.get('/produk/:id', (req, res) => {
         }))
         .sort((a, b) => a.price - b.price)
     : [];
+
 
   // SEO/OG per produk: judul & gambar ikutin nama grup varian (bukan SKU nominal tertentu),
   // sama kayak logic "displayName" di produk-detail.ejs, biar konsisten dengan yang tampil di layar.
