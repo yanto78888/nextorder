@@ -297,7 +297,16 @@ function collapseVariantGroups(list, thumbByGroup) {
         rep.id = p.id; // link kartu ikut ke varian termurah biar konsisten sama harga yang ditampilkan
       }
       if (!rep.thumbnail && p.thumbnail) rep.thumbnail = p.thumbnail; // fallback kalau grup belum ada foto folder sendiri
-      if ((p.totalSold || 0) > (rep.totalSold || 0)) rep.totalSold = p.totalSold; // pamer angka terjual paling ramai di grup
+      // FIX BUG "Terjual": sebelumnya diambil MAX (angka nominal paling laris doang) di antara
+      // semua varian segrup -- efeknya, pembelian nominal yang BUKAN top-seller di grupnya (misal
+      // ada yang beli nominal sepi peminat) kelihatan "gak nambah" di angka Terjual grup, padahal
+      // order-nya beneran tercatat (termasuk yang masih 'processing'/pending Digiflazz, itu SUDAH
+      // dihitung di getTotalSoldMap(), lihat catatan di lib/orders.js -- yang dikecualikan cuma
+      // status 'cancelled'). Sekarang dijumlah (SUM) semua varian dalam 1 grup, jadi PEMBELIAN
+      // NOMINAL MANAPUN di grup itu langsung kelihatan nambah ke Terjual grupnya -- sekaligus lebih
+      // benar secara makna ("Mobile Legends 500 terjual" = total semua nominal, bukan cuma 1 SKU
+      // paling laris doang).
+      rep.totalSold = (rep.totalSold || 0) + (p.totalSold || 0);
     }
   });
   return hasil;
@@ -345,7 +354,7 @@ router.get('/produk', (req, res) => {
   // (sama kayak kartu katalog biasa, misal semua nominal "Mobile Legends" jadi 1 kartu) SEBELUM
   // di-ranking -- biar yang tampil beneran GAME/KATEGORI paling laris, bukan kebetulan 1 nominal
   // spesifik doang. Dihitung dari SELURUH produk lintas kategori (bukan per-kategori), pakai
-  // totalSold yang SAMA persis dengan yang ditampilkan di kartu biasa (lihat catatan MAX di
+  // totalSold yang SAMA persis dengan yang ditampilkan di kartu biasa (lihat catatan SUM di
   // collapseVariantGroups) -- biar angka yang keliatan di sini konsisten sama yang keliatan
   // kalau discroll ke kategori aslinya, gak ada hitungan tersembunyi yang beda.
   const bestsellers = collapseVariantGroups(products, thumbByGroup)
@@ -1083,16 +1092,19 @@ router.get('/produk/:id', (req, res) => {
 
   // ===== FIX BUG "Terjual" =====
   // Sebelumnya totalSold di halaman detail dihitung cuma dari SKU/nominal yang lagi dibuka
-  // (getTotalSoldMap()[product.id]), padahal kartu di katalog/bestseller nampilin MAX totalSold
-  // di ANTARA SEMUA nominal segrup (lihat collapseVariantGroups() di route /produk atas). Karena
+  // (getTotalSoldMap()[product.id]), padahal kartu di katalog/bestseller nampilin SUM totalSold
+  // dari SEMUA nominal segrup (lihat collapseVariantGroups() di route /produk atas). Karena
   // kartu grup selalu link ke nominal TERMURAH (bukan yang paling laris), 2 angka ini seringkali
-  // BEDA -- user klik kartu "500 terjual" tapi begitu masuk ke detail malah nampilin "12 Terjual"
-  // punya nominal termurah itu doang. Sekarang disamakan: kalau produk ini punya variantGroup,
-  // Terjual dihitung MAX di antara semua nominal segrup juga (SAMA PERSIS logikanya kayak kartu),
-  // biar angka gak pernah kelihatan "turun" pas diklik dari katalog.
+  // BEDA -- user klik kartu "500 terjual" tapi begitu masuk ke detail malah nampilin cuma
+  // beberapa digit punya nominal termurah itu doang. Sekarang disamakan: kalau produk ini punya
+  // variantGroup, Terjual dihitung SUM semua nominal segrup juga (SAMA PERSIS logikanya kayak
+  // kartu) -- ini juga sekalian mastiin pembelian nominal MANAPUN di grup itu (termasuk yang
+  // masih 'processing'/pending Digiflazz, SUDAH terhitung sejak awal karena getTotalSoldMap()
+  // cuma ngecualiin status 'cancelled') langsung kelihatan nambah di angka Terjual, bukan cuma
+  // pembelian nominal yang kebetulan lagi paling laris di grupnya.
   const soldMap = getTotalSoldMap();
   product.totalSold = product.variantGroup
-    ? Math.max(0, ...activeProducts.filter(p => p.variantGroup === product.variantGroup).map(p => soldMap[p.id] || 0))
+    ? activeProducts.filter(p => p.variantGroup === product.variantGroup).reduce((sum, p) => sum + (soldMap[p.id] || 0), 0)
     : (soldMap[product.id] || 0);
 
   // Ulasan sekarang GLOBAL PER GRUP (mis. semua nominal "Mobile Legends" berbagi ulasan yang
