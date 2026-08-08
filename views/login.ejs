@@ -2,28 +2,51 @@
 <html lang="id">
 <head><%- include('partials/head') %></head>
 <body>
-  <div class="auth-wrap">
-    <div class="auth-card">
-      <h1 class="auth-title"><i class="fa-solid fa-bolt"></i> <%= config.siteName %></h1>
-      <div class="auth-sub"><%= config.siteTagline %></div>
+  <div class="auth-split">
+    <!-- Panel kiri: brand + poin kepercayaan (jadi header ringkas di mobile lewat CSS) -->
+    <div class="auth-split-brand">
+      <div class="auth-split-brand-inner">
+        <div class="auth-split-logo"><i class="fa-solid fa-bolt"></i> <%= config.siteName %></div>
+        <div class="auth-split-tagline"><%= config.siteTagline || 'Top Up Game & PPOB Termurah, Proses Otomatis 24 Jam' %></div>
+        <ul class="auth-split-features">
+          <li><i class="fa-solid fa-bolt"></i> Proses otomatis, gak pakai lama</li>
+          <li><i class="fa-solid fa-shield-halved"></i> Transaksi aman & tercatat rapi</li>
+          <li><i class="fa-solid fa-qrcode"></i> Bayar praktis pakai QRIS</li>
+          <li><i class="fa-solid fa-headset"></i> Kendala? Tim support siap bantu</li>
+        </ul>
+      </div>
+    </div>
 
-      <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+    <!-- Panel kanan: form login -->
+    <div class="auth-split-form-side">
+      <div class="auth-card auth-card-split">
+        <h1 class="auth-title"><i class="fa-solid fa-right-to-bracket"></i> Masuk Akun</h1>
+        <div class="auth-sub">Senang ketemu lagi, yuk lanjut belanja</div>
 
-      <% const googleLoginReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
-      <% if (googleLoginReady) { %>
-      <a href="/auth/google" class="btn google-btn" style="width:100%;"><i class="fa-brands fa-google"></i> Masuk dengan Google</a>
-      <div class="auth-divider"><span>atau</span></div>
-      <% } %>
+        <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
-      <form method="POST" action="/login">
-        <label>Username</label>
-        <input type="text" name="username" required autofocus>
-        <label>Password</label>
-        <input type="password" name="password" required>
-        <button class="btn solid mt-24" type="submit" style="width:100%;">Masuk ke Terminal</button>
-      </form>
+        <% const googleLoginReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
+        <% if (googleLoginReady) { %>
+        <a href="/auth/google" class="btn google-btn" style="width:100%;"><i class="fa-brands fa-google"></i> Masuk dengan Google</a>
+        <div class="auth-divider"><span>atau pakai username</span></div>
+        <% } %>
 
-      <div class="auth-footer">Belum punya akun? <a href="/register">Daftar sekarang</a></div>
+        <form method="POST" action="/login">
+          <label>Username</label>
+          <div class="auth-input-group">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" name="username" required autofocus placeholder="Masukkan username">
+          </div>
+          <label>Password</label>
+          <div class="auth-input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" name="password" required placeholder="Masukkan password">
+          </div>
+          <button class="btn solid mt-24" type="submit" style="width:100%;"><i class="fa-solid fa-right-to-bracket"></i> Masuk ke Terminal</button>
+        </form>
+
+        <div class="auth-footer">Belum punya akun? <a href="/register">Daftar sekarang</a></div>
+      </div>
     </div>
   </div>
 </body>

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><%- include('partials/head') %></head>
+<head><%- include('partials/head') %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
 <body>
 <div class="app-shell">
   <%- include('partials/user-sidebar', { active: 'live-transaksi', user, config }) %>
@@ -12,6 +14,27 @@
     </div>
 
     <p class="helper-text" style="margin:0 0 16px;">Transaksi yang lagi berjalan di <%= config.siteName || 'toko ini' %>, diperbarui otomatis. Username & data tujuan disensor sebagian untuk menjaga privasi pembeli.</p>
+
+    <!-- ====== GRAFIK TRANSAKSI (PUBLIK): Harian & Bulanan, transparansi buat pengunjung ====== -->
+    <div class="adm-chart-card" id="publicChartCard">
+      <div class="adm-chart-header">
+        <div class="adm-chart-title"><i class="fa-solid fa-chart-column" style="color:var(--cyan);"></i> Grafik Transaksi</div>
+        <div class="adm-chart-tabs">
+          <button type="button" class="adm-tab active" data-range="daily">Harian</button>
+          <button type="button" class="adm-tab" data-range="monthly">Bulanan</button>
+        </div>
+      </div>
+      <div class="adm-chart-summary">
+        <span class="pill-badge cyan"><i class="fa-solid fa-cart-shopping"></i> <span id="publicChartOrdersTotal">0</span> transaksi</span>
+        <span class="pill-badge green"><i class="fa-solid fa-sack-dollar"></i> Rp <span id="publicChartOmzetTotal">0</span></span>
+      </div>
+      <div class="adm-chart-wrap">
+        <canvas id="publicSalesChart"></canvas>
+      </div>
+      <div class="helper-text" style="margin-top:10px; margin-bottom:0;">
+        <i class="fa-solid fa-circle-info"></i> Data agregat jumlah transaksi & total nilai transaksi (order yang tidak dibatalkan) di <%= config.siteName || 'toko ini' %> -- ditampilkan buat transparansi, bukan detail per transaksi.
+      </div>
+    </div>
 
     <div class="card">
       <div class="flex" style="gap:10px; flex-wrap:wrap; align-items:center;">
@@ -125,6 +148,105 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) fetchData();
   });
+})();
+
+// ===== GRAFIK TRANSAKSI PUBLIK (Harian / Bulanan) =====
+(function () {
+  var canvas = document.getElementById('publicSalesChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  var daily = {
+    labels: <%- chartDailyLabels %>,
+    orders: <%- chartDailyOrders %>,
+    total: <%- chartDailyTotal %>
+  };
+  var monthly = {
+    labels: <%- chartMonthlyLabels %>,
+    orders: <%- chartMonthlyOrders %>,
+    total: <%- chartMonthlyTotal %>
+  };
+
+  Chart.defaults.color = '#8c8c8c';
+  Chart.defaults.font.family = 'Inter, sans-serif';
+  Chart.defaults.font.size = 11;
+
+  var rootStyles = getComputedStyle(document.documentElement);
+  var cyan = rootStyles.getPropertyValue('--cyan').trim() || '#1565c0';
+  var success = rootStyles.getPropertyValue('--success-light').trim() || '#2fbf71';
+
+  var ctx = canvas.getContext('2d');
+  var chart = new Chart(ctx, {
+    data: {
+      labels: daily.labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Transaksi',
+          data: daily.orders,
+          backgroundColor: cyan + '55',
+          borderColor: cyan,
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'yOrders',
+          order: 2
+        },
+        {
+          type: 'line',
+          label: 'Total (Rp)',
+          data: daily.total,
+          borderColor: success,
+          backgroundColor: success,
+          tension: 0.35,
+          pointRadius: 2,
+          yAxisID: 'yTotal',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 10, usePointStyle: true } },
+        tooltip: {
+          callbacks: {
+            label: function (item) {
+              if (item.dataset.yAxisID === 'yTotal') return ' Total: Rp ' + Number(item.raw || 0).toLocaleString('id-ID');
+              return ' Transaksi: ' + item.raw;
+            }
+          }
+        }
+      },
+      scales: {
+        yOrders: { beginAtZero: true, position: 'left', grid: { display: false }, ticks: { precision: 0 } },
+        yTotal: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return 'Rp ' + Number(v).toLocaleString('id-ID'); } } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  function sumOf(arr) { return arr.reduce(function (a, b) { return a + (Number(b) || 0); }, 0); }
+
+  function applyRange(range) {
+    var d = range === 'monthly' ? monthly : daily;
+    chart.data.labels = d.labels;
+    chart.data.datasets[0].data = d.orders;
+    chart.data.datasets[1].data = d.total;
+    chart.update();
+    document.getElementById('publicChartOrdersTotal').textContent = sumOf(d.orders).toLocaleString('id-ID');
+    document.getElementById('publicChartOmzetTotal').textContent = sumOf(d.total).toLocaleString('id-ID');
+  }
+
+  document.querySelectorAll('#publicChartCard .adm-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#publicChartCard .adm-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      applyRange(btn.dataset.range);
+    });
+  });
+
+  applyRange('daily');
 })();
 </script>
 </body>
