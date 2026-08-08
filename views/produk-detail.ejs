@@ -58,13 +58,13 @@
         </div>
         <% } else { %>
         <div class="detail-stat">
-          <div class="detail-stat-val"><%= stockCount %></div>
+          <div class="detail-stat-val" id="statStok"><%= stockCount %></div>
           <div class="detail-stat-label">Stok</div>
         </div>
         <% } %>
         <div class="detail-stat-divider"></div>
         <div class="detail-stat">
-          <div class="detail-stat-val" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+          <div class="detail-stat-val" id="statHarga" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
           <div class="detail-stat-label">Harga</div>
         </div>
       </div>
@@ -443,6 +443,16 @@
 
       var priceNow=document.getElementById('priceNow');
       if(priceNow) priceNow.textContent=fmt(v.finalPrice);
+
+      // FIX BUG: stat "Harga" & "Stok" di baris atas (dekat nama produk) sebelumnya gak
+      // ikut ke-update pas ganti nominal -- cuma #priceNow di kotak beli bawah yang berubah,
+      // jadi 2 harga di 1 halaman bisa beda kalau user ganti nominal tanpa scroll ke atas lagi.
+      // "Terjual" SENGAJA gak disentuh di sini -- levelnya per GRUP (sama kayak Rating), bukan
+      // per nominal, jadi angkanya emang harus tetap sama berapa pun nominal yang dipilih.
+      var statHarga=document.getElementById('statHarga');
+      if(statHarga) statHarga.textContent=fmt(v.finalPrice);
+      var statStok=document.getElementById('statStok');
+      if(statStok) statStok.textContent=(typeof v.stockCount==='number') ? v.stockCount : '-';
 
       var idSaldo=document.getElementById('productIdSaldo');
       var idQris=document.getElementById('productIdQris');
