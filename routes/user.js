@@ -9,7 +9,7 @@ import {
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
-import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder } from '../lib/orders.js';
+import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
 import { maskUsername, maskTarget } from '../lib/masking.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
@@ -460,10 +460,18 @@ function getPublicLiveFeed(limit = 50) {
 
 router.get('/live-transaksi', (req, res) => {
   const cfg = getConfig();
+  const dailyStats = getPublicDailyStats(14);
+  const monthlyStats = getPublicMonthlyStats(6);
   res.render('live-transaksi-publik', {
     orders: getPublicLiveFeed(),
     user: req.session.user ? findUserById(req.session.user.id) : null,
     config: cfg,
+    chartDailyLabels: JSON.stringify(dailyStats.map(d => d.label)),
+    chartDailyOrders: JSON.stringify(dailyStats.map(d => d.orders)),
+    chartDailyTotal: JSON.stringify(dailyStats.map(d => d.total)),
+    chartMonthlyLabels: JSON.stringify(monthlyStats.map(m => m.label)),
+    chartMonthlyOrders: JSON.stringify(monthlyStats.map(m => m.orders)),
+    chartMonthlyTotal: JSON.stringify(monthlyStats.map(m => m.total)),
     pageTitle: `Live Transaksi - ${cfg.siteName || 'NEXORDER'}`,
     pageDescription: `Lihat transaksi yang lagi berjalan di ${cfg.siteName || 'NEXORDER'} secara real-time.`
   });
