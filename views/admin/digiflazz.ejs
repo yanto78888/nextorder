@@ -141,6 +141,11 @@
                   <input type="file" name="groupThumbnailFile" accept="image/png,image/jpeg,image/webp,image/gif">
                   <button type="submit" class="btn small ghost"><i class="fa-solid fa-image"></i> <%= thumb ? 'Ganti' : 'Upload' %> Foto Folder</button>
                 </form>
+                <form method="POST" action="/admin/digiflazz/group/<%= encodeURIComponent(groupName) %>/rename" onclick="event.stopPropagation()"
+                      onsubmit="return nfPromptRenameGroup(this, <%- JSON.stringify(groupName) %>)">
+                  <input type="hidden" name="newName" value="">
+                  <button type="submit" class="btn small ghost"><i class="fa-solid fa-pen"></i> Ganti Nama</button>
+                </form>
                 <form method="POST" action="/admin/digiflazz/group/<%= encodeURIComponent(groupName) %>/hapus" onclick="event.stopPropagation()"
                       onsubmit="return confirm('Hapus grup &quot;<%= groupName %>&quot; beserta SEMUA <%= groupProducts.length %> pilihan nominal di dalamnya? Produk yang lagi ikut Flash Sale juga otomatis dilepas. Tindakan ini TIDAK BISA dibatalkan.')">
                   <button type="submit" class="btn small danger"><i class="fa-solid fa-trash"></i> Hapus Grup</button>
@@ -233,6 +238,17 @@
 </div>
 
 <script>
+// Global (dipanggil dari onsubmit inline tiap kartu grup) -- gak taruh di dalam IIFE pencarian
+// di bawah karena IIFE itu early-return kalau elemen pencarian gak ada di halaman.
+function nfPromptRenameGroup(form, oldName) {
+  var newName = prompt('Nama baru untuk grup "' + oldName + '":', oldName);
+  if (newName === null) return false; // admin klik Batal
+  var trimmed = newName.trim();
+  if (!trimmed) { alert('Nama grup gak boleh kosong'); return false; }
+  if (trimmed === oldName) return false; // gak ada perubahan, gak usah submit form-nya
+  form.querySelector('input[name="newName"]').value = trimmed;
+  return true;
+}
 (function () {
   var searchBtn = document.getElementById('dfSearchBtn');
   var searchInput = document.getElementById('dfSearchInput');
