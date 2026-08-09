@@ -1311,7 +1311,7 @@ input[type="file"]::file-selector-button {
 .detail-back-btn:hover { color: var(--cyan); }
 
 .detail-body {
-  padding: 16px 16px 100px;
+  padding: 16px 16px calc(112px + env(safe-area-inset-bottom));
 }
 .detail-meta-row {
   display: flex;
@@ -1611,6 +1611,72 @@ input[type="file"]::file-selector-button {
 .buy-main-btn:hover { box-shadow: 0 2px 8px rgba(21,101,192,0.3); }
 
 .guest-buy-box { text-align: center; margin-top: 4px; }
+
+/* ---------- Sticky Buy Bar (harga + tombol beli nempel di bawah layar) ----------
+   Gaya diambil dari referensi bottom sheet pembelian item game (nama varian & harga di
+   kiri, tombol beli bulat besar di kanan) -- tapi tetap pakai warna brand situs ini
+   (var(--cyan)) biar konsisten, bukan warna ungu dari referensinya. */
+.detail-buy-stickybar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 60;
+  background: var(--bg-panel);
+  border-top: 1.5px solid var(--border-glow);
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+}
+.dbs-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.dbs-info { flex: 1; min-width: 0; }
+.dbs-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+.dbs-old-price {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: line-through;
+  line-height: 1.3;
+}
+.dbs-price {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--cyan);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.dbs-buy-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--cyan), #0d47a1);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: .2px;
+  padding: 14px 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(21,101,192,0.32);
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dbs-buy-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(21,101,192,0.42); }
+.dbs-buy-btn:active { transform: translateY(0); }
+.dbs-buy-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(--cyan-light), var(--cyan)); box-shadow: 0 6px 16px rgba(79,168,255,0.28); }
 
 
 /* =====================================================================
@@ -2226,7 +2292,7 @@ input[type="file"]::file-selector-button {
   /* Konten baca (deskripsi, buy box, ulasan) di halaman detail produk dibatasi lebarnya
      biar gak jadi selebar layar penuh -- tetap nyaman dibaca kayak di HP, cuma sekarang
      ada sidebar + ruang lebih di sekitarnya alih-alih kosong melompong. */
-  .detail-body { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
+  .detail-body { max-width: 720px; margin: 0 auto; padding: 24px 16px calc(112px + env(safe-area-inset-bottom)); }
   .detail-hero { max-width: 100%; }
 
   .help-fab { right: 28px; bottom: 28px; }
