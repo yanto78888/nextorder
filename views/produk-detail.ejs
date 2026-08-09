@@ -226,10 +226,9 @@
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
           </form>
 
-          <button type="button" class="btn solid buy-main-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
           <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>">Saldo tidak cukup — gunakan QRIS.</div>
         <% } else { %>
-          <div class="guest-buy-box">
+          <div class="guest-buy-box" style="display:none;">
             <a href="/login" class="btn solid" style="width:100%;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
             <div style="text-align:center; margin-top:10px; font-size:12px; color:var(--text-dim);">Belum punya akun? <a href="/register" style="color:var(--cyan);">Daftar gratis</a></div>
           </div>
@@ -324,6 +323,30 @@
 
     </div><!-- /detail-body -->
     <%- include('partials/footer') %>
+
+    <!-- ====== STICKY BUY BAR ======
+         Harga + tombol "Beli Sekarang" digabung jadi 1 bar yang nempel di bawah layar (nama
+         varian yang lagi dipilih + harga di kiri, tombol beli bulat besar di kanan) -- biar
+         selalu kelihatan & gampang diklik tanpa perlu scroll balik ke atas, walau user udah
+         scroll jauh ke bagian ulasan. Tombol beli yang ASLI (id="buyMainBtn", listener klik-nya
+         di script bawah) dipindah ke sini -- listener-nya cari elemen by ID jadi tetap jalan
+         normal walau posisinya di DOM udah beda dari sebelumnya. -->
+    <div class="detail-buy-stickybar">
+      <div class="dbs-inner">
+        <div class="dbs-info">
+          <div class="dbs-name" id="dbsName"><%= (variants && variants.length > 1) ? product.name : displayName %></div>
+          <% if (product.price > finalPrice) { %>
+          <div class="dbs-old-price" id="dbsOldPrice">Rp <%= product.price.toLocaleString('id-ID') %></div>
+          <% } %>
+          <div class="dbs-price" id="dbsPrice">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
+        </div>
+        <% if (user) { %>
+          <button type="button" class="dbs-buy-btn" id="buyMainBtn"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</button>
+        <% } else { %>
+          <a href="/login" class="dbs-buy-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;"><i class="fa-solid fa-key"></i> Login untuk Beli</a>
+        <% } %>
+      </div>
+    </div>
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
@@ -453,6 +476,24 @@
       if(statHarga) statHarga.textContent=fmt(v.finalPrice);
       var statStok=document.getElementById('statStok');
       if(statStok) statStok.textContent=(typeof v.stockCount==='number') ? v.stockCount : '-';
+
+      // Sticky buy bar (nama varian + harga di bar bawah) ikut di-refresh juga
+      var dbsName=document.getElementById('dbsName');
+      if(dbsName) dbsName.textContent=v.name;
+      var dbsPrice=document.getElementById('dbsPrice');
+      if(dbsPrice) dbsPrice.textContent=fmt(v.finalPrice);
+      var dbsOldPrice=document.getElementById('dbsOldPrice');
+      if(v.price>v.finalPrice){
+        if(!dbsOldPrice){
+          dbsOldPrice=document.createElement('div');
+          dbsOldPrice.className='dbs-old-price';
+          dbsOldPrice.id='dbsOldPrice';
+          dbsName.insertAdjacentElement('afterend',dbsOldPrice);
+        }
+        dbsOldPrice.textContent=fmt(v.price);
+      } else if(dbsOldPrice){
+        dbsOldPrice.remove();
+      }
 
       var idSaldo=document.getElementById('productIdSaldo');
       var idQris=document.getElementById('productIdQris');
