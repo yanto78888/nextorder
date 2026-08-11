@@ -22,6 +22,7 @@
       const herosms = config.herosms || {};
       const google = config.google || {};
       const seo = config.seo || {};
+      const smtp = config.smtp || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
 
@@ -179,6 +180,49 @@
             Ambil Client ID &amp; Client Secret di <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:#fff; text-decoration:underline;">Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</a>, buat "OAuth client ID" tipe <b>Web application</b>. Kosongkan Client Secret kalau tidak mau menggantinya (yang lama tetap dipakai).<br><br>
             Di bagian <b>Authorized redirect URIs</b> Google, wajib didaftarkan persis:<br>
             <code style="color:var(--cyan); word-break:break-all;"><%= (seo.siteUrl || 'https://domainkamu.com') %>/auth/google/callback</code>
+          </div>
+
+          <div class="section-title"><h3>Email / SMTP</h3><div class="line"></div></div>
+          <div class="helper-text" style="margin-top:0;">Dipakai buat kirim kode OTP di fitur <b>Lupa Password</b>. Bisa pakai akun email pribadi (Gmail, Outlook, Zoho, dll). Kalau pakai Gmail, WAJIB pakai <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:#fff; text-decoration:underline;">App Password</a> (16 karakter), bukan password Gmail biasa.</div>
+
+          <label>SMTP Host</label>
+          <input type="text" name="smtpHost" placeholder="smtp.gmail.com" value="<%= smtp.host || '' %>">
+
+          <div class="flex" style="gap:12px;">
+            <div style="flex:1;">
+              <label>SMTP Port</label>
+              <input type="text" name="smtpPort" placeholder="587" value="<%= smtp.port || '' %>">
+            </div>
+            <div style="flex:1;">
+              <label>Keamanan</label>
+              <select name="smtpSecure">
+                <option value="off" <%= !smtp.secure ? 'selected' : '' %>>STARTTLS (port 587, umum)</option>
+                <option value="on" <%= smtp.secure ? 'selected' : '' %>>SSL (port 465)</option>
+              </select>
+            </div>
+          </div>
+
+          <label>SMTP Username (biasanya alamat email itu sendiri)</label>
+          <input type="text" name="smtpUser" placeholder="namakamu@gmail.com" value="<%= smtp.user || '' %>">
+
+          <label>SMTP Password / App Password</label>
+          <input type="password" name="smtpPass" placeholder="<%= smtp.pass ? '••••••••••••••••' : 'App Password 16 karakter' %>" autocomplete="new-password">
+
+          <div class="flex" style="gap:12px;">
+            <div style="flex:1;">
+              <label>Nama Pengirim</label>
+              <input type="text" name="smtpFromName" placeholder="<%= config.siteName || 'NEXORDER' %>" value="<%= smtp.fromName || '' %>">
+            </div>
+            <div style="flex:1;">
+              <label>Email Pengirim (kosongkan = sama seperti SMTP Username)</label>
+              <input type="text" name="smtpFromEmail" placeholder="<%= smtp.user || 'namakamu@gmail.com' %>" value="<%= smtp.fromEmail || '' %>">
+            </div>
+          </div>
+
+          <div class="flex" style="align-items:center; gap:12px; margin-top:8px;">
+            <button type="button" class="btn small ghost" id="testEmailBtn">Kirim Email Percobaan</button>
+            <input type="email" id="testEmailTarget" placeholder="email tujuan tes" style="max-width:220px; padding:8px 10px;">
+            <span id="testEmailResult" class="helper-text"></span>
           </div>
 
           <div class="section-title"><h3>Banner Iklan & Teks Berjalan</h3><div class="line"></div></div>
@@ -359,6 +403,26 @@
         .then(function (data) {
           if (!data.ok) { result.textContent = 'Gagal: ' + data.error; return; }
           result.textContent = 'Saldo: ' + Number(data.balance || 0).toLocaleString('id-ID') + ' ' + (data.currency || '');
+        })
+        .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
+    });
+  (function () {
+    var btn = document.getElementById('testEmailBtn');
+    var result = document.getElementById('testEmailResult');
+    var target = document.getElementById('testEmailTarget');
+    if (!btn || !result) return;
+    btn.addEventListener('click', function () {
+      var to = (target.value || '').trim();
+      if (!to) { result.textContent = 'Isi dulu email tujuan tes.'; return; }
+      result.textContent = 'Mengirim...';
+      fetch('/admin/settings/smtp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          result.textContent = data.ok ? 'Terkirim! Cek kotak masuk ' + to : 'Gagal: ' + data.error;
         })
         .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
     });
