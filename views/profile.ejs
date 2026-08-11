@@ -78,7 +78,8 @@
           <label>Username</label>
           <input type="text" value="<%= user.username %>" disabled>
           <label>Email</label>
-          <input type="email" name="email" value="<%= user.email || '' %>">
+          <input type="email" name="email" required value="<%= user.email || '' %>">
+          <div style="font-size:11px; color:var(--text-dim); margin:-6px 0 12px;">Dipakai buat login & reset password, pastikan aktif.</div>
           <label>Saldo</label>
           <input type="text" value="Rp <%= user.saldo.toLocaleString('id-ID') %>" disabled class="mono">
           <label>Status Member</label>
