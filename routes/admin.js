@@ -119,6 +119,27 @@ const uploadBanner = multer({
   }
 });
 
+// ---------- UPLOAD GAMBAR OG (SEO Open Graph) ----------
+// Disimpan di /public/uploads/seo/ -- path ini yang disimpan ke config.seo.ogImage dan dipakai
+// di <meta og:image> & di template email OTP (lib/mailer.js) buat nampilin logo/gambar brand.
+const ogImageDir = path.join(__dirname, '..', 'public', 'uploads', 'seo');
+fs.mkdirSync(ogImageDir, { recursive: true });
+const ogImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, ogImageDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `og-image${ext}`); // nama tetap (bukan random) supaya URL-nya gak berubah tiap kali upload ulang
+  }
+});
+const uploadOgImage = multer({
+  storage: ogImageStorage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(jpe?g|png|webp)$/i.test(file.originalname) && /^image\/(jpeg|png|webp)$/i.test(file.mimetype || '');
+    ok ? cb(null, true) : cb(new Error('Format OG Image harus JPG, PNG, atau WEBP'));
+  }
+});
+
 // ---------- UPLOAD FOTO GRUP DIGIFLAZZ (mis. foto folder "Mobile Legends") ----------
 const groupThumbDir = path.join(__dirname, '..', 'public', 'uploads', 'digiflazz-groups');
 fs.mkdirSync(groupThumbDir, { recursive: true });
@@ -1432,19 +1453,28 @@ router.post('/settings/smtp/test', async (req, res) => {
   }
 });
 
-router.post('/settings', (req, res) => {
+router.post('/settings', (req, res, next) => {
+  // Wrap multer di sini (bukan pakai middleware langsung) biar error multer (format salah /
+  // file terlalu besar) bisa ditangani gracefully, bukan crash ke global error handler.
+  uploadOgImage.single('seoOgImageFile')(req, res, (err) => {
+    if (err) return res.redirect('/admin/settings?error=' + encodeURIComponent('Upload OG Image gagal: ' + err.message));
+    handleSettingsSave(req, res);
+  });
+});
+
+function handleSettingsSave(req, res) {
   const {
     siteName, siteTagline,
     catalogCategories,
     qrString, merchantCode, apiKey, secretKey, feePercent, depositMin, expiredMinutes,
     digiflazzEnabled, digiflazzUsername, digiflazzApiKey, digiflazzWebhookSecret,
     indosmmEnabled, indosmmApiKey,
-    herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue,
+    herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue, herosmsWebhookSecret,
     googleEnabled, googleClientId, googleClientSecret,
     smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFromName, smtpFromEmail,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister, notifyOnWithdrawal,
     ownerWhatsapp,
-    seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
+    seoSiteUrl, seoMetaDescription, seoMetaKeywords,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
     marqueeEnabled, marqueeText
   } = req.body;
@@ -1475,17 +1505,21 @@ router.post('/settings', (req, res) => {
       siteUrl: keepIfBlank(String(seoSiteUrl || '').trim().replace(/\/+$/, ''), (prevCfg.seo || {}).siteUrl),
       metaDescription: keepIfBlank(String(seoMetaDescription || '').trim().slice(0, 160), (prevCfg.seo || {}).metaDescription),
       metaKeywords: String(seoMetaKeywords || '').trim(),
-      ogImage: keepIfBlank(String(seoOgImage || '').trim(), (prevCfg.seo || {}).ogImage)
+      // OG Image: kalau ada file yang diupload, pakai path barunya; kalau tidak (field file kosong),
+      // pertahankan nilai lama (sama pola keepIfBlank) biar gambar lama gak ke-hapus cuma karena
+      // admin simpan pengaturan lain tanpa upload ulang.
+      ogImage: req.file ? '/uploads/seo/' + req.file.filename : keepIfBlank('', (prevCfg.seo || {}).ogImage)
     },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, secretKey: (secretKey || '').trim(), feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
     digiflazz: { enabled: digiflazzEnabled === 'on', username: digiflazzUsername || '', apiKey: digiflazzApiKey || '', webhookSecret: (digiflazzWebhookSecret || '').trim() },
     indosmm: { enabled: indosmmEnabled === 'on', apiKey: indosmmApiKey || '' },
     herosms: {
-      enabled: herosmsEnabled === 'on', apiKey: herosmsApiKey || '',
+      enabled: herosmsEnabled === 'on', apiKey: herosmsApiKey || (getConfig().herosms || {}).apiKey || '',
       rubToIdr: parseFloat(herosmsRubToIdr) || 170,
       marginType: herosmsMarginType || 'percent',
-      marginValue: herosmsMarginValue !== undefined ? Number(herosmsMarginValue) : 30
+      marginValue: herosmsMarginValue !== undefined ? Number(herosmsMarginValue) : 30,
+      webhookSecret: (herosmsWebhookSecret || '').trim() || (getConfig().herosms || {}).webhookSecret || ''
     },
     // Client Secret: kalau field ini dikosongin pas nyimpen (mis. admin cuma mau ganti Client ID
     // doang, gak pengen ngetik ulang secret-nya), JANGAN ditimpa jadi kosong -- pertahankan yang
@@ -1518,7 +1552,7 @@ router.post('/settings', (req, res) => {
   });
 
   renderSettings(req, res, { success: 'Pengaturan berhasil disimpan' });
-});
+}
 
 // Trigger backup data manual dari tombol di halaman settings (di luar jadwal otomatis 5 jam)
 router.post('/settings/backup/now', async (req, res) => {

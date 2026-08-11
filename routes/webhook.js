@@ -3,6 +3,8 @@ import { getConfig } from '../lib/config.js';
 import { processQiospayCallback } from '../lib/deposit.js';
 import { processQiospayCallbackForOrder } from '../lib/orderQris.js';
 import { processDigiflazzWebhook, verifyDigiflazzSignature } from '../lib/digiflazz.js';
+import { patchOrder, getAllOrders } from '../lib/orders.js';
+import { finishActivation } from '../lib/herosms.js';
 
 const router = express.Router();
 
@@ -116,6 +118,85 @@ router.post('/webhooks/digiflazz', async (req, res) => {
     // 500 (bukan 200) buat error TAK TERDUGA -- sama alasannya kayak QIOSPAY, kasih kesempatan
     // Digiflazz retry kalau errornya cuma sementara, daripada notifikasi status ini hilang gitu aja.
     res.status(500).json({ status: 'error', message: 'Gagal diproses, coba lagi' });
+  }
+});
+
+// Webhook dari HeroSMS -- PELENGKAP dari polling GET /otp/status/:id/check yang udah ada.
+// Dokumentasi resmi HeroSMS: daftarkan URL ini di "Personal Information" dashboard HeroSMS
+// (bisa sampai 3 URL webhook sekaligus):
+//   https://domain-kamu.com/api/webhooks/herosms/{WEBHOOK_SECRET}
+// WEBHOOK_SECRET diisi di Admin > Pengaturan > HeroSMS.
+//
+// Format payload HeroSMS (application/json, POST):
+//   activationId  string   -- ID aktivasi (= providerRefId yang kita simpan saat order OTP)
+//   service       string   -- kode service (mis. "tg" untuk Telegram)
+//   text          string   -- isi SMS lengkap (mis. "Your code is 12345")
+//   code          string   -- kode OTP yang sudah di-ekstrak HeroSMS dari SMS
+//   country       integer  -- country ID
+//   receivedAt    string   -- timestamp ISO 8601
+//
+// HeroSMS retry webhook sampai 7x (jeda 20-30 detik) kalau server tidak balas 200 dalam 3 detik.
+// Selalu balas 200 -- termasuk untuk duplikat -- biar HeroSMS berhenti retry percuma.
+router.post('/webhooks/herosms/:secret', async (req, res) => {
+  try {
+    const cfg = getConfig();
+    const configuredSecret = (cfg.herosms && cfg.herosms.webhookSecret) || '';
+
+    if (!configuredSecret) {
+      console.error('[herosms-webhook] Callback ditolak: Webhook Secret belum diisi di Admin > Pengaturan > HeroSMS');
+      return res.status(403).json({ status: 'reject', message: 'Webhook secret belum dikonfigurasi' });
+    }
+    if (req.params.secret !== configuredSecret) {
+      console.error('[herosms-webhook] Callback ditolak: secret di URL tidak cocok');
+      return res.status(403).json({ status: 'reject', message: 'Invalid secret' });
+    }
+
+    const body = req.body || {};
+
+    // Field resmi HeroSMS webhook: activationId & code (kode OTP yang sudah diekstrak).
+    // `text` (isi SMS lengkap) juga tersedia tapi kita pakai `code` yang sudah bersih.
+    const activationId = String(body.activationId || '');
+    const code = String(body.code || '').trim();
+
+    if (!activationId) {
+      console.warn('[herosms-webhook] Payload tidak punya activationId, diabaikan');
+      return res.status(200).json({ status: 'ok', note: 'no activationId, ignored' });
+    }
+
+    if (!code) {
+      // Notifikasi masuk tapi belum ada kode (jarang terjadi) -- balas 200, jangan retry
+      console.warn(`[herosms-webhook] activationId ${activationId} masuk tapi code kosong, diabaikan`);
+      return res.status(200).json({ status: 'ok', note: 'no code in payload, ignored' });
+    }
+
+    // Cari order OTP yang masih processing & punya providerRefId yang cocok
+    const order = getAllOrders().find(o =>
+      o.provider === 'otp' &&
+      o.status === 'processing' &&
+      String(o.providerRefId) === activationId
+    );
+
+    if (!order) {
+      // Duplikat callback (order sudah completed/cancelled) atau activationId asing
+      console.log(`[herosms-webhook] activationId ${activationId} tidak ditemukan / sudah selesai, diabaikan`);
+      return res.status(200).json({ status: 'ok', note: 'order not found or already finished' });
+    }
+
+    patchOrder(order.id, { status: 'completed', detail: code, note: 'Kode OTP diterima via webhook' });
+
+    // Beritahu HeroSMS bahwa kode sudah berhasil dipakai (setStatus 6 = "completed") supaya
+    // slot nomor dilepas dan tidak terus di-charge. Fire-and-forget biar response cepat balik.
+    finishActivation(activationId).catch(err =>
+      console.warn('[herosms-webhook] finishActivation gagal (order tetap completed):', err.message)
+    );
+
+    console.log(`[herosms-webhook] Order ${order.id} kode OTP diterima: ${code} (activationId: ${activationId})`);
+    res.status(200).json({ status: 'ok', matched: true });
+
+  } catch (err) {
+    console.error('[herosms-webhook] Error tak terduga:', err);
+    // 500 biar HeroSMS bisa retry (bukan 200 yang bikin HeroSMS stop retry permanen)
+    res.status(500).json({ status: 'error', message: 'Gagal diproses' });
   }
 });
 
