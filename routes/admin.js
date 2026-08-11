@@ -26,6 +26,7 @@ import {
   isHerosmsEnabled, getBalance as getHerosmsBalance, getServicesList as getHerosmsServicesList,
   getCountries as getHerosmsCountries, getPrices as getHerosmsPrices, computeSellPrice as computeHerosmsSellPrice
 } from '../lib/herosms.js';
+import { sendTestEmail } from '../lib/mailer.js';
 import {
   getAllFlashSaleItems, getFlashSaleDisplayItems, getFlashSaleSettings, updateFlashSaleSettings,
   addFlashSaleItem, updateFlashSaleItem, deleteFlashSaleItem, reorderFlashSaleItems,
@@ -1418,6 +1419,19 @@ router.get('/settings/herosms/saldo', async (req, res) => {
   }
 });
 
+// Kirim email percobaan via AJAX di halaman settings -- buat mastiin kredensial SMTP yang baru
+// diisi admin beneran valid SEBELUM dipakai beneran di alur Lupa Password user.
+router.post('/settings/smtp/test', async (req, res) => {
+  const to = String((req.body && req.body.to) || '').trim();
+  if (!to) return res.status(400).json({ ok: false, error: 'Isi dulu email tujuan tes' });
+  try {
+    await sendTestEmail(to);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/settings', (req, res) => {
   const {
     siteName, siteTagline,
@@ -1427,6 +1441,7 @@ router.post('/settings', (req, res) => {
     indosmmEnabled, indosmmApiKey,
     herosmsEnabled, herosmsApiKey, herosmsRubToIdr, herosmsMarginType, herosmsMarginValue,
     googleEnabled, googleClientId, googleClientSecret,
+    smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFromName, smtpFromEmail,
     botToken, chatId, notifyOnDeposit, notifyOnOrder, notifyOnRegister, notifyOnWithdrawal,
     ownerWhatsapp,
     seoSiteUrl, seoMetaDescription, seoMetaKeywords, seoOgImage,
@@ -1480,6 +1495,19 @@ router.post('/settings', (req, res) => {
       enabled: googleEnabled === 'on',
       clientId: googleClientId || '',
       clientSecret: googleClientSecret ? googleClientSecret : (getConfig().google || {}).clientSecret || ''
+    },
+    // SMTP Password: sama kayak Google Client Secret di atas -- field ini gak pernah ditampilkan
+    // balik ke form (lihat renderSettings), jadi kalau dikirim kosong pas Simpan artinya "gak
+    // diubah", BUKAN "sengaja dikosongin" -- pertahankan password yang lama biar admin gak perlu
+    // ketik ulang App Password tiap kali cuma mau ganti field lain di section ini.
+    smtp: {
+      host: (smtpHost || '').trim(),
+      port: parseInt(smtpPort) || 587,
+      secure: smtpSecure === 'on',
+      user: (smtpUser || '').trim(),
+      pass: smtpPass ? smtpPass : (getConfig().smtp || {}).pass || '',
+      fromName: (smtpFromName || '').trim(),
+      fromEmail: (smtpFromEmail || '').trim()
     },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on', notifyOnWithdrawal: notifyOnWithdrawal === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },

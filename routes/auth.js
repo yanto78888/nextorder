@@ -1,9 +1,10 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { createUser, findUserByUsername, verifyPassword, findUserById, updateUser, findUserByGoogleId, findOrCreateGoogleUser } from '../lib/users.js';
+import { createUser, findUserByUsername, findUserByEmail, verifyPassword, findUserById, updateUser, findUserByGoogleId, findOrCreateGoogleUser, setPassword, canRequestResetOtp, generateResetOtp, verifyResetOtp, clearResetOtp } from '../lib/users.js';
 import { getConfig } from '../lib/config.js';
 import { notifyRegister } from '../lib/telegram.js';
+import { sendResetOtpEmail, isSmtpConfigured } from '../lib/mailer.js';
 
 const router = express.Router();
 
@@ -143,22 +144,29 @@ router.get('/auth/google/callback', async (req, res) => {
 // di hasil pencarian bareng halaman produk yang justru mau di-highlight.
 router.get('/login', (req, res) => {
   if (req.session.user) return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/produk');
-  res.render('login', { error: null, config: getConfig(), pageTitle: `Login - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
+  res.render('login', { error: req.query.error || null, success: req.query.success || null, config: getConfig(), pageTitle: `Login - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
 });
 
 router.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = findUserByUsername(username);
+  // Login sekarang pakai EMAIL (field di form namanya "email"), TAPI username tetap ada &
+  // masih dipakai di tempat lain (ditampilkan di sidebar, dipakai buat cari akun via API key,
+  // dll). Supaya user LAMA yang akunnya dibuat SEBELUM email jadi wajib (emailnya kosong di
+  // data/users.json) gak langsung ke-lockout gara-gara update ini, di sini dicoba dulu cari
+  // via email -- kalau gak ketemu (mis. yang diketik ternyata username lama), fallback coba
+  // cari via username juga. User baru yang daftar sekarang emailnya udah pasti keisi & unik,
+  // jadi fallback ini gak bikin ambigu buat akun baru.
+  const { email, password } = req.body;
+  const user = findUserByEmail(email) || findUserByUsername(email);
   const cfg = getConfig();
   const pageTitle = `Login - ${cfg.siteName || 'NEXORDER'}`;
   // Akun yang daftar/login pertama kali lewat Google gak punya password lokal (password: '') --
-  // dikasih pesan yang jelas di sini, BUKAN "Username atau password salah" yang bikin bingung
-  // karena usernamenya sendiri sebenarnya benar.
+  // dikasih pesan yang jelas di sini, BUKAN "Email atau password salah" yang bikin bingung
+  // karena emailnya sendiri sebenarnya benar.
   if (user && !user.password) {
     return res.render('login', { error: 'Akun ini terdaftar lewat Google. Silakan masuk pakai tombol "Masuk dengan Google" di bawah, atau buat password login dulu di halaman Profil.', config: cfg, pageTitle, noindex: true });
   }
   if (!user || !verifyPassword(user, password)) {
-    return res.render('login', { error: 'Username atau password salah', config: cfg, pageTitle, noindex: true });
+    return res.render('login', { error: 'Email atau password salah', config: cfg, pageTitle, noindex: true });
   }
   if (user.status === 'banned') {
     return res.render('login', { error: 'Akun anda diblokir. Hubungi admin.', config: cfg, pageTitle, noindex: true });
@@ -177,8 +185,12 @@ router.post('/register', async (req, res) => {
   const cfg = getConfig();
   const pageTitle = `Daftar Akun - ${cfg.siteName || 'NEXORDER'}`;
 
-  if (!username || !password) {
-    return res.render('register', { error: 'Username dan password wajib diisi', config: cfg, pageTitle, noindex: true });
+  // Email sekarang WAJIB diisi di sini (bukan opsional lagi) -- dipakai buat login (lihat
+  // POST /login) & buat kirim kode OTP di fitur Lupa Password. Validasi format/keunikan yang
+  // lebih detail ada di createUser() (lib/users.js), di sini cuma cek kosong-atau-nggak dulu
+  // biar pesan error paling umum ("wajib diisi") muncul duluan sebelum validasi yang lebih rinci.
+  if (!username || !email || !password) {
+    return res.render('register', { error: 'Username, email, dan password wajib diisi', config: cfg, pageTitle, noindex: true });
   }
   if (password !== password2) {
     return res.render('register', { error: 'Konfirmasi password tidak cocok', config: cfg, pageTitle, noindex: true });
@@ -199,6 +211,102 @@ router.post('/register', async (req, res) => {
 
 router.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
+});
+
+// ---------- LUPA PASSWORD (OTP via email) ----------
+// Alur: /lupa-password (isi email) -> kode OTP 6 digit dikirim ke email -> /reset-password
+// (isi kode + password baru). Kode di-hash (sha256) & disimpan di data user sendiri (lihat
+// lib/users.js generateResetOtp/verifyResetOtp), bukan di tabel/file terpisah.
+//
+// KEAMANAN: pesan sukses di POST /lupa-password SENGAJA SAMA baik email-nya kedaftar atau
+// nggak ("kalau email terdaftar, kode sudah dikirim") -- ini standar buat cegah "user
+// enumeration" (orang iseng nebak-nebak email mana aja yang punya akun di situs ini cuma
+// dari beda/samanya pesan error). Yang beneran nentuin sukses/gagal reset password itu proses
+// verifikasi KODE OTP-nya di /reset-password, bukan pesan di step ini.
+router.get('/lupa-password', (req, res) => {
+  if (req.session.user) return res.redirect('/produk');
+  const cfg = getConfig();
+  res.render('lupa-password', { error: null, info: null, config: cfg, pageTitle: `Lupa Password - ${cfg.siteName || 'NEXORDER'}`, noindex: true });
+});
+
+router.post('/lupa-password', async (req, res) => {
+  const cfg = getConfig();
+  const pageTitle = `Lupa Password - ${cfg.siteName || 'NEXORDER'}`;
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return res.render('lupa-password', { error: 'Email wajib diisi', info: null, config: cfg, pageTitle, noindex: true });
+  }
+  if (!isSmtpConfigured()) {
+    // Ini error KONFIGURASI (admin belum isi SMTP di Pengaturan), bukan salah user -- boleh
+    // ditampilkan apa adanya (beda dari kasus "email gak ketemu" yang sengaja disamarkan di atas).
+    return res.render('lupa-password', { error: 'Fitur reset password lewat email belum aktif. Hubungi admin.', info: null, config: cfg, pageTitle, noindex: true });
+  }
+
+  try {
+    const user = findUserByEmail(email);
+    if (user) {
+      const cooldown = canRequestResetOtp(user);
+      if (!cooldown.ok) {
+        return res.render('lupa-password', { error: `Tunggu ${cooldown.waitSeconds} detik lagi sebelum minta kode baru.`, info: null, config: cfg, pageTitle, noindex: true });
+      }
+      const otp = generateResetOtp(user.id);
+      await sendResetOtpEmail(user.email, otp, cfg.siteName);
+    }
+    // Redirect (bukan render langsung) biar refresh halaman /reset-password gak nge-trigger
+    // kirim OTP lagi, dan email-nya kebawa lewat query string buat prefill form di step 2.
+    res.redirect('/reset-password?email=' + encodeURIComponent(email) + '&sent=1');
+  } catch (err) {
+    console.error('[auth] Gagal kirim OTP reset password:', err.message);
+    res.render('lupa-password', { error: 'Gagal mengirim email. Coba lagi beberapa saat, atau hubungi admin kalau terus gagal.', info: null, config: cfg, pageTitle, noindex: true });
+  }
+});
+
+router.get('/reset-password', (req, res) => {
+  if (req.session.user) return res.redirect('/produk');
+  const cfg = getConfig();
+  res.render('reset-password', {
+    error: null,
+    sent: req.query.sent === '1',
+    prefillEmail: req.query.email || '',
+    config: cfg,
+    pageTitle: `Reset Password - ${cfg.siteName || 'NEXORDER'}`,
+    noindex: true
+  });
+});
+
+router.post('/reset-password', (req, res) => {
+  const cfg = getConfig();
+  const pageTitle = `Reset Password - ${cfg.siteName || 'NEXORDER'}`;
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const { otp, password, password2 } = req.body;
+  const renderError = (msg) => res.render('reset-password', { error: msg, sent: true, prefillEmail: email, config: cfg, pageTitle, noindex: true });
+
+  if (!email || !otp || !password) {
+    return renderError('Semua field wajib diisi');
+  }
+  if (password !== password2) {
+    return renderError('Konfirmasi password tidak cocok');
+  }
+  if (password.length < 6) {
+    return renderError('Password minimal 6 karakter');
+  }
+
+  // Pesan error DI SINI boleh spesifik ("kode salah"/"kedaluwarsa") -- beda dari step 1, karena
+  // di titik ini penyerang udah harus nebak KODE OTP 6 digit yang bener dulu (bukan cuma nebak
+  // email terdaftar atau nggak), jadi gak nambah risiko user-enumeration yang berarti.
+  const user = findUserByEmail(email);
+  if (!user) {
+    return renderError('Kode OTP salah atau sudah kedaluwarsa');
+  }
+  const result = verifyResetOtp(user, otp);
+  if (!result.ok) {
+    return renderError(result.reason);
+  }
+
+  setPassword(user.id, password);
+  clearResetOtp(user.id);
+  res.redirect('/login?success=' + encodeURIComponent('Password berhasil diganti. Silakan login pakai password baru.'));
 });
 
 export default router;

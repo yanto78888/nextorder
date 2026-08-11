@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
-  getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey
+  getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
@@ -101,7 +101,21 @@ router.get('/profile', requireLogin, (req, res) => {
 router.post('/profile', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const { email } = req.body;
-  updateUser(user.id, { email });
+  // Email sekarang jadi KUNCI LOGIN (lihat routes/auth.js POST /login), jadi gak boleh
+  // dikosongin (nanti user gak bisa login lagi) atau diisi email yang udah kepakai user lain
+  // (nanti findUserByEmail ambigu, salah satu akun jadi gak bisa login).
+  const emailNormalized = String(email || '').trim().toLowerCase();
+  if (!emailNormalized) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Email tidak boleh dikosongkan (dipakai buat login)'));
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalized)) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Format email tidak valid'));
+  }
+  const existing = findUserByEmail(emailNormalized);
+  if (existing && existing.id !== user.id) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Email ini sudah dipakai akun lain'));
+  }
+  updateUser(user.id, { email: emailNormalized });
   res.redirect('/profile?success=' + encodeURIComponent('Profil berhasil diperbarui'));
 });
 
