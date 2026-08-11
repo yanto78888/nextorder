@@ -55,8 +55,17 @@
           <div class="helper-text">Pisahkan dengan koma. Pengaruhnya ke ranking Google sekarang minim, tapi boleh diisi kalau mau.</div>
 
           <label>Gambar Open Graph Default</label>
-          <input type="text" name="seoOgImage" placeholder="/uploads/banner-share.jpg atau URL lengkap" value="<%= seo.ogImage || '' %>">
-          <div class="helper-text">Gambar yang muncul saat link situs di-share ke WhatsApp/Telegram/Facebook, buat halaman yang belum punya gambar sendiri (halaman produk otomatis pakai foto produknya). Ukuran disarankan 1200x630px. Upload gambarnya ke folder <code>public/</code> lewat server lalu isi path-nya di sini, atau pakai URL gambar yang sudah online.</div>
+          <% if (seo.ogImage) { %>
+          <div class="thumb-preview" style="margin-bottom:8px;">
+            <img src="<%= seo.ogImage.startsWith('http') ? seo.ogImage : (seo.ogImage) %>" alt="OG Image saat ini" style="width:120px; height:63px; object-fit:cover; border-radius:var(--radius); border:1px solid var(--border-glow);">
+            <div>
+              <div style="font-size:12px; color:var(--text-dim); margin-bottom:4px;">Gambar saat ini</div>
+              <div style="font-size:11px; color:var(--text-dim); word-break:break-all;"><%= seo.ogImage %></div>
+            </div>
+          </div>
+          <% } %>
+          <input type="file" name="seoOgImageFile" accept="image/jpeg,image/png,image/webp" style="margin-bottom:4px;">
+          <div class="helper-text">Gambar yang muncul saat link situs di-share ke WhatsApp/Telegram/Facebook. Ukuran disarankan 1200x630px (rasio 1.91:1), maks 3MB, format JPG/PNG/WEBP. Kalau kosong (tidak upload), gambar lama tetap dipakai.</div>
 
           <div class="section-title"><h3>Katalog</h3><div class="line"></div></div>
 
@@ -136,13 +145,21 @@
             <span id="saldoIndosmmResult" class="helper-text"></span>
           </div>
 
-          <div class="section-title"><h3>HeroSMS (OTP: Nomor Virtual Terima SMS)</h3><div class="line"></div></div>
+          <div class="section-title"><h3>HeroSMS (Beli OTP via Nomor Virtual)</h3><div class="line"></div></div>
 
-          <label class="check-row"><input type="checkbox" name="herosmsEnabled" <%= herosms.enabled ? 'checked' : '' %>> Aktifkan fitur OTP via HeroSMS</label>
+          <label class="check-row"><input type="checkbox" name="herosmsEnabled" <%= herosms.enabled ? 'checked' : '' %>> Aktifkan fitur Beli OTP via HeroSMS</label>
 
           <label>API Key</label>
           <input type="password" name="herosmsApiKey" value="<%= herosms.apiKey || '' %>" autocomplete="new-password">
           <div class="helper-text">Ambil di dashboard HeroSMS (hero-sms.com) &rarr; menu API. Setelah diisi dan disimpan, cari &amp; import layanan di halaman <a href="/admin/otp" style="color:#fff; text-decoration:underline;">Kelola OTP</a>.</div>
+
+          <label style="margin-top:12px;">Webhook Secret (opsional, tapi sangat disarankan)</label>
+          <input type="text" name="herosmsWebhookSecret" value="<%= herosms.webhookSecret || '' %>" placeholder="Isi sembarang string rahasia, misal: abc123xyz">
+          <div class="helper-text">
+            Daftarkan URL berikut di dashboard HeroSMS &rarr; <b>Personal Information</b> &rarr; bagian Webhook (bisa sampai 3 URL sekaligus):<br>
+            <code style="color:var(--cyan); word-break:break-all;"><%= (seo.siteUrl || 'https://domainkamu.com') %>/api/webhooks/herosms/<%= herosms.webhookSecret || '{WEBHOOK_SECRET}' %></code><br>
+            HeroSMS akan POST JSON ke URL ini setiap kode OTP masuk, dengan field: <code>activationId</code>, <code>code</code>, <code>text</code>, <code>service</code>, <code>country</code>, <code>receivedAt</code>. Kode akan ter-update di halaman status user <b>langsung tanpa polling</b>.
+          </div>
 
           <div class="grid grid-2 mt-16">
             <div>
