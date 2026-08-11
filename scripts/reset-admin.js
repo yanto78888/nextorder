@@ -26,11 +26,15 @@ function run() {
     console.log(' >>> SEGERA LOGIN & GANTI PASSWORD DI HALAMAN PROFILE <<<');
     console.log('===================================================');
   } else {
-    createUser({ username: DEFAULT_USERNAME, email: '', password: DEFAULT_PASSWORD, role: 'admin' });
+    // Email sekarang WAJIB (kunci login, lihat routes/auth.js) -- dikasih placeholder biar tetap
+    // bisa login, WAJIB diganti ke email asli lewat halaman Profile setelah berhasil masuk.
+    const placeholderEmail = 'admin@localhost';
+    createUser({ username: DEFAULT_USERNAME, email: placeholderEmail, password: DEFAULT_PASSWORD, role: 'admin' });
     console.log('===================================================');
     console.log(' Belum ada akun admin, jadi dibuatkan baru!');
-    console.log(' Username :', DEFAULT_USERNAME);
+    console.log(' Email    :', placeholderEmail, '(login sekarang pakai EMAIL, bukan username)');
     console.log(' Password :', DEFAULT_PASSWORD);
+    console.log(' >>> SEGERA GANTI EMAIL KE EMAIL ASLI DI HALAMAN PROFILE <<<');
     console.log('===================================================');
   }
 }
