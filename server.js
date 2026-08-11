@@ -105,13 +105,17 @@ function bootstrap() {
   const users = getAllUsers();
   if (users.length === 0) {
     const password = generateRandomPassword();
-    createUser({ username: 'skirk', email: '', password, role: 'admin' });
+    // Email sekarang WAJIB (jadi kunci login, lihat routes/auth.js) -- akun default ini dikasih
+    // email placeholder biar tetap bisa login pertama kali, WAJIB diganti admin sendiri lewat
+    // halaman Profile ke email asli yang beneran bisa diakses (Lupa Password butuh email nyata).
+    const placeholderEmail = 'admin@localhost';
+    createUser({ username: 'skirk', email: placeholderEmail, password, role: 'admin' });
     console.log('===================================================');
     console.log(' Akun admin default dibuat!');
-    console.log(' Username : skirk');
+    console.log(' Email    : ' + placeholderEmail + ' (login sekarang pakai EMAIL, bukan username)');
     console.log(` Password : ${password}`);
     console.log(' (password ini cuma tampil sekali di log ini, gak disimpan di tempat lain)');
-    console.log(' >>> SEGERA LOGIN & GANTI PASSWORD DI HALAMAN PROFILE <<<');
+    console.log(' >>> SEGERA LOGIN, GANTI PASSWORD & GANTI EMAIL KE EMAIL ASLI DI HALAMAN PROFILE <<<');
     console.log('===================================================');
   }
 }
