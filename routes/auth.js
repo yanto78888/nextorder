@@ -245,16 +245,23 @@ router.post('/lupa-password', async (req, res) => {
 
   try {
     const user = findUserByEmail(email);
-    if (user) {
-      const cooldown = canRequestResetOtp(user);
-      if (!cooldown.ok) {
-        return res.render('lupa-password', { error: `Tunggu ${cooldown.waitSeconds} detik lagi sebelum minta kode baru.`, info: null, config: cfg, pageTitle, noindex: true });
-      }
-      const otp = generateResetOtp(user.id);
-      await sendResetOtpEmail(user.email, otp, cfg.siteName);
+    // Sekarang LANGSUNG tampilkan pesan error kalau email gak terdaftar -- owner toko ini
+    // lebih prefer UX yang jelas ("email gak ketemu") daripada perlindungan user-enumeration
+    // (yang lebih relevan buat platform skala besar). Ini juga sekalian mastiin kode OTP
+    // CUMA dikirim kalau emailnya beneran ada di DB, bukan buang resource kirim email ke
+    // alamat yang gak terdaftar sama sekali.
+    if (!user) {
+      return res.render('lupa-password', {
+        error: 'Email tidak ditemukan. Pastikan kamu memasukkan email yang dipakai saat daftar.',
+        info: null, config: cfg, pageTitle, noindex: true
+      });
     }
-    // Redirect (bukan render langsung) biar refresh halaman /reset-password gak nge-trigger
-    // kirim OTP lagi, dan email-nya kebawa lewat query string buat prefill form di step 2.
+    const cooldown = canRequestResetOtp(user);
+    if (!cooldown.ok) {
+      return res.render('lupa-password', { error: `Tunggu ${cooldown.waitSeconds} detik lagi sebelum minta kode baru.`, info: null, config: cfg, pageTitle, noindex: true });
+    }
+    const otp = generateResetOtp(user.id);
+    await sendResetOtpEmail(user.email, otp, cfg.siteName, cfg);
     res.redirect('/reset-password?email=' + encodeURIComponent(email) + '&sent=1');
   } catch (err) {
     console.error('[auth] Gagal kirim OTP reset password:', err.message);
