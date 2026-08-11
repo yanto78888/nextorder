@@ -7,7 +7,7 @@
 
   <div class="main no-bottom-nav">
     <div class="topbar">
-      <h2 style="margin:0;"><i class="fa-solid fa-shield-halved"></i> OTP: Nomor Virtual</h2>
+      <h2 style="margin:0;"><i class="fa-solid fa-shield-halved"></i> Beli OTP via Nomor Virtual</h2>
       <div class="flex" style="gap:8px; margin-left:auto;">
         <% if (user) { %>
           <div class="user-chip"><span class="dot"></span> Rp <%= user.saldo.toLocaleString('id-ID') %></div>
@@ -16,7 +16,7 @@
         <% } %>
       </div>
     </div>
-    <p class="helper-text" style="margin:0 0 16px;">Sewa nomor virtual buat terima kode OTP/SMS verifikasi (WhatsApp, Telegram, dan berbagai layanan lain). Pilih negara dulu, lalu pilih nama aplikasinya -- kode diterima langsung di halaman status setelah nomor didapat.</p>
+    <p class="helper-text" style="margin:0 0 16px;">Beli nomor virtual buat terima kode OTP/SMS verifikasi (WhatsApp, Telegram, dan berbagai layanan lain). Pilih negara dulu, lalu pilih nama aplikasinya -- kode diterima langsung di halaman status setelah nomor didapat.</p>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert error"><%= error %></div><% } %>
 
@@ -62,17 +62,17 @@
         <div class="service-desc" id="serviceDesc"></div>
 
         <div class="form-group">
-          <label class="form-label" style="color:var(--cyan);">Harga Sewa Nomor</label>
+          <label class="form-label" style="color:var(--cyan);">Harga Beli OTP</label>
           <input type="text" id="hargaTampil" class="form-control" readonly value="Rp 0" style="font-weight:bold; font-size:16px; color:var(--cyan); background:rgba(79,168,255,0.05); border-color:var(--cyan);">
         </div>
 
         <% if (user) { %>
         <form method="POST" id="otpOrderForm" action="/otp/order/">
         </form>
-        <button type="button" class="btn solid buy-main-btn" id="btnSewa" style="width:100%; padding:14px; font-size:15px;"><i class="fa-solid fa-shield-halved"></i> Sewa Nomor Sekarang</button>
+        <button type="button" class="btn solid buy-main-btn" id="btnBeli" style="width:100%; padding:14px; font-size:15px;"><i class="fa-solid fa-shield-halved"></i> Beli OTP Sekarang</button>
         <div class="alert error" id="saldoWarning" style="margin-top:12px; font-size:13px; display:none;">Saldo tidak cukup -- silakan <a href="/topup" style="color:inherit; text-decoration:underline;">isi saldo</a> dulu.</div>
         <% } else { %>
-        <a href="/login" class="btn solid" style="width:100%; text-align:center; display:block; padding:14px; font-size:15px;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Login untuk Sewa Nomor</a>
+        <a href="/login" class="btn solid" style="width:100%; text-align:center; display:block; padding:14px; font-size:15px;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Login untuk Beli OTP</a>
         <% } %>
       </div>
     </div>
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var serviceDetails = document.getElementById('serviceDetails');
   var serviceDesc = document.getElementById('serviceDesc');
   var hargaTampil = document.getElementById('hargaTampil');
-  var btnSewa = document.getElementById('btnSewa');
+  var btnBeli = document.getElementById('btnBeli');
   var otpOrderForm = document.getElementById('otpOrderForm');
   var saldoWarning = document.getElementById('saldoWarning');
   var userSaldo = <%= user ? user.saldo : 0 %>;
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     serviceDetails.style.display = 'block';
     serviceDesc.innerHTML = '<b><i class="fa-solid fa-mobile-screen-button"></i> ' + selectedProduct.otpServiceName + '</b> - ' + selectedProduct.otpCountryName +
-      '<br>Nomor virtual langsung tampil setelah kamu klik "Sewa Nomor Sekarang", lalu tinggal tunggu kode OTP masuk otomatis di halaman status (bisa disalin sekali klik).';
+      '<br>Nomor virtual langsung tampil setelah kamu klik "Beli OTP Sekarang", lalu tinggal tunggu kode OTP masuk otomatis di halaman status (bisa disalin sekali klik).';
     hargaTampil.value = fmt(selectedProduct.price);
     if (otpOrderForm) otpOrderForm.setAttribute('action', '/otp/order/' + selectedProduct.id);
     if (saldoWarning) saldoWarning.style.display = (userSaldo < selectedProduct.price) ? 'block' : 'none';
@@ -198,8 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // 4. Submit sewa nomor
-  if (btnSewa) {
-    btnSewa.addEventListener('click', function () {
+  if (btnBeli) {
+    btnBeli.addEventListener('click', function () {
       if (!selectedProduct) { alert('Pilih negara dan nama aplikasi dulu.'); return; }
       if (userSaldo < selectedProduct.price) return;
       var ok = confirm('Sewa nomor ' + selectedProduct.otpServiceName + ' - ' + selectedProduct.otpCountryName + ' seharga ' + fmt(selectedProduct.price) + '?');

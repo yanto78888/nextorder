@@ -220,8 +220,8 @@ X-RateLimit-Remaining: 47</pre>
     </div>
 
     <div class="card doc-endpoint">
-      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/otp</code> <span class="doc-tag smm">OTP: Nomor Virtual</span></div>
-      <p class="helper-text" style="margin:6px 0 10px;"><code>provider: "otp"</code> di <code>/pricelist</code>. Beda dari endpoint order lain -- gak ada <code>qty</code>/<code>target</code>, cukup <code>product_id</code>. Sewa 1 nomor per request.</p>
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/order/otp</code> <span class="doc-tag smm">Beli OTP via Nomor Virtual</span></div>
+      <p class="helper-text" style="margin:6px 0 10px;"><code>provider: "otp"</code> di <code>/pricelist</code>. Beda dari endpoint order lain -- gak ada <code>qty</code>/<code>target</code>, cukup <code>product_id</code>. Beli 1 nomor per request.</p>
       <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/order/otp \
   -H "X-API-Key: API_KEY_KAMU" \
   -H "Content-Type: application/json" \

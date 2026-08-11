@@ -20,12 +20,12 @@
           </div>
           <div class="inv-status-title" id="otpStatusTitle">
             <% if (statusClass === 'completed') { %>Kode OTP Diterima
-            <% } else if (statusClass === 'cancelled') { %>Sewa Dibatalkan
+            <% } else if (statusClass === 'cancelled') { %>OTP Dibatalkan
             <% } else { %>Menunggu SMS Masuk<% } %>
           </div>
           <div class="inv-status-sub" id="otpStatusSub">
             <% if (statusClass === 'completed') { %>Kode sudah masuk, tinggal disalin di bawah
-            <% } else if (statusClass === 'cancelled') { %><%= order.note || 'Sewa dibatalkan, saldo dikembalikan penuh' %>
+            <% } else if (statusClass === 'cancelled') { %><%= order.note || 'OTP dibatalkan, saldo dikembalikan penuh' %>
             <% } else { %>Masukkan nomor di bawah ke aplikasi tujuan, halaman ini update otomatis begitu kode masuk<% } %>
           </div>
         </div>
@@ -88,7 +88,7 @@
           <% } else { %>
           <a href="/riwayat" class="btn ghost" style="flex:1;">Riwayat Lain</a>
           <% } %>
-          <a href="/otp" class="btn solid" style="flex:1;"><i class="fa-solid fa-shield-halved"></i> Sewa Lagi</a>
+          <a href="/otp" class="btn solid" style="flex:1;"><i class="fa-solid fa-shield-halved"></i> Beli OTP Lagi</a>
         </div>
       </div>
 
@@ -160,8 +160,8 @@
           band.className = 'inv-status-band cancelled';
           icon.className = 'inv-status-icon cancelled';
           icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
-          title.textContent = 'Sewa Dibatalkan';
-          sub.textContent = res.note || 'Sewa dibatalkan, saldo dikembalikan penuh';
+          title.textContent = 'OTP Dibatalkan';
+          sub.textContent = res.note || 'OTP dibatalkan, saldo dikembalikan penuh';
           clearInterval(timer);
           setTimeout(function () { location.reload(); }, 1200);
         }
