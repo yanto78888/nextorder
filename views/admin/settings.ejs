@@ -29,7 +29,7 @@
     <div class="grid grid-2 settings-grid">
       <div class="card">
         <h3>Identitas Website</h3>
-        <form method="POST" action="/admin/settings">
+        <form method="POST" action="/admin/settings" enctype="multipart/form-data">
           <label>Nama Website</label>
           <input type="text" name="siteName" required value="<%= config.siteName || '' %>">
 
@@ -423,6 +423,7 @@
         })
         .catch(function (err) { result.textContent = 'Gagal: ' + err.message; });
     });
+  })();
   (function () {
     var btn = document.getElementById('testEmailBtn');
     var result = document.getElementById('testEmailResult');

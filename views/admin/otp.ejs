@@ -6,7 +6,7 @@
   <%- include('../partials/admin-sidebar', { active: 'otp', config }) %>
 
   <div class="main no-bottom-nav">
-    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> Kelola OTP (HeroSMS)</h2></div>
+    <div class="topbar"><h2><i class="fa-solid fa-shield-halved"></i> Kelola Beli OTP (HeroSMS)</h2></div>
 
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
     <% if (error) { %><div class="alert error"><%= error %></div><% } %>
@@ -21,8 +21,12 @@
       </div>
     <% } else { %>
 
-    <div class="card">
-      <h3><i class="fa-solid fa-magnifying-glass"></i> Cari &amp; Tambah Produk OTP</h3>
+    <!-- MODE 1: IMPORT SATU -->
+    <div class="card" id="singleImportCard">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <h3><i class="fa-solid fa-magnifying-glass"></i> Cari &amp; Tambah Satu Produk OTP</h3>
+        <button type="button" class="btn small ghost" id="switchToBulkBtn"><i class="fa-solid fa-layer-group"></i> Mode Tambah Semua</button>
+      </div>
       <div class="grid grid-2 mt-16">
         <div>
           <label>Layanan (mis. WhatsApp, Telegram)</label>
@@ -35,18 +39,14 @@
           <select id="otpCountrySelect" style="margin-top:8px;"><option value="">-- pilih negara --</option></select>
         </div>
       </div>
-
       <button type="button" class="btn small ghost mt-16" id="otpCekHargaBtn"><i class="fa-solid fa-tag"></i> Cek Harga</button>
       <div id="otpHargaResult" class="helper-text" style="margin-top:8px;"></div>
-
       <div id="otpAddForm" style="display:none; margin-top:16px; border-top:1px solid var(--border-glow); padding-top:16px;">
         <label>Nama Produk</label>
         <input type="text" id="otpProductName" placeholder="Contoh: OTP WhatsApp - Indonesia">
-
         <label class="mt-16">Kategori</label>
         <input type="text" id="otpCategory" value="OTP">
-
-        <label class="mt-16">Margin (kosongkan buat pakai margin default HeroSMS)</label>
+        <label class="mt-16">Margin (kosongkan buat pakai margin default)</label>
         <div class="flex" style="gap:8px;">
           <select id="otpMarginType" style="max-width:150px;">
             <option value="">Default</option>
@@ -55,8 +55,64 @@
           </select>
           <input type="number" id="otpMarginValue" placeholder="Nilai margin">
         </div>
-
         <button type="button" class="btn small solid mt-16" id="otpTambahBtn"><i class="fa-solid fa-plus"></i> Tambah sebagai Produk OTP</button>
+      </div>
+    </div>
+
+    <!-- MODE 2: BULK IMPORT -->
+    <div class="card" id="bulkImportCard" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <h3><i class="fa-solid fa-layer-group"></i> Tambah Semua Produk OTP Sekaligus</h3>
+        <button type="button" class="btn small ghost" id="switchToSingleBtn"><i class="fa-solid fa-magnifying-glass"></i> Mode Satu per Satu</button>
+      </div>
+      <div class="helper-text" style="margin-top:4px; margin-bottom:16px;">Centang layanan &amp; negara yang diinginkan lalu klik <b>Tambah Semua yang Dipilih</b>. Kombinasi stok 0 otomatis dilewati. Produk yang sudah ada akan diperbarui harganya.</div>
+      <div id="bulkLoadInfo" class="helper-text"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat daftar layanan &amp; negara...</div>
+      <div id="bulkContent" style="display:none;">
+        <div class="grid grid-2">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label style="margin:0;">Layanan</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn small ghost" id="bulkSelectAllSvc">Semua</button>
+                <button type="button" class="btn small ghost" id="bulkClearAllSvc">Hapus Pilihan</button>
+              </div>
+            </div>
+            <input type="text" id="bulkServiceSearch" placeholder="Filter layanan...">
+            <div id="bulkServiceList" style="max-height:300px; overflow-y:auto; margin-top:8px; border:1px solid var(--border-glow); border-radius:var(--radius); padding:8px; display:flex; flex-direction:column; gap:4px;"></div>
+            <div class="helper-text" id="bulkSvcCount" style="margin-top:4px;"></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label style="margin:0;">Negara</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn small ghost" id="bulkSelectAllCty">Semua</button>
+                <button type="button" class="btn small ghost" id="bulkClearAllCty">Hapus Pilihan</button>
+              </div>
+            </div>
+            <input type="text" id="bulkCountrySearch" placeholder="Filter negara...">
+            <div id="bulkCountryList" style="max-height:300px; overflow-y:auto; margin-top:8px; border:1px solid var(--border-glow); border-radius:var(--radius); padding:8px; display:flex; flex-direction:column; gap:4px;"></div>
+            <div class="helper-text" id="bulkCtyCount" style="margin-top:4px;"></div>
+          </div>
+        </div>
+        <div class="grid grid-2 mt-16">
+          <div>
+            <label>Kategori Produk</label>
+            <input type="text" id="bulkCategory" value="OTP">
+          </div>
+          <div>
+            <label>Margin (kosongkan = pakai default)</label>
+            <div class="flex" style="gap:8px;">
+              <select id="bulkMarginType" style="max-width:140px;">
+                <option value="">Default</option>
+                <option value="percent">Persen (%)</option>
+                <option value="fixed">Nominal Tetap (Rp)</option>
+              </select>
+              <input type="number" id="bulkMarginValue" placeholder="Nilai margin">
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn solid mt-16" id="bulkImportBtn"><i class="fa-solid fa-download"></i> Tambah Semua yang Dipilih</button>
+        <div id="bulkResult" class="helper-text" style="margin-top:10px;"></div>
       </div>
     </div>
 
@@ -92,7 +148,7 @@
             <td><%= p.name %></td>
             <td><%= p.otpServiceName %></td>
             <td><%= p.otpCountryName %></td>
-            <td>₽<%= p.otpBaseCostRub %></td>
+            <td>\u20BD<%= p.otpBaseCostRub %></td>
             <td>
               <form method="POST" action="/admin/otp/<%= p.id %>/margin" class="flex" style="gap:4px;">
                 <select name="marginType" style="max-width:90px; padding:6px;">
@@ -107,7 +163,7 @@
             <td>Rp <%= p.price.toLocaleString('id-ID') %></td>
             <td>
               <a href="/admin/produk/<%= p.id %>/edit" class="btn small ghost">Edit</a>
-              <form method="POST" action="/admin/otp/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari OTP? Produk akan jadi produk manual biasa.')">
+              <form method="POST" action="/admin/otp/<%= p.id %>/unlink" onsubmit="return confirm('Lepas produk ini dari OTP?')">
                 <button class="btn small danger" type="submit">Lepas</button>
               </form>
             </td>
@@ -123,91 +179,75 @@
 </div>
 <script>
 (function () {
+  // ===== TOGGLE MODE =====
+  var singleCard = document.getElementById('singleImportCard');
+  var bulkCard = document.getElementById('bulkImportCard');
+  var btnToBulk = document.getElementById('switchToBulkBtn');
+  var btnToSingle = document.getElementById('switchToSingleBtn');
+  if (btnToBulk) btnToBulk.addEventListener('click', function () { singleCard.style.display = 'none'; bulkCard.style.display = ''; loadBulkData(); });
+  if (btnToSingle) btnToSingle.addEventListener('click', function () { bulkCard.style.display = 'none'; singleCard.style.display = ''; });
+
+  // ===== MODE SATU =====
+  var allServices = []; var allCountries = []; var lastCost = 0;
   var serviceSelect = document.getElementById('otpServiceSelect');
   var countrySelect = document.getElementById('otpCountrySelect');
-  var serviceSearch = document.getElementById('otpServiceSearch');
-  var countrySearch = document.getElementById('otpCountrySearch');
-  if (!serviceSelect) return; // API key belum diatur, form gak dirender
-
-  var allServices = [];
-  var allCountries = [];
-
-  function fillSelect(select, items, labelFn, valueFn) {
-    select.innerHTML = '<option value="">-- pilih --</option>';
-    items.forEach(function (item) {
-      var opt = document.createElement('option');
-      opt.value = valueFn(item);
-      opt.textContent = labelFn(item);
-      select.appendChild(opt);
+  if (serviceSelect) {
+    function fillSelect(sel, items, lbl, val) { sel.innerHTML = '<option value="">-- pilih --</option>'; items.forEach(function(i){ var o=document.createElement('option'); o.value=val(i); o.textContent=lbl(i); sel.appendChild(o); }); }
+    fetch('/admin/otp/services').then(function(r){return r.json();}).then(function(d){ if(d.ok){allServices=d.services; fillSelect(serviceSelect,allServices,function(s){return s.name+' ('+s.code+')';},function(s){return s.code;});} });
+    fetch('/admin/otp/countries').then(function(r){return r.json();}).then(function(d){ if(d.ok){allCountries=d.countries; fillSelect(countrySelect,allCountries,function(c){return c.eng||c.name;},function(c){return c.id;});} });
+    document.getElementById('otpServiceSearch').addEventListener('input', function(){ var q=this.value.trim().toLowerCase(); var f=!q?allServices:allServices.filter(function(s){return s.name.toLowerCase().indexOf(q)!==-1;}); fillSelect(serviceSelect,f,function(s){return s.name+' ('+s.code+')';},function(s){return s.code;}); });
+    document.getElementById('otpCountrySearch').addEventListener('input', function(){ var q=this.value.trim().toLowerCase(); var f=!q?allCountries:allCountries.filter(function(c){return(c.eng||'').toLowerCase().indexOf(q)!==-1;}); fillSelect(countrySelect,f,function(c){return c.eng||c.name;},function(c){return c.id;}); });
+    document.getElementById('otpCekHargaBtn').addEventListener('click', function(){
+      var svc=serviceSelect.value, cty=countrySelect.value, rb=document.getElementById('otpHargaResult'), af=document.getElementById('otpAddForm');
+      if(!svc||!cty){rb.textContent='Pilih layanan dan negara dulu.';return;}
+      rb.textContent='Mengecek harga...'; af.style.display='none';
+      fetch('/admin/otp/price?service='+encodeURIComponent(svc)+'&country='+encodeURIComponent(cty)).then(function(r){return r.json();}).then(function(res){
+        if(!res.ok){rb.textContent='Gagal: '+res.error;return;}
+        if(!res.found){rb.textContent='Harga tidak ditemukan.';return;}
+        lastCost=res.cost;
+        rb.innerHTML='Modal: <b>\u20BD'+res.cost+'</b> &middot; Stok: '+res.count+' nomor &middot; Harga jual: <b>Rp '+Number(res.sellPricePreview).toLocaleString('id-ID')+'</b>';
+        document.getElementById('otpProductName').value='OTP '+serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0]+' - '+countrySelect.options[countrySelect.selectedIndex].text;
+        af.style.display='';
+      }).catch(function(e){rb.textContent='Gagal: '+e.message;});
+    });
+    document.getElementById('otpTambahBtn').addEventListener('click', function(){
+      fetch('/admin/otp/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serviceCode:serviceSelect.value,serviceName:serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0],countryId:countrySelect.value,countryName:countrySelect.options[countrySelect.selectedIndex].text,productName:document.getElementById('otpProductName').value,category:document.getElementById('otpCategory').value,baseCostRub:lastCost,marginType:document.getElementById('otpMarginType').value,marginValue:document.getElementById('otpMarginValue').value})}).then(function(r){return r.json();}).then(function(res){if(!res.ok){alert('Gagal: '+res.error);return;}alert(res.message);location.reload();}).catch(function(e){alert('Gagal: '+e.message);});
     });
   }
 
-  fetch('/admin/otp/services').then(function (r) { return r.json(); }).then(function (res) {
-    if (res.ok) { allServices = res.services; fillSelect(serviceSelect, allServices, function (s) { return s.name + ' (' + s.code + ')'; }, function (s) { return s.code; }); }
-  });
-  fetch('/admin/otp/countries').then(function (r) { return r.json(); }).then(function (res) {
-    if (res.ok) { allCountries = res.countries; fillSelect(countrySelect, allCountries, function (c) { return c.eng || c.name; }, function (c) { return c.id; }); }
-  });
-
-  serviceSearch.addEventListener('input', function () {
-    var q = serviceSearch.value.trim().toLowerCase();
-    var filtered = !q ? allServices : allServices.filter(function (s) { return s.name.toLowerCase().indexOf(q) !== -1; });
-    fillSelect(serviceSelect, filtered, function (s) { return s.name + ' (' + s.code + ')'; }, function (s) { return s.code; });
-  });
-  countrySearch.addEventListener('input', function () {
-    var q = countrySearch.value.trim().toLowerCase();
-    var filtered = !q ? allCountries : allCountries.filter(function (c) { return (c.eng || '').toLowerCase().indexOf(q) !== -1; });
-    fillSelect(countrySelect, filtered, function (c) { return c.eng || c.name; }, function (c) { return c.id; });
-  });
-
-  var lastCost = 0;
-  document.getElementById('otpCekHargaBtn').addEventListener('click', function () {
-    var service = serviceSelect.value, country = countrySelect.value;
-    var resultBox = document.getElementById('otpHargaResult');
-    var addForm = document.getElementById('otpAddForm');
-    if (!service || !country) { resultBox.textContent = 'Pilih layanan dan negara dulu.'; return; }
-    resultBox.textContent = 'Mengecek harga...';
-    addForm.style.display = 'none';
-    fetch('/admin/otp/price?service=' + encodeURIComponent(service) + '&country=' + encodeURIComponent(country))
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (!res.ok) { resultBox.textContent = 'Gagal: ' + res.error; return; }
-        if (!res.found) { resultBox.textContent = 'Harga tidak ditemukan untuk kombinasi ini.'; return; }
-        lastCost = res.cost;
-        resultBox.innerHTML = 'Modal: <b>\u20BD' + res.cost + '</b> &middot; Stok: ' + res.count + ' nomor &middot; Perkiraan harga jual: <b>Rp ' + Number(res.sellPricePreview).toLocaleString('id-ID') + '</b>';
-        var svcName = serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0];
-        var countryName = countrySelect.options[countrySelect.selectedIndex].text;
-        document.getElementById('otpProductName').value = 'OTP ' + svcName + ' - ' + countryName;
-        addForm.style.display = '';
-      })
-      .catch(function (err) { resultBox.textContent = 'Gagal: ' + err.message; });
-  });
-
-  document.getElementById('otpTambahBtn').addEventListener('click', function () {
-    var svcName = serviceSelect.options[serviceSelect.selectedIndex].text.split(' (')[0];
-    var countryName = countrySelect.options[countrySelect.selectedIndex].text;
-    fetch('/admin/otp/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        serviceCode: serviceSelect.value,
-        serviceName: svcName,
-        countryId: countrySelect.value,
-        countryName: countryName,
-        productName: document.getElementById('otpProductName').value,
-        category: document.getElementById('otpCategory').value,
-        baseCostRub: lastCost,
-        marginType: document.getElementById('otpMarginType').value,
-        marginValue: document.getElementById('otpMarginValue').value
-      })
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (!res.ok) { alert('Gagal: ' + res.error); return; }
-        alert(res.message);
-        location.reload();
-      })
-      .catch(function (err) { alert('Gagal: ' + err.message); });
+  // ===== MODE BULK =====
+  var bulkLoaded=false; var bulkSvc=[]; var bulkCty=[]; var selSvc=new Set(); var selCty=new Set();
+  function mkCb(id,label,checked,sel,countEl,listId,items,lbl,vid){
+    var row=document.createElement('label'); row.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:2px 0;';
+    var cb=document.createElement('input'); cb.type='checkbox'; cb.value=id; cb.checked=checked;
+    cb.addEventListener('change',function(){if(cb.checked)sel.add(id);else sel.delete(id);if(countEl)countEl.textContent=sel.size+' dipilih';});
+    row.appendChild(cb); row.appendChild(document.createTextNode(label)); return row;
+  }
+  function renderList(listId,items,lbl,vid,sel,countEl){
+    var c=document.getElementById(listId); if(!c)return; c.innerHTML='';
+    items.forEach(function(item){c.appendChild(mkCb(String(vid(item)),lbl(item),sel.has(String(vid(item))),sel,countEl,listId,items,lbl,vid));});
+    if(countEl)countEl.textContent=sel.size+' dipilih';
+  }
+  function loadBulkData(){
+    if(bulkLoaded)return;
+    Promise.all([fetch('/admin/otp/services').then(function(r){return r.json();}),fetch('/admin/otp/countries').then(function(r){return r.json();})]).then(function(rs){
+      bulkSvc=rs[0].ok?rs[0].services:[]; bulkCty=rs[1].ok?rs[1].countries:[];
+      bulkLoaded=true; document.getElementById('bulkLoadInfo').style.display='none'; document.getElementById('bulkContent').style.display='';
+      renderList('bulkServiceList',bulkSvc,function(s){return s.name+' ('+s.code+')';},function(s){return s.code;},selSvc,document.getElementById('bulkSvcCount'));
+      renderList('bulkCountryList',bulkCty,function(c){return c.eng||c.name;},function(c){return c.id;},selCty,document.getElementById('bulkCtyCount'));
+    }).catch(function(e){document.getElementById('bulkLoadInfo').textContent='Gagal memuat: '+e.message;});
+  }
+  document.getElementById('bulkServiceSearch')&&document.getElementById('bulkServiceSearch').addEventListener('input',function(){var q=this.value.trim().toLowerCase();renderList('bulkServiceList',!q?bulkSvc:bulkSvc.filter(function(s){return s.name.toLowerCase().indexOf(q)!==-1;}),function(s){return s.name+' ('+s.code+')';},function(s){return s.code;},selSvc,document.getElementById('bulkSvcCount'));});
+  document.getElementById('bulkCountrySearch')&&document.getElementById('bulkCountrySearch').addEventListener('input',function(){var q=this.value.trim().toLowerCase();renderList('bulkCountryList',!q?bulkCty:bulkCty.filter(function(c){return(c.eng||'').toLowerCase().indexOf(q)!==-1;}),function(c){return c.eng||c.name;},function(c){return c.id;},selCty,document.getElementById('bulkCtyCount'));});
+  document.getElementById('bulkSelectAllSvc')&&document.getElementById('bulkSelectAllSvc').addEventListener('click',function(){bulkSvc.forEach(function(s){selSvc.add(String(s.code));});renderList('bulkServiceList',bulkSvc,function(s){return s.name+' ('+s.code+')';},function(s){return s.code;},selSvc,document.getElementById('bulkSvcCount'));});
+  document.getElementById('bulkClearAllSvc')&&document.getElementById('bulkClearAllSvc').addEventListener('click',function(){selSvc.clear();renderList('bulkServiceList',bulkSvc,function(s){return s.name+' ('+s.code+')';},function(s){return s.code;},selSvc,document.getElementById('bulkSvcCount'));});
+  document.getElementById('bulkSelectAllCty')&&document.getElementById('bulkSelectAllCty').addEventListener('click',function(){bulkCty.forEach(function(c){selCty.add(String(c.id));});renderList('bulkCountryList',bulkCty,function(c){return c.eng||c.name;},function(c){return c.id;},selCty,document.getElementById('bulkCtyCount'));});
+  document.getElementById('bulkClearAllCty')&&document.getElementById('bulkClearAllCty').addEventListener('click',function(){selCty.clear();renderList('bulkCountryList',bulkCty,function(c){return c.eng||c.name;},function(c){return c.id;},selCty,document.getElementById('bulkCtyCount'));});
+  document.getElementById('bulkImportBtn')&&document.getElementById('bulkImportBtn').addEventListener('click',function(){
+    var rb=document.getElementById('bulkResult'), btn=document.getElementById('bulkImportBtn');
+    if(selSvc.size===0||selCty.size===0){rb.textContent='Pilih minimal 1 layanan dan 1 negara dulu.';return;}
+    rb.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses '+selSvc.size*selCty.size+' kombinasi...'; btn.disabled=true;
+    fetch('/admin/otp/import-bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serviceCodes:Array.from(selSvc),countryIds:Array.from(selCty),category:document.getElementById('bulkCategory').value||'OTP',marginType:document.getElementById('bulkMarginType').value,marginValue:document.getElementById('bulkMarginValue').value})}).then(function(r){return r.json();}).then(function(res){btn.disabled=false;if(!res.ok){rb.textContent='Gagal: '+res.error;return;}rb.innerHTML='<i class="fa-solid fa-circle-check" style="color:var(--success);"></i> '+res.message+(res.errors&&res.errors.length?'<br><small style="color:var(--danger);">Error: '+res.errors.join(', ')+'</small>':'');setTimeout(function(){location.reload();},2500);}).catch(function(e){btn.disabled=false;rb.textContent='Gagal: '+e.message;});
   });
 })();
 </script>
