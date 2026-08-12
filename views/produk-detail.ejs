@@ -154,22 +154,48 @@
         <% if (user) { %>
         <div class="variant-grid" id="variantGrid">
           <% variants.forEach(v => { %>
-            <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %>" data-variant-id="<%= v.id %>">
+            <% const vIsAuto = v.provider === 'digiflazz'; %>
+            <% const vOutOfStock = !vIsAuto && v.stockCount === 0; %>
+            <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %> <%= vOutOfStock ? 'out-of-stock' : '' %>" data-variant-id="<%= v.id %>">
+              <% if (v.thumbnail) { %>
+                <img class="variant-card-icon" src="<%= v.thumbnail %>" alt="">
+              <% } else { %>
+                <div class="variant-card-icon-placeholder"><i class="fa-solid fa-gem"></i></div>
+              <% } %>
               <span class="variant-card-name"><%= v.name %></span>
               <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
-              <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
+              <% if (vOutOfStock) { %><span class="variant-card-warn">Stok habis</span><% } %>
+              <div class="variant-card-badge <%= vIsAuto ? '' : 'manual' %>">
+                <% if (vIsAuto) { %>
+                  <i class="fa-solid fa-bolt"></i> Pengiriman INSTAN
+                <% } else { %>
+                  <i class="fa-solid fa-screwdriver-wrench"></i> Manual
+                <% } %>
+              </div>
             </button>
           <% }) %>
         </div>
         <% } else { %>
-        <!-- Tamu: kartu varian jadi tautan biasa ke halaman produknya masing-masing, biar semua
-             harga tetap kelihatan tanpa perlu JS pemilih varian yang cuma jalan buat user login. -->
         <div class="variant-grid">
           <% variants.forEach(v => { %>
+            <% const vIsAuto = v.provider === 'digiflazz'; %>
+            <% const vOutOfStock = !vIsAuto && v.stockCount === 0; %>
             <a href="/produk/<%= v.id %>" class="variant-card <%= v.id === product.id ? 'selected' : '' %>">
+              <% if (v.thumbnail) { %>
+                <img class="variant-card-icon" src="<%= v.thumbnail %>" alt="">
+              <% } else { %>
+                <div class="variant-card-icon-placeholder"><i class="fa-solid fa-gem"></i></div>
+              <% } %>
               <span class="variant-card-name"><%= v.name %></span>
               <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
-              <% if (v.provider !== 'digiflazz' && v.stockCount === 0) { %><span class="variant-card-warn">Stok habis</span><% } %>
+              <% if (vOutOfStock) { %><span class="variant-card-warn">Stok habis</span><% } %>
+              <div class="variant-card-badge <%= vIsAuto ? '' : 'manual' %>">
+                <% if (vIsAuto) { %>
+                  <i class="fa-solid fa-bolt"></i> Pengiriman INSTAN
+                <% } else { %>
+                  <i class="fa-solid fa-screwdriver-wrench"></i> Manual
+                <% } %>
+              </div>
             </a>
           <% }) %>
         </div>
