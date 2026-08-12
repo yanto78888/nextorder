@@ -40,6 +40,10 @@ html, body {
   color: var(--text-main);
   font-family: var(--font-body);
   min-height: 100vh;
+  /* FIX BUG: scroll horizontal gak sengaja karena ada elemen yang sedikit overflow ke kanan
+     (mis. card dengan border/shadow, atau elemen absolute positioned). overflow-x: hidden di
+     body + html biar user gak bisa geser halaman ke kiri/kanan. */
+  overflow-x: hidden;
 }
 
 body {
@@ -1536,32 +1540,107 @@ input[type="file"]::file-selector-button {
 .variant-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
+
+/* ===== VARIANT CARD (redesign sesuai referensi: kartu gelap, nama di atas, harga besar,
+   badge "Pengiriman INSTAN" di bawah) ===== */
 .variant-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 0;
+  padding: 12px 12px 0 12px;
   border: 1.5px solid var(--border-glow);
-  border-radius: 10px;
-  background: var(--bg-panel-2);
-  color: var(--text-main);
+  border-radius: 12px;
+  background: #1a1f2e;
+  color: #e8eaf0;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s, box-shadow .15s;
+  overflow: hidden;
+  min-height: 88px;
 }
-.variant-card:hover { border-color: var(--cyan); }
+html[data-theme="light"] .variant-card {
+  background: #1e2435;
+}
+.variant-card:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(21,101,192,0.18);
+}
 .variant-card.selected {
   border-color: var(--cyan);
-  background: rgba(21,101,192,0.08);
+  box-shadow: 0 0 0 2px rgba(21,101,192,0.30);
 }
-.variant-card-name { font-size: 12px; font-weight: 700; line-height: 1.3; }
-.variant-card-price { font-size: 13px; font-weight: 800; color: var(--cyan); }
-.variant-card-warn { font-size: 10px; color: #f5c518; font-weight: 700; }
+.variant-card.selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(21,101,192,0.10);
+  pointer-events: none;
+}
+.variant-card-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.variant-card-icon-placeholder {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(21,101,192,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--cyan);
+  margin-bottom: 6px;
+}
+.variant-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #c8cfdf;
+  margin-bottom: 2px;
+  word-break: break-word;
+}
+.variant-card-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+.variant-card-warn {
+  font-size: 10px;
+  color: #f5c518;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+/* Badge bawah: "Pengiriman INSTAN" (untuk produk digiflazz/auto) atau "Manual" */
+.variant-card-badge {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 5px 10px;
+  background: linear-gradient(90deg, #3a3f8f, #5b5fc7);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .3px;
+}
+.variant-card-badge i { font-size: 9px; }
+.variant-card-badge.manual {
+  background: linear-gradient(90deg, #3a3a3a, #5a5a5a);
+}
 
 /* Payment method tabs */
 .payment-method-tabs { display: flex; flex-direction: column; gap: 8px; }
@@ -1619,7 +1698,15 @@ input[type="file"]::file-selector-button {
 .detail-buy-stickybar {
   position: fixed;
   left: 0; right: 0; bottom: 0;
-  z-index: 60;
+  /* FIX BUG: z-index 60 terlalu rendah -- tertutup oleh topbar (z-index 80) dan drawer overlay
+     (z-index 95) saat scroll ke atas. Sekarang dinaikkan ke 200 biar selalu di atas semua elemen
+     kecuali modal fullscreen. Selain itu, transform: translateZ(0) memaksa GPU compositing baru
+     biar bar ini benar-benar "tempel" di viewport -- tanpa ini di beberapa browser mobile posisi
+     fixed bisa "ikut scroll" sesaat saat momentum scroll belum berhenti. */
+  z-index: 200;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
   background: var(--bg-panel);
   border-top: 1.5px solid var(--border-glow);
   box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
