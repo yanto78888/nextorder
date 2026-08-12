@@ -1119,6 +1119,68 @@ router.post('/otp/import', (req, res) => {
   }
 });
 
+// Bulk import: tambah SEMUA kombinasi service yang dipilih × semua negara yang dipilih sekaligus
+// (atau semua service × 1 negara, atau 1 service × semua negara) -- biar admin gak perlu klik
+// 1 per 1 kalau mau import banyak sekaligus. Harga diambil live dari HeroSMS per kombinasi.
+// Kombinasi yang stocknya 0 (count === 0) DILEWATI otomatis biar gak bikin produk zombie.
+router.post('/otp/import-bulk', async (req, res) => {
+  try {
+    const { serviceCodes, countryIds, category, marginType, marginValue } = req.body;
+    // serviceCodes & countryIds bisa array (dari checkbox) atau string tunggal
+    const svcList = [].concat(serviceCodes || []).filter(Boolean);
+    const ctyList = [].concat(countryIds || []).filter(Boolean);
+    if (!svcList.length || !ctyList.length) throw new Error('Pilih minimal 1 layanan dan 1 negara');
+
+    const [services, countries, allPrices] = await Promise.all([
+      getHerosmsServicesList(),
+      getHerosmsCountries(),
+      getHerosmsPrices() // tanpa filter = ambil semua harga sekaligus (lebih efisien dari loop per-kombinasi)
+    ]);
+
+    const svcMap = Object.fromEntries(services.map(s => [s.code, s.name]));
+    const ctyMap = Object.fromEntries(countries.map(c => [String(c.id), c.eng || c.name]));
+
+    let created = 0, updated = 0, skipped = 0;
+    const errors = [];
+
+    for (const svc of svcList) {
+      for (const cty of ctyList) {
+        try {
+          const match = allPrices.find(p =>
+            String(p.serviceCode) === String(svc) && String(p.countryId) === String(cty)
+          );
+          // Lewati kalau harga tidak ditemukan atau stok 0
+          if (!match || Number(match.count) === 0) { skipped++; continue; }
+
+          const cost = Number(match.cost) || 0;
+          const sellPrice = computeHerosmsSellPrice(cost, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
+          const svcName = svcMap[svc] || svc;
+          const ctyName = ctyMap[String(cty)] || cty;
+          const productName = `OTP ${svcName} - ${ctyName}`;
+
+          const existing = getAllProducts().find(
+            p => p.provider === 'otp' && p.otpServiceCode === svc && p.otpCountryId === String(cty)
+          );
+
+          if (existing) {
+            updateProduct(existing.id, { name: productName, price: sellPrice, otpBaseCostRub: cost, marginType: marginType || '', marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null });
+            updated++;
+          } else {
+            createProduct({ name: productName, category: category || 'OTP', price: sellPrice, provider: 'otp', otpServiceCode: svc, otpServiceName: svcName, otpCountryId: String(cty), otpCountryName: ctyName, otpBaseCostRub: cost, marginType: marginType || '', marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null });
+            created++;
+          }
+        } catch (err) {
+          errors.push(`${svc}×${cty}: ${err.message}`);
+        }
+      }
+    }
+
+    res.json({ ok: true, created, updated, skipped, errors, message: `Selesai: ${created} ditambah, ${updated} diperbarui, ${skipped} dilewati (stok 0/harga tidak ada)` });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/otp/margin', (req, res) => {
   const { marginType, marginValue } = req.body;
   updateConfig({ herosms: { marginType, marginValue: marginValue === '' ? null : Number(marginValue) } });
