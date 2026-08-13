@@ -62,11 +62,6 @@
           <div class="detail-stat-label">Stok</div>
         </div>
         <% } %>
-        <div class="detail-stat-divider"></div>
-        <div class="detail-stat">
-          <div class="detail-stat-val" id="statHarga" style="color:var(--cyan);">Rp <%= finalPrice.toLocaleString('id-ID') %></div>
-          <div class="detail-stat-label">Harga</div>
-        </div>
       </div>
 
       <!-- Deskripsi / Panduan cara membeli -->
@@ -441,6 +436,44 @@
     wrap.innerHTML=html;
   }
 
+  // ---- Toast notification, pengganti alert() bawaan browser yang keliatan murahan ----
+  function showToast(msg, opts){
+    opts = opts || {};
+    var type = opts.type || 'error';
+    var title = opts.title || (type === 'error' ? 'Belum lengkap' : type === 'success' ? 'Berhasil' : 'Info');
+    var duration = opts.duration || 3800;
+    var icon = type === 'error' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info';
+
+    var stack = document.getElementById('toastStack');
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.id = 'toastStack';
+      stack.className = 'toast-stack';
+      document.body.appendChild(stack);
+    }
+
+    var card = document.createElement('div');
+    card.className = 'toast-card ' + type;
+    card.innerHTML =
+      '<div class="toast-icon"><i class="fa-solid ' + icon + '"></i></div>' +
+      '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>' +
+      '<button type="button" class="toast-close" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>' +
+      '<div class="toast-progress"></div>';
+    // textContent (bukan innerHTML) buat title/msg -- aman walau pesannya nanti dari input user.
+    card.querySelector('.toast-title').textContent = title;
+    card.querySelector('.toast-msg').textContent = msg;
+    card.querySelector('.toast-progress').style.animationDuration = duration + 'ms';
+    stack.appendChild(card);
+
+    var timer = setTimeout(remove, duration);
+    card.querySelector('.toast-close').addEventListener('click', function(){ clearTimeout(timer); remove(); });
+
+    function remove(){
+      card.classList.add('toast-out');
+      card.addEventListener('animationend', function(){ card.remove(); }, { once: true });
+    }
+  }
+
   // ---- Form ulasan: klik bintang buat kasih nilai ----
   // Sebelumnya bagian ini juga ngurusin "rating & ulasan ikut ganti pas user pilih nominal lain"
   // (dengan nge-render ulang <div id="reviewFormWrap">/reviewListWrap lewat JS pas klik varian) --
@@ -493,13 +526,11 @@
       var priceNow=document.getElementById('priceNow');
       if(priceNow) priceNow.textContent=fmt(v.finalPrice);
 
-      // FIX BUG: stat "Harga" & "Stok" di baris atas (dekat nama produk) sebelumnya gak
-      // ikut ke-update pas ganti nominal -- cuma #priceNow di kotak beli bawah yang berubah,
-      // jadi 2 harga di 1 halaman bisa beda kalau user ganti nominal tanpa scroll ke atas lagi.
-      // "Terjual" SENGAJA gak disentuh di sini -- levelnya per GRUP (sama kayak Rating), bukan
-      // per nominal, jadi angkanya emang harus tetap sama berapa pun nominal yang dipilih.
-      var statHarga=document.getElementById('statHarga');
-      if(statHarga) statHarga.textContent=fmt(v.finalPrice);
+      // FIX BUG: stat "Stok" di baris atas (dekat nama produk) sebelumnya gak ikut ke-update
+      // pas ganti nominal. Stat "Harga" di baris ini sudah DIHAPUS (dulu duplikat sama harga
+      // yang tampil di kotak beli bawah & sticky bar). "Terjual" SENGAJA gak disentuh di sini --
+      // levelnya per GRUP (sama kayak Rating), bukan per nominal, jadi angkanya emang harus
+      // tetap sama berapa pun nominal yang dipilih.
       var statStok=document.getElementById('statStok');
       if(statStok) statStok.textContent=(typeof v.stockCount==='number') ? v.stockCount : '-';
 
@@ -573,7 +604,7 @@
   if(buyBtn)buyBtn.addEventListener('click',function(){
     var m='saldo';radios.forEach(function(r){if(r.checked)m=r.value;});
     var f=m==='qris'?document.getElementById('buyFormQris'):document.getElementById('buyFormSaldo');
-    if(!injectTargetFields(f)){ alert('Lengkapi dulu data tujuan yang wajib diisi (tanda *)'); return; }
+    if(!injectTargetFields(f)){ showToast('Lengkapi dulu data tujuan yang wajib diisi (tanda *)'); return; }
     if(f)f.submit();
   });
 
