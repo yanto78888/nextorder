@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('../partials/head') %></head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/admin-sidebar', { active: 'promo' }) %>
+
+  <div class="main no-bottom-nav">
+    <div class="topbar"><h2><i class="fa-solid fa-tags"></i> Kode Promo</h2></div>
+
+    <% if (success) { %><div class="alert success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+    <div class="card" style="padding:16px; margin-bottom:16px;">
+      <div class="helper-text" style="margin-top:0; margin-bottom:12px;">
+        <i class="fa-solid fa-circle-info"></i> Diskon dihitung dari <b style="color:var(--text-main);">persentase total belanja</b>. Kuota (Maks. Dipakai) itu jatah GABUNGAN semua orang -- tiap orang sendiri cuma boleh pakai kode yang sama <b style="color:var(--text-main);">1x, tidak bisa dobel</b>, walau kuota totalnya masih sisa.
+      </div>
+
+      <div class="section-title" style="margin-top:0;"><h3>+ Buat Kode Promo</h3><div class="line"></div></div>
+      <form method="POST" action="/admin/promo/add" style="display:flex; flex-direction:column; gap:10px;">
+        <label>Kode Promo</label>
+        <input type="text" name="code" placeholder="Contoh: HEMAT1" maxlength="20" style="text-transform:uppercase;" required>
+        <div class="helper-text" style="margin-top:0;">3-20 karakter, huruf/angka/-/_ saja (otomatis jadi huruf besar).</div>
+
+        <label>Diskon (%)</label>
+        <input type="number" name="discountPercent" placeholder="Contoh: 1" min="1" max="100" required>
+
+        <label>Maks. Dipakai <span style="opacity:.6;">(total gabungan semua orang)</span></label>
+        <input type="number" name="maxUses" placeholder="Contoh: 3" min="1" required>
+
+        <button type="submit" class="btn solid" style="width:100%; margin-top:6px;">Buat Kode Promo</button>
+      </form>
+    </div>
+
+    <div class="section-title"><h3>Daftar Kode Promo (<%= items.length %>)</h3><div class="line"></div></div>
+    <% if (items.length === 0) { %>
+      <div class="card"><div class="empty-state">Belum ada kode promo. Buat lewat form di atas.</div></div>
+    <% } else { %>
+    <div class="card">
+      <table>
+        <thead><tr><th>Kode</th><th>Diskon</th><th>Dipakai</th><th>Dibuat</th><th>Aksi</th></tr></thead>
+        <tbody>
+          <% items.forEach(p => { %>
+          <tr>
+            <td><b style="letter-spacing:.5px;"><%= p.code %></b></td>
+            <td><%= p.discountPercent %>%</td>
+            <td>
+              <span class="badge <%= p.usedCount >= p.maxUses ? 'cancelled' : 'pending' %>" style="font-size:9.5px; padding:2px 7px;">
+                <%= p.usedCount %> / <%= p.maxUses %><%= p.usedCount >= p.maxUses ? ' (habis)' : '' %>
+              </span>
+            </td>
+            <td><%= new Date(p.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) %></td>
+            <td>
+              <form method="POST" action="/admin/promo/<%= p.id %>/hapus" onsubmit="return confirm('Hapus kode promo <%= p.code %>? Kode ini gak akan bisa dipakai lagi.')">
+                <button type="submit" class="btn small danger">Hapus</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+</body>
+</html>
