@@ -209,42 +209,64 @@
               <input type="number" id="qtyInput" value="1" min="1" max="<%= (!isAuto && stockCount > 0) ? stockCount : (isAuto ? maxDigiflazzQty : 99) %>">
               <button type="button" class="qty-btn" id="qtyPlus">+</button>
             </div>
-            <span class="total-preview">= <b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
+            <span class="total-preview">= <span class="total-preview-old" id="totalPreviewOld" style="display:none;"></span><b id="totalPreview">Rp <%= finalPrice.toLocaleString('id-ID') %></b></span>
           </div>
 
+          <% const qrisFeePercent = (config.qris && config.qris.feePercent != null) ? config.qris.feePercent : 0.7; %>
           <div class="detail-method-title">Metode Pembayaran</div>
           <div class="payment-method-tabs">
             <label class="method-tab">
               <input type="radio" name="payMethod" value="saldo" checked>
               <div class="method-card">
-                <div class="method-icon"><i class="fa-solid fa-credit-card"></i></div>
-                <div class="method-info">
-                  <div class="method-name">Saldo</div>
-                  <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                <div class="method-card-top">
+                  <div class="method-icon"><i class="fa-solid fa-wallet"></i></div>
+                  <div class="method-info">
+                    <div class="method-name">Saldo Akun</div>
+                    <div class="method-sub">Saldo kamu: <b>Rp <%= user.saldo.toLocaleString('id-ID') %></b></div>
+                  </div>
+                  <div class="method-check"><i class="fa-solid fa-check"></i></div>
                 </div>
-                <div class="method-check"><i class="fa-solid fa-check"></i></div>
+                <div class="method-tag success"><i class="fa-solid fa-bolt"></i> Tanpa biaya tambahan</div>
               </div>
             </label>
             <label class="method-tab">
               <input type="radio" name="payMethod" value="qris">
               <div class="method-card">
-                <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
-                <div class="method-info">
-                  <div class="method-name">QRIS</div>
-                  <div class="method-sub">Bayar via scan QR</div>
+                <div class="method-card-top">
+                  <div class="method-icon"><i class="fa-solid fa-qrcode"></i></div>
+                  <div class="method-info">
+                    <div class="method-name">QRIS</div>
+                    <div class="method-sub">GoPay, OVO, DANA, ShopeePay, m-Banking</div>
+                  </div>
+                  <div class="method-check"><i class="fa-solid fa-check"></i></div>
                 </div>
-                <div class="method-check"><i class="fa-solid fa-check"></i></div>
+                <div class="method-tag">Biaya admin ~<%= qrisFeePercent %>%</div>
               </div>
             </label>
+          </div>
+
+          <div class="detail-method-title">Kode Promo <span style="text-transform:none; font-weight:400; letter-spacing:normal;">(opsional)</span></div>
+          <div class="promo-box" id="promoBox">
+            <div class="promo-input-row" id="promoInputRow">
+              <input type="text" id="promoInput" class="promo-input" placeholder="Masukkan kode promo" maxlength="20" autocomplete="off">
+              <button type="button" class="promo-apply-btn" id="promoApplyBtn">Terapkan</button>
+            </div>
+            <div class="promo-applied-row" id="promoAppliedRow" style="display:none;">
+              <div class="promo-applied-info"><i class="fa-solid fa-circle-check"></i> <span>Kode <b id="promoAppliedCode"></b> aktif — hemat <b id="promoAppliedAmount"></b></span></div>
+              <button type="button" class="promo-remove-btn" id="promoRemoveBtn" aria-label="Hapus kode promo"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="promo-msg" id="promoMsg"></div>
           </div>
 
           <form method="POST" action="/order" id="buyFormSaldo">
             <input type="hidden" name="productId" id="productIdSaldo" value="<%= product.id %>">
             <input type="hidden" name="qty" id="buyQtySaldo" value="1">
+            <input type="hidden" name="promoCode" id="promoCodeSaldo" value="">
           </form>
           <form method="POST" action="/order/qris-init" id="buyFormQris">
             <input type="hidden" name="productId" id="productIdQris" value="<%= product.id %>">
             <input type="hidden" name="qty" id="buyQtyQris" value="1">
+            <input type="hidden" name="promoCode" id="promoCodeQris" value="">
           </form>
 
           <div class="alert error" id="saldoWarning" style="margin-top:8px; font-size:12px; <%= user.saldo < finalPrice ? '' : 'display:none;' %>">Saldo tidak cukup — gunakan QRIS.</div>
@@ -389,6 +411,16 @@
   var qEl=document.getElementById('qtyInput');
   var tEl=document.getElementById('totalPreview');
   function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
+
+  // ---- Kode Promo: state-nya cuma persentase + kode yang lagi aktif di halaman ini. Dihitung
+  // ULANG tiap kali qty/varian berubah (upd() di bawah) karena diskonnya % dari TOTAL, bukan
+  // potongan tetap -- jadi nominal "hemat Rp X" ikut naik/turun sesuai qty & varian yang dipilih.
+  // Validasi SEBENARNYA (kode ada/tidak, kuota, sudah pernah dipakai) tetap di server lewat
+  // POST /promo/validate & divalidasi ULANG lagi pas submit checkout -- angka di sini murni
+  // buat preview, bukan sumber kebenaran.
+  var promoPercent = 0;
+  var promoCodeApplied = '';
+
   // q di-clamp ke MIN 1 *dan* MAX (dari atribut max input) -- sebelumnya cuma di-clamp ke 1,
   // jadi tombol "+" atau ketik manual bisa lewatin batas stok/limit Digiflazz begitu aja di
   // layar (total harga ikut naik seolah valid), baru ketahuan gagal pas klik "Beli Sekarang"
@@ -399,17 +431,97 @@
     var q=Math.max(1,Math.min(max,parseInt(qEl.value)||1));
     qEl.value=q;
     var qs=document.getElementById('buyQtySaldo');var qq=document.getElementById('buyQtyQris');
-    if(qs)qs.value=q;if(qq)qq.value=q;if(tEl)tEl.textContent=fmt(unitPrice*q);
-    updSaldoWarning(q);}
-  function updSaldoWarning(q){
+    if(qs)qs.value=q;if(qq)qq.value=q;
+
+    var rawTotal = unitPrice*q;
+    var discount = promoPercent > 0 ? Math.round(rawTotal * promoPercent / 100) : 0;
+    var finalTotal = rawTotal - discount;
+
+    if(tEl) tEl.textContent=fmt(finalTotal);
+    var tOld=document.getElementById('totalPreviewOld');
+    if(tOld){
+      if(discount > 0){ tOld.textContent=fmt(rawTotal); tOld.style.display=''; }
+      else { tOld.style.display='none'; }
+    }
+    var promoAppliedAmount=document.getElementById('promoAppliedAmount');
+    if(promoAppliedAmount) promoAppliedAmount.textContent=fmt(discount);
+
+    updSaldoWarning(finalTotal);
+  }
+  function updSaldoWarning(total){
     var warn=document.getElementById('saldoWarning');
     if(!warn) return;
-    warn.style.display = (userSaldo < unitPrice*q) ? '' : 'none';
+    warn.style.display = (userSaldo < total) ? '' : 'none';
   }
   if(qEl){qEl.addEventListener('input',upd);
     var m=document.getElementById('qtyMinus');var p=document.getElementById('qtyPlus');
     if(m)m.addEventListener('click',function(){qEl.value=Math.max(1,(parseInt(qEl.value)||1)-1);upd();});
     if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
+
+  // ---- Kode Promo: terapkan / hapus ----
+  (function(){
+    var input=document.getElementById('promoInput');
+    var applyBtn=document.getElementById('promoApplyBtn');
+    var removeBtn=document.getElementById('promoRemoveBtn');
+    var inputRow=document.getElementById('promoInputRow');
+    var appliedRow=document.getElementById('promoAppliedRow');
+    var appliedCode=document.getElementById('promoAppliedCode');
+    var msg=document.getElementById('promoMsg');
+    if(!input || !applyBtn) return;
+
+    function setHiddenFields(code){
+      var ps=document.getElementById('promoCodeSaldo'); var pq=document.getElementById('promoCodeQris');
+      if(ps)ps.value=code; if(pq)pq.value=code;
+    }
+
+    function applyPromo(){
+      var code=(input.value||'').trim();
+      if(!code){ msg.textContent='Masukkan kode promonya dulu'; return; }
+      applyBtn.disabled=true;
+      var originalLabel=applyBtn.textContent;
+      applyBtn.textContent='Mengecek...';
+      fetch('/promo/validate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code: code })
+      }).then(function(r){ return r.json(); }).then(function(data){
+        applyBtn.disabled=false;
+        applyBtn.textContent=originalLabel;
+        if(!data.valid){
+          msg.textContent = data.reason || 'Kode promo tidak valid';
+          return;
+        }
+        promoPercent = data.discountPercent;
+        promoCodeApplied = data.code;
+        msg.textContent='';
+        setHiddenFields(promoCodeApplied);
+        if(appliedCode) appliedCode.textContent = promoCodeApplied + ' (-' + promoPercent + '%)';
+        if(inputRow) inputRow.style.display='none';
+        if(appliedRow) appliedRow.style.display='flex';
+        upd();
+        showToast('Kode ' + promoCodeApplied + ' berhasil dipakai.', { type: 'success', title: 'Promo diterapkan' });
+      }).catch(function(){
+        applyBtn.disabled=false;
+        applyBtn.textContent=originalLabel;
+        msg.textContent='Gagal menghubungi server, coba lagi';
+      });
+    }
+
+    function removePromo(){
+      promoPercent = 0;
+      promoCodeApplied = '';
+      setHiddenFields('');
+      input.value='';
+      msg.textContent='';
+      if(inputRow) inputRow.style.display='flex';
+      if(appliedRow) appliedRow.style.display='none';
+      upd();
+    }
+
+    applyBtn.addEventListener('click', applyPromo);
+    if(removeBtn) removeBtn.addEventListener('click', removePromo);
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); applyPromo(); } });
+  })();
 
   // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
   function renderTargetFields(fields){
