@@ -412,14 +412,38 @@
   var tEl=document.getElementById('totalPreview');
   function fmt(n){return 'Rp '+n.toLocaleString('id-ID');}
 
-  // ---- Kode Promo: state-nya cuma persentase + kode yang lagi aktif di halaman ini. Dihitung
-  // ULANG tiap kali qty/varian berubah (upd() di bawah) karena diskonnya % dari TOTAL, bukan
-  // potongan tetap -- jadi nominal "hemat Rp X" ikut naik/turun sesuai qty & varian yang dipilih.
-  // Validasi SEBENARNYA (kode ada/tidak, kuota, sudah pernah dipakai) tetap di server lewat
-  // POST /promo/validate & divalidasi ULANG lagi pas submit checkout -- angka di sini murni
-  // buat preview, bukan sumber kebenaran.
-  var promoPercent = 0;
+  // ---- Kode Promo: state kode yang lagi aktif di halaman ini (potongan NOMINAL tetap, bukan
+  // persen). Dihitung ULANG tiap kali qty/varian berubah (upd() di bawah) -- potongannya di-cap
+  // ke rawTotal (gak bisa bikin total minus), dan kalau syarat minPurchase-nya gak lagi kecapai
+  // (misal qty diturunin lagi) promo-nya OTOMATIS dilepas di sisi tampilan biar gak nyangka
+  // masih aktif padahal nanti ditolak pas checkout beneran. Validasi SEBENARNYA (kode ada/tidak,
+  // kuota, sudah pernah dipakai, minPurchase) tetap di server lewat POST /promo/validate &
+  // divalidasi ULANG lagi pas submit checkout -- angka di sini murni buat preview.
+  var promoDiscountAmount = 0;
+  var promoMinPurchase = 0;
   var promoCodeApplied = '';
+  var promoInput=document.getElementById('promoInput');
+  var promoApplyBtn=document.getElementById('promoApplyBtn');
+  var promoRemoveBtn=document.getElementById('promoRemoveBtn');
+  var promoInputRow=document.getElementById('promoInputRow');
+  var promoAppliedRow=document.getElementById('promoAppliedRow');
+  var promoAppliedCode=document.getElementById('promoAppliedCode');
+  var promoMsg=document.getElementById('promoMsg');
+
+  function setPromoHiddenFields(code){
+    var ps=document.getElementById('promoCodeSaldo'); var pq=document.getElementById('promoCodeQris');
+    if(ps)ps.value=code; if(pq)pq.value=code;
+  }
+  function clearPromoState(){
+    promoDiscountAmount = 0;
+    promoMinPurchase = 0;
+    promoCodeApplied = '';
+    setPromoHiddenFields('');
+    if(promoInput) promoInput.value='';
+    if(promoMsg) promoMsg.textContent='';
+    if(promoInputRow) promoInputRow.style.display='flex';
+    if(promoAppliedRow) promoAppliedRow.style.display='none';
+  }
 
   // q di-clamp ke MIN 1 *dan* MAX (dari atribut max input) -- sebelumnya cuma di-clamp ke 1,
   // jadi tombol "+" atau ketik manual bisa lewatin batas stok/limit Digiflazz begitu aja di
@@ -434,7 +458,16 @@
     if(qs)qs.value=q;if(qq)qq.value=q;
 
     var rawTotal = unitPrice*q;
-    var discount = promoPercent > 0 ? Math.round(rawTotal * promoPercent / 100) : 0;
+    var discount = 0;
+    if (promoCodeApplied) {
+      if (promoMinPurchase > 0 && rawTotal < promoMinPurchase) {
+        var droppedCode = promoCodeApplied;
+        clearPromoState();
+        showToast('Kode ' + droppedCode + ' butuh minimal belanja ' + fmt(promoMinPurchase) + ', otomatis dilepas.', { type: 'error', title: 'Promo dilepas' });
+      } else {
+        discount = Math.min(promoDiscountAmount, rawTotal);
+      }
+    }
     var finalTotal = rawTotal - discount;
 
     if(tEl) tEl.textContent=fmt(finalTotal);
@@ -443,8 +476,8 @@
       if(discount > 0){ tOld.textContent=fmt(rawTotal); tOld.style.display=''; }
       else { tOld.style.display='none'; }
     }
-    var promoAppliedAmount=document.getElementById('promoAppliedAmount');
-    if(promoAppliedAmount) promoAppliedAmount.textContent=fmt(discount);
+    var promoAppliedAmountEl=document.getElementById('promoAppliedAmount');
+    if(promoAppliedAmountEl) promoAppliedAmountEl.textContent=fmt(discount);
 
     updSaldoWarning(finalTotal);
   }
@@ -459,69 +492,45 @@
     if(p)p.addEventListener('click',function(){qEl.value=(parseInt(qEl.value)||1)+1;upd();});}
 
   // ---- Kode Promo: terapkan / hapus ----
-  (function(){
-    var input=document.getElementById('promoInput');
-    var applyBtn=document.getElementById('promoApplyBtn');
-    var removeBtn=document.getElementById('promoRemoveBtn');
-    var inputRow=document.getElementById('promoInputRow');
-    var appliedRow=document.getElementById('promoAppliedRow');
-    var appliedCode=document.getElementById('promoAppliedCode');
-    var msg=document.getElementById('promoMsg');
-    if(!input || !applyBtn) return;
-
-    function setHiddenFields(code){
-      var ps=document.getElementById('promoCodeSaldo'); var pq=document.getElementById('promoCodeQris');
-      if(ps)ps.value=code; if(pq)pq.value=code;
-    }
-
-    function applyPromo(){
-      var code=(input.value||'').trim();
-      if(!code){ msg.textContent='Masukkan kode promonya dulu'; return; }
-      applyBtn.disabled=true;
-      var originalLabel=applyBtn.textContent;
-      applyBtn.textContent='Mengecek...';
-      fetch('/promo/validate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code: code })
-      }).then(function(r){ return r.json(); }).then(function(data){
-        applyBtn.disabled=false;
-        applyBtn.textContent=originalLabel;
-        if(!data.valid){
-          msg.textContent = data.reason || 'Kode promo tidak valid';
-          return;
-        }
-        promoPercent = data.discountPercent;
-        promoCodeApplied = data.code;
-        msg.textContent='';
-        setHiddenFields(promoCodeApplied);
-        if(appliedCode) appliedCode.textContent = promoCodeApplied + ' (-' + promoPercent + '%)';
-        if(inputRow) inputRow.style.display='none';
-        if(appliedRow) appliedRow.style.display='flex';
-        upd();
-        showToast('Kode ' + promoCodeApplied + ' berhasil dipakai.', { type: 'success', title: 'Promo diterapkan' });
-      }).catch(function(){
-        applyBtn.disabled=false;
-        applyBtn.textContent=originalLabel;
-        msg.textContent='Gagal menghubungi server, coba lagi';
-      });
-    }
-
-    function removePromo(){
-      promoPercent = 0;
-      promoCodeApplied = '';
-      setHiddenFields('');
-      input.value='';
-      msg.textContent='';
-      if(inputRow) inputRow.style.display='flex';
-      if(appliedRow) appliedRow.style.display='none';
+  function applyPromo(){
+    if(!promoInput) return;
+    var code=(promoInput.value||'').trim();
+    if(!code){ if(promoMsg) promoMsg.textContent='Masukkan kode promonya dulu'; return; }
+    var q=Math.max(1,parseInt(qEl.value)||1);
+    var currentTotal=unitPrice*q;
+    promoApplyBtn.disabled=true;
+    var originalLabel=promoApplyBtn.textContent;
+    promoApplyBtn.textContent='Mengecek...';
+    fetch('/promo/validate', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code: code, total: currentTotal })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      promoApplyBtn.disabled=false;
+      promoApplyBtn.textContent=originalLabel;
+      if(!data.valid){
+        if(promoMsg) promoMsg.textContent = data.reason || 'Kode promo tidak valid';
+        return;
+      }
+      promoDiscountAmount = data.discountAmount;
+      promoMinPurchase = data.minPurchase || 0;
+      promoCodeApplied = data.code;
+      if(promoMsg) promoMsg.textContent='';
+      setPromoHiddenFields(promoCodeApplied);
+      if(promoAppliedCode) promoAppliedCode.textContent = promoCodeApplied;
+      if(promoInputRow) promoInputRow.style.display='none';
+      if(promoAppliedRow) promoAppliedRow.style.display='flex';
       upd();
-    }
-
-    applyBtn.addEventListener('click', applyPromo);
-    if(removeBtn) removeBtn.addEventListener('click', removePromo);
-    input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); applyPromo(); } });
-  })();
+      showToast('Kode ' + promoCodeApplied + ' berhasil dipakai.', { type: 'success', title: 'Promo diterapkan' });
+    }).catch(function(){
+      promoApplyBtn.disabled=false;
+      promoApplyBtn.textContent=originalLabel;
+      if(promoMsg) promoMsg.textContent='Gagal menghubungi server, coba lagi';
+    });
+  }
+  if(promoApplyBtn) promoApplyBtn.addEventListener('click', applyPromo);
+  if(promoRemoveBtn) promoRemoveBtn.addEventListener('click', function(){ clearPromoState(); upd(); });
+  if(promoInput) promoInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); applyPromo(); } });
 
   // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
   function renderTargetFields(fields){
