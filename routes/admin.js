@@ -32,6 +32,7 @@ import {
   addFlashSaleItem, updateFlashSaleItem, deleteFlashSaleItem, reorderFlashSaleItems,
   removeFlashSaleItemsByProductId, utcIsoToWibLocalInput
 } from '../lib/flashsale.js';
+import { getAllPromoCodes, createPromoCode, deletePromoCode } from '../lib/promocodes.js';
 
 // Tebak gamePreset yang cocok dari nama/brand produk Digiflazz, biar field ID Tujuan
 // (termasuk dropdown Server buat game kayak Genshin Impact/Wuthering Waves) otomatis
@@ -464,6 +465,38 @@ router.post('/flashsale/reorder', (req, res) => {
   }
   reorderFlashSaleItems(orderedIds);
   res.json({ ok: true });
+});
+
+// ---------- KODE PROMO ----------
+
+function renderPromoPage(req, res, extra = {}) {
+  const items = getAllPromoCodes().slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.render('admin/promo', {
+    config: getConfig(),
+    items,
+    error: null,
+    success: null,
+    ...extra
+  });
+}
+
+router.get('/promo', (req, res) => {
+  renderPromoPage(req, res);
+});
+
+router.post('/promo/add', (req, res) => {
+  const { code, discountPercent, maxUses } = req.body;
+  try {
+    const promo = createPromoCode({ code, discountPercent, maxUses });
+    renderPromoPage(req, res, { success: `Kode promo "${promo.code}" dibuat` });
+  } catch (err) {
+    renderPromoPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/promo/:id/hapus', (req, res) => {
+  deletePromoCode(req.params.id);
+  renderPromoPage(req, res, { success: 'Kode promo dihapus' });
 });
 
 // ---------- DIGIFLAZZ PRODUCTS (nav khusus, kelola produk auto topup + margin) ----------

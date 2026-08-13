@@ -39,8 +39,19 @@ import {
   MAX_DIGIFLAZZ_QTY_PER_ORDER, validateQty, computeOrderTotal, formatTargetText,
   fulfillAndRecordOrders, summarizeOrders
 } from '../lib/orderEngine.js';
+import { validatePromoForUser, redeemPromoCode } from '../lib/promocodes.js';
 
 const router = express.Router();
+
+// Diskon promo diterapkan lewat UNIT PRICE (bukan potong langsung dari total) supaya konsisten
+// sama fulfillAndRecordOrders() di lib/orderEngine.js -- fungsi itu cuma nerima unitPriceOverride,
+// BUKAN total override, dan menghitung ulang total dari unitPrice*qty sendiri di dalam (lihat
+// catatan panjang di sana). Kalau kita potong dari total tapi unitPrice yang dikirim ke situ
+// tetap harga penuh, order yang tercatat bisa beda dari yang beneran ditagih ke saldo user.
+function applyPromoToUnitPrice(unitPrice, promo) {
+  if (!promo) return unitPrice;
+  return Math.max(0, unitPrice - Math.round(unitPrice * promo.discountPercent / 100));
+}
 
 // Ambil isian ID Game / Zone ID / UID dll dari form checkout sesuai targetFields produk (ML, FF, Genshin, dst)
 function extractTargetData(product, body) {
@@ -705,6 +716,27 @@ router.post('/otp/status/:id/cancel', requireLogin, async (req, res) => {
 // checkout user itu yang gagal, tapi WHOLE SITE down buat SEMUA user sampai PM2 restart. Ini route
 // PALING SERING DIPANGGIL di seluruh app (tiap kali ada yang belanja), jadi paling kritis buat dikasih
 // try/catch dibanding route lain manapun.
+// Dipanggil AJAX dari halaman produk pas user klik "Terapkan" di kotak Kode Promo -- CUMA
+// validasi (gak nge-redeem/naikin usedCount), biar user bisa lihat dulu diskonnya kepakai atau
+// tidak sebelum beneran checkout. Redeem beneran kejadian setelah order sukses, lihat POST
+// /order & /order/qris-init di bawah.
+router.post('/promo/validate', requireLogin, (req, res) => {
+  try {
+    const user = findUserById(req.session.user.id);
+    if (!user) return res.status(401).json({ valid: false, reason: 'Sesi kamu tidak valid, silakan login ulang' });
+
+    const code = String(req.body.code || '').trim();
+    if (!code) return res.json({ valid: false, reason: 'Masukkan kode promonya dulu' });
+
+    const check = validatePromoForUser(code, user.id);
+    if (!check.valid) return res.json({ valid: false, reason: check.reason });
+
+    res.json({ valid: true, code: check.promo.code, discountPercent: check.promo.discountPercent });
+  } catch (err) {
+    res.status(500).json({ valid: false, reason: 'Terjadi kesalahan, coba lagi' });
+  }
+});
+
 router.post('/order', requireLogin, async (req, res) => {
   try {
     const user = findUserById(req.session.user.id);
@@ -728,17 +760,37 @@ router.post('/order', requireLogin, async (req, res) => {
     const targetText = formatTargetText(product, targetData);
 
     const unitPrice = getEffectivePrice(product, user);
-    const total = computeOrderTotal(product, unitPrice, qty);
+
+    // Kode promo (opsional) -- divalidasi ULANG di sini (bukan cuma percaya hasil cek AJAX
+    // /promo/validate tadi), lihat catatan di lib/promocodes.js soal kenapa double-check ini perlu.
+    const promoCodeRaw = String(req.body.promoCode || '').trim();
+    let appliedPromo = null;
+    if (promoCodeRaw) {
+      const check = validatePromoForUser(promoCodeRaw, user.id);
+      if (!check.valid) {
+        return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(check.reason));
+      }
+      appliedPromo = check.promo;
+    }
+    const effectiveUnitPrice = applyPromoToUnitPrice(unitPrice, appliedPromo);
+
+    const total = computeOrderTotal(product, effectiveUnitPrice, qty);
     if (user.saldo < total) {
       return res.redirect('/produk?error=Saldo tidak cukup, silakan topup');
     }
 
     deductSaldo(user.id, total, {
-      reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''}`,
+      reason: `Pembelian ${product.name}${qty > 1 ? ` (${qty}x)` : ''}${appliedPromo ? ` (promo ${appliedPromo.code})` : ''}`,
       refType: 'order'
     });
 
-    const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText });
+    const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText, unitPriceOverride: effectiveUnitPrice });
+
+    // Kode promo baru kepakai (usedCount naik) begitu MINIMAL SATU order-nya beneran jadi --
+    // kalau SEMUA item malah cancelled/refund total, kode promo-nya gak ikut "terbakar" sia-sia.
+    if (appliedPromo && orders.some(o => o.status !== 'cancelled')) {
+      redeemPromoCode(appliedPromo.code, user.id, user.username);
+    }
 
     if (orders.every(o => o.status === 'cancelled')) {
       return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
@@ -1287,12 +1339,31 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
     const targetText = formatTargetText(product, targetData);
 
     const unitPrice = getEffectivePrice(product, user);
-    const orderTotal = computeOrderTotal(product, unitPrice, qty);
+
+    // Kode promo (opsional) -- sama seperti checkout saldo, divalidasi ULANG di server di sini.
+    // Redeem beneran (naikin usedCount) BUKAN di sini -- QRIS belum tentu jadi dibayar, jadi
+    // ditunda sampai markOrderQrisPaid() di lib/orderQris.js (dipanggil pas QRIS-nya beneran
+    // lunas), kode-nya cuma "dititipkan" dulu di record pembayaran lewat parameter promoCode.
+    const promoCodeRaw = String(req.body.promoCode || '').trim();
+    let appliedPromo = null;
+    if (promoCodeRaw) {
+      const check = validatePromoForUser(promoCodeRaw, user.id);
+      if (!check.valid) {
+        return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(check.reason));
+      }
+      appliedPromo = check.promo;
+    }
+    const effectiveUnitPrice = applyPromoToUnitPrice(unitPrice, appliedPromo);
+    const orderTotal = computeOrderTotal(product, effectiveUnitPrice, qty);
 
     // Langsung ke pembayaran QRIS buat order ini -- TIDAK lewat sistem deposit/saldo sama
     // sekali (lihat catatan di lib/orderQris.js). Order-nya otomatis kebuat di background pas
     // QRIS-nya kebayar, gak butuh sesi/tab browser buat "konfirmasi" kayak alur lama.
-    const payment = await createOrderQrisPayment({ user, product, qty, targetData, targetText, unitPrice, orderTotal });
+    const payment = await createOrderQrisPayment({
+      user, product, qty, targetData, targetText,
+      unitPrice: effectiveUnitPrice, orderTotal,
+      promoCode: appliedPromo ? appliedPromo.code : ''
+    });
 
     res.render('order-qris', {
       payment,
