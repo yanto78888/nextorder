@@ -1389,10 +1389,12 @@ input[type="file"]::file-selector-button {
 .star-input.hovered, .star-input.active { color: #f5c518; transform: scale(1.15); }
 .rate-hint { font-size: 12px; color: var(--text-dim); flex: 1; min-width: 80px; }
 
-/* Stats row */
+/* Stats row. Cuma 2 stat (Terjual + Instan/Stok) sejak stat "Harga" dihapus (dulu duplikat
+   sama harga yang udah tampil di kotak beli & sticky bar bawah), jadi grid-nya 2 kolom + 1
+   divider -- bukan 3 kolom lagi, biar isinya tetap kebagi rata di tengah, gak numpuk ke kiri. */
 .detail-stats-row {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   background: var(--bg-panel);
   border: 1.5px solid var(--border-glow);
@@ -1622,11 +1624,22 @@ html[data-theme="light"] .variant-card {
   margin-bottom: 4px;
 }
 
-/* Badge bawah: "Pengiriman INSTAN" (untuk produk digiflazz/auto) atau "Manual" */
+/* Badge bawah: "Pengiriman INSTAN" (untuk produk digiflazz/auto) atau "Manual".
+   BUG LAMA: badge ini `position:absolute; bottom:0` sementara .variant-card gak punya
+   padding-bottom sama sekali -- jadi badge nangkring nutupin baris harga tiap kali tinggi
+   kartu pas-pasan sama tinggi kontennya sendiri. Kartu cuma "selamat" dari overlap kalau
+   kebetulan diregangkan CSS Grid gara-gara tetangga di baris yang sama punya nama 2 baris
+   (kartu jadi lebih tinggi dari kontennya, nyisain jarak). Sekarang badge dijadikan bagian
+   dari flex flow biasa (.variant-card sudah flex-direction:column) dan didorong ke bawah
+   pakai margin-top:auto -- badge SELALU ada di bawah, gak akan pernah nimpa harga lagi,
+   apapun tinggi kartunya. margin kiri/kanan negatif dipakai buat "bleed" balik ke tepi kartu
+   nutupin padding 12px kiri/kanan, overflow:hidden di parent yang jaga sudut bawah tetap
+   rounded sesuai border-radius kartu. */
 .variant-card-badge {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 5px 10px;
+  margin-top: auto;
+  margin-left: -12px;
+  margin-right: -12px;
+  padding: 6px 10px;
   background: linear-gradient(90deg, #3a3f8f, #5b5fc7);
   display: flex;
   align-items: center;
@@ -3120,3 +3133,78 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
 }
 .copy-chip-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(21,101,192,0.08); }
 .copy-chip-btn.copied { border-color: var(--success); color: var(--success); background: rgba(46,204,113,0.08); }
+
+/* ===== TOAST NOTIFICATION ==========================================================
+   Pengganti alert() bawaan browser (yang bentuknya kotak dialog sistem, gak bisa
+   di-custom & keliatan murahan). Toast ini muncul melayang di atas sticky buy bar,
+   auto-hilang sendiri dengan progress bar tipis di bawahnya, bisa ditutup manual, dan
+   ngikutin warna tema situs (dark/light) lewat var(--bg-panel) dkk. Dipicu lewat
+   showToast(pesan, { type, title, duration }) -- lihat produk-detail.ejs. ===== */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  width: min(92vw, 380px);
+  pointer-events: none;
+}
+.toast-card {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 34px 15px 13px;
+  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(14px) scale(.96);
+  animation: toastIn .32s cubic-bezier(.22,1,.36,1) forwards;
+}
+.toast-card.toast-out { animation: toastOut .2s ease forwards; }
+@keyframes toastIn { to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(8px) scale(.96); } }
+.toast-icon {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+}
+.toast-card.error .toast-icon { background: rgba(255,107,107,0.15); color: var(--danger); }
+.toast-card.success .toast-icon { background: rgba(53,201,117,0.15); color: var(--success); }
+.toast-card.info .toast-icon { background: rgba(79,168,255,0.15); color: var(--cyan); }
+.toast-body { flex: 1; min-width: 0; padding-top: 2px; }
+.toast-title { font-size: 13px; font-weight: 800; margin-bottom: 2px; }
+.toast-msg { font-size: 12.5px; line-height: 1.45; color: var(--text-dim); }
+.toast-close {
+  position: absolute; top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 6px;
+  color: var(--text-dim); font-size: 11px; cursor: pointer;
+  font-family: inherit; transition: background .15s, color .15s;
+}
+.toast-close:hover { background: var(--bg-panel-2); color: var(--text-main); }
+.toast-progress {
+  position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+  transform-origin: left; animation: toastProgress linear forwards;
+}
+.toast-card.error .toast-progress { background: var(--danger); }
+.toast-card.success .toast-progress { background: var(--success); }
+.toast-card.info .toast-progress { background: var(--cyan); }
+@keyframes toastProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .toast-card, .toast-progress { animation-duration: .01ms !important; }
+}
