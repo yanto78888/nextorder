@@ -485,9 +485,9 @@ router.get('/promo', (req, res) => {
 });
 
 router.post('/promo/add', (req, res) => {
-  const { code, discountPercent, maxUses } = req.body;
+  const { code, discountAmount, minPurchase, maxUses } = req.body;
   try {
-    const promo = createPromoCode({ code, discountPercent, maxUses });
+    const promo = createPromoCode({ code, discountAmount, minPurchase, maxUses });
     renderPromoPage(req, res, { success: `Kode promo "${promo.code}" dibuat` });
   } catch (err) {
     renderPromoPage(req, res, { error: err.message });

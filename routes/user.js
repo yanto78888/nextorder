@@ -39,18 +39,24 @@ import {
   MAX_DIGIFLAZZ_QTY_PER_ORDER, validateQty, computeOrderTotal, formatTargetText,
   fulfillAndRecordOrders, summarizeOrders
 } from '../lib/orderEngine.js';
-import { validatePromoForUser, redeemPromoCode } from '../lib/promocodes.js';
+import { validatePromoForUser, redeemPromoCode, computePromoDiscount } from '../lib/promocodes.js';
 
 const router = express.Router();
 
-// Diskon promo diterapkan lewat UNIT PRICE (bukan potong langsung dari total) supaya konsisten
-// sama fulfillAndRecordOrders() di lib/orderEngine.js -- fungsi itu cuma nerima unitPriceOverride,
-// BUKAN total override, dan menghitung ulang total dari unitPrice*qty sendiri di dalam (lihat
-// catatan panjang di sana). Kalau kita potong dari total tapi unitPrice yang dikirim ke situ
-// tetap harga penuh, order yang tercatat bisa beda dari yang beneran ditagih ke saldo user.
-function applyPromoToUnitPrice(unitPrice, promo) {
+// Diskon promo (nominal tetap, mis. Rp 2.000) diterapkan lewat UNIT PRICE (bukan potong
+// langsung dari total) supaya konsisten sama fulfillAndRecordOrders() di lib/orderEngine.js --
+// fungsi itu cuma nerima unitPriceOverride, BUKAN total override, dan menghitung ulang total
+// dari unitPrice*qty (atau formula rate/1000 punya IndoSMM) sendiri di dalam. Caranya: hitung
+// rawTotal beneran lewat computeOrderTotal (BUKAN unitPrice*qty polos -- biar IndoSMM ikut
+// bener), potong nominal diskonnya dari situ, lalu tarik proporsinya balik ke unitPrice. Untuk
+// kasus umum (qty=1, non-IndoSMM) ini persis sama dengan unitPrice - discountAmount.
+function applyPromoToUnitPrice(product, unitPrice, qty, promo) {
   if (!promo) return unitPrice;
-  return Math.max(0, unitPrice - Math.round(unitPrice * promo.discountPercent / 100));
+  const rawTotal = computeOrderTotal(product, unitPrice, qty);
+  if (rawTotal <= 0) return unitPrice;
+  const discount = computePromoDiscount(promo, rawTotal);
+  const newTotal = rawTotal - discount;
+  return Math.max(0, Math.round(unitPrice * newTotal / rawTotal));
 }
 
 // Ambil isian ID Game / Zone ID / UID dll dari form checkout sesuai targetFields produk (ML, FF, Genshin, dst)
@@ -728,10 +734,21 @@ router.post('/promo/validate', requireLogin, (req, res) => {
     const code = String(req.body.code || '').trim();
     if (!code) return res.json({ valid: false, reason: 'Masukkan kode promonya dulu' });
 
-    const check = validatePromoForUser(code, user.id);
+    // total = total belanja SAAT INI di halaman (qty x harga, dikirim dari klien) -- dipakai
+    // buat ngecek syarat minimal belanja. Ini cuma buat PREVIEW; checkout beneran (POST /order
+    // & /order/qris-init) tetap ngitung & validasi ulang total-nya sendiri di server, gak
+    // percaya begitu aja angka yang dikirim dari sini.
+    const total = Math.max(0, parseInt(req.body.total, 10) || 0);
+
+    const check = validatePromoForUser(code, user.id, total);
     if (!check.valid) return res.json({ valid: false, reason: check.reason });
 
-    res.json({ valid: true, code: check.promo.code, discountPercent: check.promo.discountPercent });
+    res.json({
+      valid: true,
+      code: check.promo.code,
+      discountAmount: check.promo.discountAmount,
+      minPurchase: check.promo.minPurchase
+    });
   } catch (err) {
     res.status(500).json({ valid: false, reason: 'Terjadi kesalahan, coba lagi' });
   }
@@ -762,17 +779,19 @@ router.post('/order', requireLogin, async (req, res) => {
     const unitPrice = getEffectivePrice(product, user);
 
     // Kode promo (opsional) -- divalidasi ULANG di sini (bukan cuma percaya hasil cek AJAX
-    // /promo/validate tadi), lihat catatan di lib/promocodes.js soal kenapa double-check ini perlu.
+    // /promo/validate tadi), lihat catatan di lib/promocodes.js soal kenapa double-check ini
+    // perlu. rawTotal (sebelum diskon) dipakai buat ngecek syarat minPurchase.
     const promoCodeRaw = String(req.body.promoCode || '').trim();
     let appliedPromo = null;
     if (promoCodeRaw) {
-      const check = validatePromoForUser(promoCodeRaw, user.id);
+      const rawTotal = computeOrderTotal(product, unitPrice, qty);
+      const check = validatePromoForUser(promoCodeRaw, user.id, rawTotal);
       if (!check.valid) {
         return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(check.reason));
       }
       appliedPromo = check.promo;
     }
-    const effectiveUnitPrice = applyPromoToUnitPrice(unitPrice, appliedPromo);
+    const effectiveUnitPrice = applyPromoToUnitPrice(product, unitPrice, qty, appliedPromo);
 
     const total = computeOrderTotal(product, effectiveUnitPrice, qty);
     if (user.saldo < total) {
@@ -1340,20 +1359,22 @@ router.post('/order/qris-init', requireLogin, async (req, res) => {
 
     const unitPrice = getEffectivePrice(product, user);
 
-    // Kode promo (opsional) -- sama seperti checkout saldo, divalidasi ULANG di server di sini.
-    // Redeem beneran (naikin usedCount) BUKAN di sini -- QRIS belum tentu jadi dibayar, jadi
-    // ditunda sampai markOrderQrisPaid() di lib/orderQris.js (dipanggil pas QRIS-nya beneran
-    // lunas), kode-nya cuma "dititipkan" dulu di record pembayaran lewat parameter promoCode.
+    // Kode promo (opsional) -- sama seperti checkout saldo, divalidasi ULANG di server di sini
+    // (rawTotal dulu buat cek minPurchase). Redeem beneran (naikin usedCount) BUKAN di sini --
+    // QRIS belum tentu jadi dibayar, jadi ditunda sampai markOrderQrisPaid() di lib/orderQris.js
+    // (dipanggil pas QRIS-nya beneran lunas), kode-nya cuma "dititipkan" dulu di record
+    // pembayaran lewat parameter promoCode.
     const promoCodeRaw = String(req.body.promoCode || '').trim();
     let appliedPromo = null;
     if (promoCodeRaw) {
-      const check = validatePromoForUser(promoCodeRaw, user.id);
+      const rawTotal = computeOrderTotal(product, unitPrice, qty);
+      const check = validatePromoForUser(promoCodeRaw, user.id, rawTotal);
       if (!check.valid) {
         return res.redirect(`/produk/${product.id}?error=` + encodeURIComponent(check.reason));
       }
       appliedPromo = check.promo;
     }
-    const effectiveUnitPrice = applyPromoToUnitPrice(unitPrice, appliedPromo);
+    const effectiveUnitPrice = applyPromoToUnitPrice(product, unitPrice, qty, appliedPromo);
     const orderTotal = computeOrderTotal(product, effectiveUnitPrice, qty);
 
     // Langsung ke pembayaran QRIS buat order ini -- TIDAK lewat sistem deposit/saldo sama
