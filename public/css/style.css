@@ -3309,3 +3309,84 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .toast-card, .toast-progress { animation-duration: .01ms !important; }
 }
+
+/* ===== SKIRK HERO (banner brand ikonik di atas /produk) =====================================
+   Warna & style di-scope sendiri lewat custom property berawalan --hero- di selector
+   .skirk-hero -- SENGAJA gak numpang di --cyan/--bg-panel dkk milik tema situs, biar hero ini
+   bisa punya identitas visual sendiri (ungu abyss + cyan) tanpa mengubah warna komponen lain
+   di situs. Font tetap pinjam var(--font-display)/var(--font-body) yang sudah dimuat sitewide
+   (Bebas Neue / Inter) -- gak nambah font baru. ============================================ */
+.skirk-hero {
+  --hero-void: #0a0714;
+  --hero-void-2: #150c26;
+  --hero-plum: #1a0f2e;
+  --hero-violet: #7f4fd1;
+  --hero-violet-soft: #9b6fe0;
+  --hero-cyan: #4fd8e8;
+  --hero-cyan-soft: #8febf5;
+  --hero-gold: #f0c674;
+  --hero-text: #ede9f7;
+  --hero-text-dim: #a99bcf;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  margin-bottom: 16px;
+  min-height: 320px;
+  background:
+    radial-gradient(120% 70% at 84% 4%, rgba(127,79,209,0.45), transparent 55%),
+    radial-gradient(90% 60% at 80% 30%, rgba(79,216,232,0.16), transparent 60%),
+    linear-gradient(165deg, var(--hero-void) 0%, var(--hero-void-2) 45%, var(--hero-plum) 100%);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  isolation: isolate;
+}
+.skirk-hero .hs-stars { position: absolute; inset: 0; z-index: 0; }
+.skirk-hero .hs-star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; animation: hsTwinkle 3.2s ease-in-out infinite; }
+@keyframes hsTwinkle { 0%, 100% { opacity: .15; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
+
+.skirk-hero .hs-logo-row { position: relative; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 16px 16px 0; }
+.skirk-hero .hs-logo-icon { width: 22px; height: 22px; flex: none; }
+.skirk-hero .hs-logo-text { font-family: var(--font-display); font-size: 18px; letter-spacing: 1.6px; color: var(--hero-text); line-height: 1; display: flex; align-items: baseline; gap: 4px; }
+.skirk-hero .hs-logo-text span { font-size: 9.5px; color: var(--hero-cyan-soft); letter-spacing: 2.5px; font-family: var(--font-body); font-weight: 700; }
+
+.skirk-hero .hs-stage { position: absolute; top: -14px; right: -40px; width: 230px; height: 230px; z-index: 1; }
+.skirk-hero .hs-rune { position: absolute; inset: 0; animation: hsSpin 26s linear infinite; transform-origin: 50% 50%; opacity: .55; }
+@keyframes hsSpin { to { transform: rotate(360deg); } }
+.skirk-hero .hs-rune-inner { position: absolute; inset: 30px; animation: hsSpinRev 18s linear infinite; transform-origin: 50% 50%; opacity: .4; }
+@keyframes hsSpinRev { to { transform: rotate(-360deg); } }
+.skirk-hero .hs-mascot-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; animation: hsFloat 5s ease-in-out infinite; }
+@keyframes hsFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.skirk-hero .hs-glint { animation: hsGlintSweep 3.6s ease-in-out infinite; }
+@keyframes hsGlintSweep { 0%, 100% { opacity: 0; transform: translateX(-12px); } 45% { opacity: 0; } 55% { opacity: .9; transform: translateX(0); } 70% { opacity: 0; transform: translateX(12px); } }
+.skirk-hero .hs-shard { position: absolute; animation: hsDrift 4.5s ease-in-out infinite; opacity: .8; }
+@keyframes hsDrift { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(20deg); } }
+
+.skirk-hero .hs-content { position: relative; z-index: 3; padding: 0 16px 18px; margin-top: 170px; }
+.skirk-hero .hs-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; color: var(--hero-cyan-soft); background: rgba(79,216,232,0.1); border: 1px solid rgba(79,216,232,0.3); padding: 4px 10px; border-radius: 20px; margin-bottom: 10px; }
+.skirk-hero .hs-eyebrow i { width: 5px; height: 5px; border-radius: 50%; background: var(--hero-cyan); display: inline-block; box-shadow: 0 0 6px var(--hero-cyan); }
+.skirk-hero .hs-headline { font-family: var(--font-display); font-size: 28px; line-height: 1.03; letter-spacing: .5px; color: var(--hero-text); margin-bottom: 8px; }
+.skirk-hero .hs-headline .hs-accent { background: linear-gradient(90deg, var(--hero-cyan-soft), var(--hero-violet-soft)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.skirk-hero .hs-subtext { font-family: var(--font-body); font-size: 12.5px; line-height: 1.55; color: var(--hero-text-dim); max-width: 260px; margin-bottom: 14px; }
+.skirk-hero .hs-subtext b { color: var(--hero-text); font-weight: 700; }
+.skirk-hero .hs-cta { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--hero-void); background: linear-gradient(90deg, var(--hero-cyan), var(--hero-cyan-soft)); border: none; padding: 11px 20px; border-radius: 11px; cursor: pointer; text-decoration: none; animation: hsPulseGlow 2.6s ease-in-out infinite; }
+@keyframes hsPulseGlow { 0%, 100% { box-shadow: 0 4px 16px rgba(79,216,232,0.25); } 50% { box-shadow: 0 4px 24px rgba(79,216,232,0.5); } }
+.skirk-hero .hs-badges { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; }
+.skirk-hero .hs-badge { display: flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 10px; font-weight: 600; color: var(--hero-text-dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 6px 9px; border-radius: 9px; }
+.skirk-hero .hs-badge svg { width: 12px; height: 12px; flex: none; color: var(--hero-cyan-soft); }
+
+@media (min-width: 720px) {
+  .skirk-hero { min-height: 260px; }
+  .skirk-hero .hs-content { margin-top: 0; padding: 20px 300px 20px 22px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-height: 260px; }
+  .skirk-hero .hs-logo-row { padding: 18px 22px 0; }
+  .skirk-hero .hs-stage { top: 10px; right: 20px; width: 260px; height: 260px; }
+  /* Di layout mobile, teks ada DI BAWAH panggung maskot (stacked), jadi bintang boleh nyebar
+     full-width karena gak akan pernah tumpang tindih sama teks. Begitu masuk breakpoint
+     desktop, layoutnya jadi bersebelahan (teks kiri, maskot kanan) -- kalau bintangnya tetap
+     nyebar full-width, sebagian bakal nongol di belakang teks dan keliatan berantakan. Jadi
+     area sebarannya disempitkan ke sisi kanan aja (searah panggung maskot). */
+  .skirk-hero .hs-stars { inset: 0 0 0 45%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skirk-hero .hs-star, .skirk-hero .hs-rune, .skirk-hero .hs-rune-inner, .skirk-hero .hs-mascot-wrap,
+  .skirk-hero .hs-glint, .skirk-hero .hs-shard, .skirk-hero .hs-cta { animation-duration: .01ms !important; }
+}
