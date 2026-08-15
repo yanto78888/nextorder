@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { createUser, findUserByUsername, findUserByEmail, verifyPassword, findUserById, updateUser, findUserByGoogleId, findOrCreateGoogleUser, setPassword, canRequestResetOtp, generateResetOtp, verifyResetOtp, clearResetOtp } from '../lib/users.js';
+import { createUser, findUserByUsername, findUserByEmail, findUserByReferralCode, verifyPassword, findUserById, updateUser, findUserByGoogleId, findOrCreateGoogleUser, setPassword, canRequestResetOtp, generateResetOtp, verifyResetOtp, clearResetOtp } from '../lib/users.js';
 import { getConfig } from '../lib/config.js';
 import { notifyRegister } from '../lib/telegram.js';
 import { sendResetOtpEmail, isSmtpConfigured } from '../lib/mailer.js';
@@ -177,35 +177,51 @@ router.post('/login', (req, res) => {
 
 router.get('/register', (req, res) => {
   if (req.session.user) return res.redirect('/produk');
-  res.render('register', { error: null, config: getConfig(), pageTitle: `Daftar Akun - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
+  // Dukung link referral: /register?ref=KODE -- kode-nya cuma buat NGE-PREFILL form, user tetap
+  // bisa hapus/ganti manual (validasi beneran tetap kejadian pas submit POST /register di bawah).
+  const refCode = String(req.query.ref || '').trim().toUpperCase();
+  res.render('register', { error: null, refCode, config: getConfig(), pageTitle: `Daftar Akun - ${getConfig().siteName || 'NEXORDER'}`, noindex: true });
 });
 
 router.post('/register', async (req, res) => {
-  const { username, email, password, password2 } = req.body;
+  const { username, email, password, password2, referralCode } = req.body;
   const cfg = getConfig();
   const pageTitle = `Daftar Akun - ${cfg.siteName || 'NEXORDER'}`;
+  const refCode = String(referralCode || '').trim().toUpperCase();
 
   // Email sekarang WAJIB diisi di sini (bukan opsional lagi) -- dipakai buat login (lihat
   // POST /login) & buat kirim kode OTP di fitur Lupa Password. Validasi format/keunikan yang
   // lebih detail ada di createUser() (lib/users.js), di sini cuma cek kosong-atau-nggak dulu
   // biar pesan error paling umum ("wajib diisi") muncul duluan sebelum validasi yang lebih rinci.
   if (!username || !email || !password) {
-    return res.render('register', { error: 'Username, email, dan password wajib diisi', config: cfg, pageTitle, noindex: true });
+    return res.render('register', { error: 'Username, email, dan password wajib diisi', refCode, config: cfg, pageTitle, noindex: true });
   }
   if (password !== password2) {
-    return res.render('register', { error: 'Konfirmasi password tidak cocok', config: cfg, pageTitle, noindex: true });
+    return res.render('register', { error: 'Konfirmasi password tidak cocok', refCode, config: cfg, pageTitle, noindex: true });
   }
   if (password.length < 6) {
-    return res.render('register', { error: 'Password minimal 6 karakter', config: cfg, pageTitle, noindex: true });
+    return res.render('register', { error: 'Password minimal 6 karakter', refCode, config: cfg, pageTitle, noindex: true });
+  }
+
+  // Kode referral SIFATNYA OPSIONAL ("berlaku opsional") -- kalau field-nya dikosongin, langsung
+  // lewat aja tanpa nyambungin ke siapa2. TAPI kalau user SEMPAT isi sesuatu, kodenya harus valid
+  // (nemu pemiliknya) -- gak didiemin gitu aja kalau salah ketik, biar orang yang ngundang gak
+  // kehilangan komisinya cuma gara2 typo yang gak ketahuan.
+  let referrer = null;
+  if (refCode) {
+    referrer = findUserByReferralCode(refCode);
+    if (!referrer) {
+      return res.render('register', { error: 'Kode referral tidak ditemukan. Kosongkan kalau tidak punya kode.', refCode, config: cfg, pageTitle, noindex: true });
+    }
   }
 
   try {
-    const user = createUser({ username, email, password });
+    const user = createUser({ username, email, password, referredBy: referrer ? referrer.id : '' });
     req.session.user = { id: user.id, username: user.username, role: user.role };
     notifyRegister({ username: user.username }).catch(() => {});
     res.redirect('/produk');
   } catch (err) {
-    res.render('register', { error: err.message, config: cfg, pageTitle, noindex: true });
+    res.render('register', { error: err.message, refCode, config: cfg, pageTitle, noindex: true });
   }
 });
 

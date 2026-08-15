@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
-  getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail
+  getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail,
+  ensureReferralCode
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
@@ -40,6 +41,7 @@ import {
   fulfillAndRecordOrders, summarizeOrders
 } from '../lib/orderEngine.js';
 import { validatePromoForUser, redeemPromoCode, computePromoDiscount } from '../lib/promocodes.js';
+import { creditReferralCommission, getReferralStatsForUser, REFERRAL_COMMISSION_PERCENT } from '../lib/referrals.js';
 
 const router = express.Router();
 
@@ -811,6 +813,14 @@ router.post('/order', requireLogin, async (req, res) => {
       redeemPromoCode(appliedPromo.code, user.id, user.username);
     }
 
+    // Komisi referral (1% ke akun yang ngundang user ini, KALAU user ini daftar pakai kode
+    // referral) -- dihitung dari total order yang BENERAN sukses aja (bukan cancelled/direfund),
+    // bukan dari `total` kotor di atas, biar akurat kalau sebagian item dalam 1x checkout gagal.
+    const netSuccessTotal = orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
+    if (netSuccessTotal > 0) {
+      creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
+    }
+
     if (orders.every(o => o.status === 'cancelled')) {
       return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
     }
@@ -995,6 +1005,26 @@ router.get('/riwayat-saldo', requireLogin, (req, res) => {
     success: req.query.success || null,
     error: req.query.error || null,
     pageTitle: `Riwayat Saldo - ${getConfig().siteName || 'NEXORDER'}`,
+    noindex: true
+  });
+});
+
+router.get('/referral', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  // Akun lama (sebelum fitur ini ada) belum punya referralCode -- di-generate & disimpan SEKALI
+  // di sini kalau ternyata belum ada (lihat ensureReferralCode di lib/users.js).
+  const referralCode = ensureReferralCode(user.id);
+  const stats = getReferralStatsForUser(user.id);
+  const cfg = getConfig();
+  const referralLink = `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`;
+  res.render('referral', {
+    user,
+    referralCode,
+    referralLink,
+    stats,
+    commissionPercent: REFERRAL_COMMISSION_PERCENT,
+    config: cfg,
+    pageTitle: `Referral - ${cfg.siteName || 'NEXORDER'}`,
     noindex: true
   });
 });
@@ -1253,11 +1283,33 @@ router.get('/produk/:id', (req, res) => {
             thumbnail: p.thumbnail,
             targetFields: p.targetFields || [],
             stockCount: countStock(p),
-            provider: p.provider
+            provider: p.provider,
+            variantType: String(p.variantType || '').trim()
           };
         })
         .sort((a, b) => a.price - b.price)
     : [];
+
+  // ===== Tab "Tipe Nominal" (mis. Reguler / Promo / Special Items) =====
+  // Kalau SEMUA varian di grup ini variantType-nya kosong (default, belum diisi admin sama
+  // sekali) atau cuma ada 1 tipe doang, JANGAN tampilkan tab -- balik ke grid polos kayak
+  // sebelumnya (variantTypeGroups isinya 1 grup nameless, ditandai showVariantTypeTabs=false),
+  // biar produk yang gak butuh fitur ini tampilannya gak berubah sama sekali. Grup "Reguler"
+  // (variantType kosong) SENGAJA ditaruh di tab PALING DEPAN kalau ada, baru nyusul tipe lain
+  // urut kemunculan pertamanya di daftar varian yang sudah diurutkan harga.
+  const variantTypeOrder = [];
+  const variantTypeMap = {};
+  variants.forEach(v => {
+    const key = v.variantType || 'Reguler';
+    if (!variantTypeMap[key]) { variantTypeMap[key] = []; variantTypeOrder.push(key); }
+    variantTypeMap[key].push(v);
+  });
+  if (variantTypeOrder.includes('Reguler')) {
+    variantTypeOrder.splice(variantTypeOrder.indexOf('Reguler'), 1);
+    variantTypeOrder.unshift('Reguler');
+  }
+  const showVariantTypeTabs = variantTypeOrder.length > 1;
+  const variantTypeGroups = variantTypeOrder.map(type => ({ type, items: variantTypeMap[type] }));
 
 
   // SEO/OG per produk: judul & gambar ikutin nama grup varian (bukan SKU nominal tertentu),
@@ -1275,6 +1327,8 @@ router.get('/produk/:id', (req, res) => {
     isMemberUser,
     displayThumbnail,
     variants,
+    variantTypeGroups,
+    showVariantTypeTabs,
     reviews,
     reviewStats,
     hasReviewed,
