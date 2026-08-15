@@ -1476,36 +1476,67 @@ input[type="file"]::file-selector-button {
   .smm-rules-modal-body { font-size: 12.5px; }
 }
 
-/* Panduan cara membeli (produk auto top up Digiflazz) */
+/* Panduan cara membeli (produk auto top up Digiflazz) -- REDESIGN: dari daftar angka+teks polos
+   jadi timeline vertikal dengan ikon per-langkah (biar gampang di-scan sekilas, gak perlu baca
+   semua teksnya buat ngerti alurnya) + garis putus-putus penghubung antar step (kesan "alur",
+   bukan daftar terpisah-pisah). Nomor urut tetap ada (badge kecil di pojok ikon) buat mastiin
+   urutannya tetap jelas kebaca. */
 .buy-guide-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 .buy-guide-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  gap: 13px;
+  position: relative;
+  padding-bottom: 20px;
+}
+.buy-guide-item:last-child { padding-bottom: 0; }
+.buy-guide-icon-col { flex: none; position: relative; }
+.buy-guide-icon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(21,101,192,0.18), rgba(21,101,192,0.05));
+  border: 1.5px solid rgba(21,101,192,0.35);
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  z-index: 1;
 }
 .buy-guide-num {
-  flex: none;
-  width: 22px;
-  height: 22px;
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--cyan);
   color: #fff;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
+  border: 2px solid var(--bg-panel);
 }
-.buy-guide-text { font-size: 13px; color: var(--text-main); line-height: 1.6; }
-.buy-guide-text b { color: var(--text-main); }
+.buy-guide-item:not(:last-child) .buy-guide-icon-col::after {
+  content: '';
+  position: absolute;
+  top: 36px;
+  bottom: -20px;
+  left: 17px;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, rgba(21,101,192,0.35) 0 4px, transparent 4px 8px);
+}
+.buy-guide-body { flex: 1; min-width: 0; padding-top: 5px; }
+.buy-guide-title { font-size: 13.5px; font-weight: 800; color: var(--text-main); margin-bottom: 3px; }
+.buy-guide-text { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; }
+.buy-guide-text b { color: var(--text-main); font-weight: 700; }
 
 /* Buy box */
 .detail-buy-box {
@@ -1515,8 +1546,18 @@ input[type="file"]::file-selector-button {
   padding: 18px 16px;
   margin-top: 6px;
 }
-.detail-price-main { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.detail-price-main { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .detail-price-now { font-size: 26px; font-weight: 800; color: var(--cyan); }
+/* Sama polanya kayak di .variant-card: harga umum & harga member SENGAJA elemen terpisah
+   (bukan 1 angka gabungan) -- .detail-price-old cuma nongol pas yang buka halaman ini beneran
+   member Gold/Platinum (harga member jadi angka besar utama, harga umum jadi info dicoret).
+   .detail-price-member-tag SELALU turun ke baris baru sendiri (flex-basis:100%) walau ada
+   ruang di sampingnya, biar gak keliatan nyempil/baseline aneh sejajar sama angka besar. */
+.detail-price-old { font-size: 14px; font-weight: 600; color: var(--text-dim); text-decoration: line-through; }
+.detail-price-member-tag { flex-basis: 100%; display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; }
+.detail-price-member-tag.gold { color: var(--gold); }
+.detail-price-member-tag.platinum { color: var(--platinum); }
+.detail-price-member-tag.teaser { color: var(--text-dim); font-weight: 600; }
 .detail-method-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin: 14px 0 8px; }
 
 /* Qty stepper */
@@ -1683,8 +1724,35 @@ html[data-theme="light"] .variant-card {
   font-size: 15px;
   font-weight: 800;
   color: #ffffff;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
+/* Harga umum dicoret (dipakai KHUSUS pas yang buka halaman ini member Gold/Platinum -- harga
+   member yang jadi angka besar utamanya, harga umum jadi konteks kecil di atasnya, dicoret).
+   Kalau yang buka tamu/reguler, dicoret ini gak dipakai -- variant-card-price DIA SENDIRI sudah
+   harga umum, gak butuh perbandingan dicoret. */
+.variant-card-price-old {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-decoration: line-through;
+  margin-bottom: 1px;
+}
+/* Tag kecil pemisah harga member -- SENGAJA elemen terpisah dari .variant-card-price (bukan
+   digabung jadi satu baris/satu angka), ini yang bikin "umum" vs "member" kebaca jelas beda,
+   bukan satu angka yang diam-diam beda tiap orang. Warna .gold/.platinum ikutin warna badge
+   membership yang sudah ada (lihat .badge.member-gold/.badge.member-platinum) biar konsisten. */
+.variant-card-member-tag {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.variant-card-member-tag.gold { color: var(--gold); }
+.variant-card-member-tag.platinum { color: var(--platinum); }
+.variant-card-member-tag.teaser { color: var(--text-dim); font-weight: 600; }
+.variant-card-member-tag i { font-size: 9px; }
 .variant-card-warn {
   font-size: 10px;
   color: #f5c518;
