@@ -616,8 +616,23 @@ input[type="file"] {
 }
 .df-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; margin: 0; }
 .df-select-all input { width: auto; margin: 0; }
+.df-bulk-bar select { flex: 0 1 190px; min-width: 140px; }
 .df-bulk-bar .btn { margin-left: auto; }
 .df-row-name { font-size: 13px; padding: 6px 8px; }
+
+/* Kartu "Kelola Grup & Tipe Nominal" -- daftar nama grup/tipe tersimpan + tombol edit/hapus */
+.df-tag-list { display: flex; flex-direction: column; gap: 6px; }
+.df-tag-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+}
+.df-tag-name { font-size: 13px; font-weight: 600; }
+.df-tag-actions { display: flex; gap: 6px; flex: none; }
 input[type="file"]::file-selector-button {
   padding: 7px 14px;
   margin-right: 12px;
@@ -3498,3 +3513,44 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
   .skirk-hero .hs-star, .skirk-hero .hs-rune, .skirk-hero .hs-rune-inner, .skirk-hero .hs-mascot-wrap,
   .skirk-hero .hs-glint, .skirk-hero .hs-shard, .skirk-hero .hs-cta { animation-duration: .01ms !important; }
 }
+
+/* ===== Kotak share Referral (di halaman Profil, lihat views/profile.ejs) ===== */
+.ref-share-box { padding: 16px; }
+.ref-code-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ref-code {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 4px;
+  color: var(--cyan);
+  background: var(--bg-panel-2);
+  border: 1.5px dashed var(--border-glow);
+  border-radius: 10px;
+  padding: 10px 16px;
+  flex: 1;
+  text-align: center;
+}
+.ref-link-row { display: flex; gap: 8px; }
+.ref-link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-glow);
+  border-radius: 9px;
+  background: var(--bg-panel-2);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.ref-copy-btn {
+  flex: none;
+  padding: 0 16px;
+  border: none;
+  border-radius: 9px;
+  background: var(--cyan);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ref-copy-btn:active { transform: scale(.97); }
+.ref-how { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 12px; }
+.ref-how b { color: var(--text-main); }
