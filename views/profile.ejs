@@ -70,6 +70,53 @@
       <% } %>
     </div>
 
+    <div class="section-title" id="referral"><h3>Referral</h3><div class="line"></div></div>
+    <div class="card ref-share-box">
+      <div class="ref-code-row">
+        <input type="text" class="ref-code" id="refCode" value="<%= referralCode %>" readonly>
+        <button type="button" class="ref-copy-btn" onclick="copyKey('refCode', this)">Salin Kode</button>
+      </div>
+      <div class="ref-link-row">
+        <input type="text" class="ref-link-input" id="refLink" value="<%= referralLink %>" readonly>
+        <button type="button" class="ref-copy-btn" onclick="copyKey('refLink', this)">Salin Link</button>
+      </div>
+      <div class="ref-how">
+        Bagikan kode atau link di atas. <b>Setiap orang yang daftar pakai kode kamu</b> akan
+        otomatis terhubung ke akunmu, dan kamu dapat <b><%= referralCommissionPercent %>% komisi</b>
+        dari <b>setiap transaksi sukses</b> yang mereka lakukan — bukan cuma transaksi pertama.
+        Komisi langsung masuk ke saldo, otomatis.
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card stat-card success">
+        <div class="label">Total Komisi Didapat</div>
+        <div class="value">Rp <%= referralStats.totalEarned.toLocaleString('id-ID') %></div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">Orang Terundang</div>
+        <div class="value"><%= referralStats.referredCount %></div>
+      </div>
+    </div>
+
+    <% if (referralStats.history.length > 0) { %>
+    <div class="card">
+      <table>
+        <thead><tr><th>Tanggal</th><th>Dari</th><th>Total Transaksi</th><th>Komisi</th></tr></thead>
+        <tbody>
+          <% referralStats.history.slice(0, 10).forEach(h => { %>
+          <tr>
+            <td style="white-space:nowrap;"><%= new Date(h.createdAt).toLocaleString('id-ID') %></td>
+            <td><%= h.buyerUsername %></td>
+            <td class="mono">Rp <%= h.orderTotal.toLocaleString('id-ID') %></td>
+            <td class="mono" style="color:var(--success); font-weight:700;">+ Rp <%= h.commission.toLocaleString('id-ID') %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
     <div class="section-title"><h3>Akun</h3><div class="line"></div></div>
     <div class="grid grid-2">
       <div class="card">
