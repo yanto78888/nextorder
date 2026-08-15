@@ -161,9 +161,18 @@
 
         <% if (variants && variants.length > 1) { %>
         <div class="detail-method-title" <%= (user && hasTargetFields) ? '' : 'style="margin-top:0;"' %>><%= variantLabel %>Pilih Nominal</div>
+        <% if (showVariantTypeTabs) { %>
+        <div class="variant-type-tabs" id="variantTypeTabs">
+          <% variantTypeGroups.forEach((g, i) => { %>
+            <button type="button" class="variant-type-tab <%= i === 0 ? 'active' : '' %>" data-type-index="<%= i %>"><%= g.type %></button>
+          <% }) %>
+        </div>
+        <% } %>
         <% if (user) { %>
         <div class="variant-grid" id="variantGrid">
-          <% variants.forEach(v => { %>
+          <% variantTypeGroups.forEach((g, gi) => { %>
+          <div class="variant-type-panel" data-type-index="<%= gi %>" <%= (showVariantTypeTabs && gi > 0) ? 'style="display:none;"' : '' %>>
+          <% g.items.forEach(v => { %>
             <% const vIsAuto = v.provider === 'digiflazz'; %>
             <% const vOutOfStock = !vIsAuto && v.stockCount === 0; %>
             <button type="button" class="variant-card <%= v.id === product.id ? 'selected' : '' %> <%= vOutOfStock ? 'out-of-stock' : '' %>" data-variant-id="<%= v.id %>">
@@ -193,10 +202,14 @@
               </div>
             </button>
           <% }) %>
+          </div>
+          <% }) %>
         </div>
         <% } else { %>
         <div class="variant-grid">
-          <% variants.forEach(v => { %>
+          <% variantTypeGroups.forEach((g, gi) => { %>
+          <div class="variant-type-panel" data-type-index="<%= gi %>" <%= (showVariantTypeTabs && gi > 0) ? 'style="display:none;"' : '' %>>
+          <% g.items.forEach(v => { %>
             <% const vIsAuto = v.provider === 'digiflazz'; %>
             <% const vOutOfStock = !vIsAuto && v.stockCount === 0; %>
             <a href="/produk/<%= v.id %>" class="variant-card <%= v.id === product.id ? 'selected' : '' %>">
@@ -219,6 +232,8 @@
                 <% } %>
               </div>
             </a>
+          <% }) %>
+          </div>
           <% }) %>
         </div>
         <% } %>
@@ -667,6 +682,24 @@
         stars.forEach(function(x){x.classList.toggle('sel',parseInt(x.dataset.val)<=v);x.classList.remove('hov');});
         if(hint)hint.textContent=labels[v-1];
         if(submitBtn)submitBtn.disabled=false;
+      });
+    });
+  }
+
+  // ---- Tab "Tipe Nominal" (Reguler/Promo/Special Items dkk) -- cuma ada kalau admin ngisi
+  // variantType beda2 di produk-produk segrup ini (lihat showVariantTypeTabs di routes/user.js).
+  // Switch tab CUMA toggle display panel yang udah di-render server-side (bukan re-render/re-fetch
+  // apa-apa), jadi instan tanpa perlu ke server sama sekali.
+  var variantTypeTabs=document.getElementById('variantTypeTabs');
+  if(variantTypeTabs){
+    variantTypeTabs.addEventListener('click',function(e){
+      var tab=e.target.closest('.variant-type-tab');
+      if(!tab) return;
+      var idx=tab.dataset.typeIndex;
+      variantTypeTabs.querySelectorAll('.variant-type-tab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      document.querySelectorAll('.variant-type-panel').forEach(function(p){
+        p.style.display = (p.dataset.typeIndex === idx) ? '' : 'none';
       });
     });
   }

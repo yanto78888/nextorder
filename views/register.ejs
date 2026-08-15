@@ -53,6 +53,11 @@
             <i class="fa-solid fa-lock"></i>
             <input type="password" name="password2" required minlength="6" placeholder="Ulangi password">
           </div>
+          <label>Kode Referral <span style="font-weight:400; color:var(--text-dim);">(opsional)</span></label>
+          <div class="auth-input-group">
+            <i class="fa-solid fa-gift"></i>
+            <input type="text" name="referralCode" placeholder="Punya kode ajakan? Isi di sini" maxlength="6" style="text-transform:uppercase;" value="<%= typeof refCode !== 'undefined' ? refCode : '' %>">
+          </div>
           <button class="btn solid mt-24" type="submit" style="width:100%;"><i class="fa-solid fa-user-plus"></i> Buat Akun</button>
         </form>
 
