@@ -1175,6 +1175,27 @@ router.get('/produk/:id', (req, res) => {
   const resolvePrice = createPriceResolver(user);
   const finalPrice = resolvePrice(product);
 
+  // ===== Pisah "Harga Umum" vs "Harga Member" (sebelumnya cuma 1 angka finalPrice yang kepakai
+  // diam-diam beda-beda tergantung siapa yang lagi login, tanpa penjelasan) =====
+  // resolvePriceUmum = harga TANPA potongan membership sama sekali (tapi tetap ikut flash sale
+  // kalau lagi aktif) -- dipanggil dengan user null, persis logika createPriceResolver: "user
+  // null -> product.price (atau flash price)".
+  // resolvePriceMemberTeaser = harga kalau seandainya Platinum (tier diskon terbesar) -- dipakai
+  // buat tamu/reguler biar keliatan ada selisihnya tanpa perlu login sebagai member beneran.
+  // Member Gold/Platinum yang UDAH login tetap lihat harga TIER MEREKA SENDIRI (bukan dipukul
+  // rata ke Platinum), soalnya nanti aneh kalau member Gold ngelihat harga Platinum yang bukan
+  // harga beneran yang bakal mereka bayar.
+  const resolvePriceUmum = createPriceResolver(null);
+  const resolvePriceMemberTeaser = createPriceResolver({ membership: 'platinum' });
+  const isMemberUser = !!(user && (user.membership === 'gold' || user.membership === 'platinum'));
+  function resolveMemberPricing(p) {
+    const normalPrice = resolvePriceUmum(p);
+    const memberPrice = isMemberUser ? resolvePrice(p) : resolvePriceMemberTeaser(p);
+    const memberTierLabel = getMembershipTier(isMemberUser ? user.membership : 'platinum').label;
+    return { normalPrice, memberPrice, memberTierLabel, showMember: memberPrice < normalPrice };
+  }
+  const mainPricing = resolveMemberPricing(product);
+
   // ===== FIX BUG "Terjual" =====
   // Sebelumnya totalSold di halaman detail dihitung cuma dari SKU/nominal yang lagi dibuka
   // (getTotalSoldMap()[product.id]), padahal kartu di katalog/bestseller nampilin SUM totalSold
@@ -1199,7 +1220,11 @@ router.get('/produk/:id', (req, res) => {
   // filosofi yang sama persis: level GRUP, gak berubah pas ganti nominal -- makanya JS switch
   // varian di bawah SENGAJA gak nyentuh angka Terjual sama sekali (lihat produk-detail.ejs).
   const groupKey = resolveReviewGroupKey(product);
-  const reviews = getReviewsByGroup(groupKey);
+  // Username di ulasan disensor buat publik (siapa aja bisa buka halaman produk tanpa login),
+  // pola & fungsinya SAMA PERSIS kayak yang dipakai di /live-transaksi (lib/masking.js) --
+  // "budi_reseller" -> "bu***ler". Berlaku rata ke SEMUA ulasan (termasuk punya user yang lagi
+  // login sendiri) biar konsisten, gak ada pengecualian yang malah bikin bingung.
+  const reviews = getReviewsByGroup(groupKey).map(r => ({ ...r, username: maskUsername(r.username) }));
   const reviewStats = getReviewStats(groupKey);
   const hasReviewed = user ? hasUserReviewedGroup(user.id, groupKey) : false;
   const canReview = user ? (hasUserPurchasedGroup(user.id, groupKey) && !hasReviewed) : false;
@@ -1214,16 +1239,23 @@ router.get('/produk/:id', (req, res) => {
   const variants = product.variantGroup
     ? activeProducts
         .filter(p => p.variantGroup === product.variantGroup)
-        .map(p => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          finalPrice: resolvePrice(p),
-          thumbnail: p.thumbnail,
-          targetFields: p.targetFields || [],
-          stockCount: countStock(p),
-          provider: p.provider
-        }))
+        .map(p => {
+          const pricing = resolveMemberPricing(p);
+          return {
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            finalPrice: resolvePrice(p),
+            normalPrice: pricing.normalPrice,
+            memberPrice: pricing.memberPrice,
+            memberTierLabel: pricing.memberTierLabel,
+            showMember: pricing.showMember,
+            thumbnail: p.thumbnail,
+            targetFields: p.targetFields || [],
+            stockCount: countStock(p),
+            provider: p.provider
+          };
+        })
         .sort((a, b) => a.price - b.price)
     : [];
 
@@ -1239,6 +1271,8 @@ router.get('/produk/:id', (req, res) => {
   res.render('produk-detail', {
     product,
     finalPrice,
+    mainPricing,
+    isMemberUser,
     displayThumbnail,
     variants,
     reviews,
