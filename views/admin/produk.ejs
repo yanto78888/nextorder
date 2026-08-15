@@ -21,6 +21,9 @@
           <label>Grup Varian (opsional)</label>
           <input type="text" name="variantGroup" placeholder="mis. Mobile Legends" value="<%= editProduct ? editProduct.variantGroup : '' %>">
           <div class="helper-text">Produk dengan Grup Varian yang sama (mis. semua nominal "Mobile Legends") akan tampil sebagai pilihan nominal yang bisa diklik di 1 halaman produk, kayak web topup lain. Kosongkan kalau produk ini berdiri sendiri.</div>
+          <label>Tipe Nominal (opsional)</label>
+          <input type="text" name="variantType" placeholder="mis. Reguler / Promo / Special Items" value="<%= editProduct ? editProduct.variantType : '' %>">
+          <div class="helper-text">Kalau diisi, pilihan nominal di halaman produk dikelompokkan jadi tab sesuai Tipe Nominal ini (contoh: pisahkan nominal "Promo" dari "Reguler"). Produk dalam Grup Varian yang sama TAPI beda Tipe Nominal akan muncul di tab berbeda. Kosongkan semua = 1 tab "Reguler" saja (gak ada tab yang tampil).</div>
           <label>Deskripsi</label>
           <textarea name="description"><%= editProduct ? editProduct.description : '' %></textarea>
           <label>Harga (Rp)</label>
