@@ -106,6 +106,8 @@ router.get('/dashboard', requireLogin, (req, res) => res.redirect('/produk'));
 router.get('/profile', requireLogin, (req, res) => {
   const user = findUserById(req.session.user.id);
   const orders = getOrdersByUser(user.id);
+  const referralCode = ensureReferralCode(user.id);
+  const referralStats = getReferralStatsForUser(user.id);
   res.render('profile', {
     user, error: req.query.error || null, success: req.query.success || null, config: getConfig(),
     membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership),
@@ -113,6 +115,10 @@ router.get('/profile', requireLogin, (req, res) => {
     totalSpent: orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
     recentOrders: orders.slice(0, 5),
     apiBaseUrl: `${req.protocol}://${req.get('host')}/api/v1`,
+    referralCode,
+    referralLink: `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`,
+    referralStats,
+    referralCommissionPercent: REFERRAL_COMMISSION_PERCENT,
     noindex: true
   });
 });
@@ -1009,24 +1015,11 @@ router.get('/riwayat-saldo', requireLogin, (req, res) => {
   });
 });
 
+// Kode referral & link undangan sekarang jadi bagian dari halaman Profil (lihat GET /profile &
+// views/profile.ejs) -- BUKAN halaman tersendiri lagi. Redirect dipertahankan (bukan dihapus
+// total) supaya link lama /referral yang mungkin udah kepencet/ke-bookmark orang tetap nyampe.
 router.get('/referral', requireLogin, (req, res) => {
-  const user = findUserById(req.session.user.id);
-  // Akun lama (sebelum fitur ini ada) belum punya referralCode -- di-generate & disimpan SEKALI
-  // di sini kalau ternyata belum ada (lihat ensureReferralCode di lib/users.js).
-  const referralCode = ensureReferralCode(user.id);
-  const stats = getReferralStatsForUser(user.id);
-  const cfg = getConfig();
-  const referralLink = `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`;
-  res.render('referral', {
-    user,
-    referralCode,
-    referralLink,
-    stats,
-    commissionPercent: REFERRAL_COMMISSION_PERCENT,
-    config: cfg,
-    pageTitle: `Referral - ${cfg.siteName || 'NEXORDER'}`,
-    noindex: true
-  });
+  res.redirect('/profile#referral');
 });
 
 router.get('/topup', requireLogin, (req, res) => {

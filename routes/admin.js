@@ -8,7 +8,9 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup, renameProductGroup
+  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup, renameProductGroup,
+  getAllGroupNames, createGroupName, renameGroupName, deleteGroupName,
+  getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
@@ -507,6 +509,8 @@ function renderDigiflazzPage(req, res, extra = {}) {
     config: getConfig(),
     digiflazzProducts,
     groupThumbnails: getGroupThumbnails(),
+    groupNames: getAllGroupNames(),
+    typeNames: getAllTypeNames(),
     searchResults: [],
     searchQuery: '',
     error: null,
@@ -520,6 +524,69 @@ router.get('/digiflazz', (req, res) => {
     error: req.query.error || null,
     success: req.query.success || null
   });
+});
+
+// ---- Kelola daftar Grup & Tipe Nominal tersimpan (dropdown sumber pas nambah/import produk) ----
+router.post('/digiflazz/grup/tambah', (req, res) => {
+  try {
+    const g = createGroupName(req.body.name);
+    renderDigiflazzPage(req, res, { success: `Grup "${g.name}" dibuat. Sekarang bisa dipilih pas nambah/import produk.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/digiflazz/grup/:id/edit', (req, res) => {
+  try {
+    const r = renameGroupName(req.params.id, req.body.name, 'digiflazz');
+    renderDigiflazzPage(req, res, {
+      success: `Grup "${r.oldName}" diganti nama jadi "${r.newName}"${r.affectedCount > 0 ? ` (${r.affectedCount} produk ikut pindah)` : ''}.`
+    });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/digiflazz/grup/:id/hapus', (req, res) => {
+  try {
+    const r = deleteGroupName(req.params.id, 'digiflazz');
+    r.deletedProducts.forEach(p => removeFlashSaleItemsByProductId(p.id));
+    deleteGroupThumbnail(r.group.name);
+    renderDigiflazzPage(req, res, {
+      success: `Grup "${r.group.name}" dihapus${r.deletedProducts.length > 0 ? ` (${r.deletedProducts.length} produk ikut terhapus)` : ''}.`
+    });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/digiflazz/tipe/tambah', (req, res) => {
+  try {
+    const t = createTypeName(req.body.name);
+    renderDigiflazzPage(req, res, { success: `Tipe "${t.name}" dibuat. Sekarang bisa dipilih pas nambah/import produk.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/digiflazz/tipe/:id/edit', (req, res) => {
+  try {
+    const r = renameTypeName(req.params.id, req.body.name, 'digiflazz');
+    renderDigiflazzPage(req, res, {
+      success: `Tipe "${r.oldName}" diganti nama jadi "${r.newName}"${r.affectedCount > 0 ? ` (${r.affectedCount} produk ikut diperbarui)` : ''}.`
+    });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
+router.post('/digiflazz/tipe/:id/hapus', (req, res) => {
+  try {
+    const t = deleteTypeName(req.params.id);
+    renderDigiflazzPage(req, res, { success: `Tipe "${t.name}" dihapus dari daftar pilihan.` });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
 });
 
 // Daftar kategori Digiflazz (Games, Pulsa, Data, PLN, dst) buat dropdown filter di halaman kelola
@@ -581,7 +648,7 @@ router.get('/digiflazz/search', async (req, res) => {
 // Import atau update 1 produk Digiflazz jadi produk lokal. Dipakai bareng oleh route form-post
 // "/digiflazz/import" (1 produk, tombol "Import" per baris) dan "/digiflazz/import-batch"
 // (JSON, banyak produk sekaligus lewat checkbox) supaya logic-nya gak kembar/gampang beda perilaku.
-function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue }) {
+function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue, variantGroup, variantType }) {
   if (!buyerSkuCode || !productName) {
     throw new Error('SKU dan nama produk wajib diisi');
   }
@@ -589,6 +656,11 @@ function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, b
   const base = Number(basePrice) || 0;
   const sellPrice = computeSellPrice(base, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
   const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`);
+  // Grup: kalau admin PILIH grup dari dropdown (halaman "Kelola Grup & Tipe"), pakai itu -- kalau
+  // dibiarkan default/kosong, jatuh balik ke nama brand mentah dari Digiflazz (perilaku lama,
+  // tetap dipertahankan biar import cepat tanpa harus pilih grup manual tiap kali kalau gak perlu).
+  const resolvedGroup = (variantGroup && String(variantGroup).trim()) || brand || '';
+  const resolvedType = (variantType && String(variantType).trim()) || '';
 
   if (existing) {
     updateProduct(existing.id, {
@@ -596,7 +668,9 @@ function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, b
       price: sellPrice,
       digiflazzBasePrice: base,
       marginType: marginType || '',
-      marginValue: marginValue !== '' && marginValue != null ? marginValue : null
+      marginValue: marginValue !== '' && marginValue != null ? marginValue : null,
+      variantGroup: resolvedGroup,
+      variantType: resolvedType
     });
     return { created: false, product: existing };
   }
@@ -609,7 +683,8 @@ function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, b
     provider: 'digiflazz',
     digiflazzSku: buyerSkuCode,
     digiflazzBasePrice: base,
-    variantGroup: brand || '',
+    variantGroup: resolvedGroup,
+    variantType: resolvedType,
     gamePreset: detectedPreset,
     marginType: marginType || '',
     marginValue: marginValue !== '' && marginValue != null ? marginValue : null
@@ -627,6 +702,11 @@ router.post('/digiflazz/import-batch', async (req, res) => {
     if (items.length === 0) {
       return res.status(400).json({ ok: false, error: 'Tidak ada produk yang dipilih.' });
     }
+    // Grup & Tipe dipilih SEKALI di toolbar buat seluruh batch ini (bukan per-baris) -- sesuai
+    // alur kerja wajarnya: admin lagi import 1 baris produk dari game/kategori yang sama,
+    // jadi masuk akal semuanya ditandai grup/tipe yang sama juga.
+    const batchGroup = req.body.variantGroup || '';
+    const batchType = req.body.variantType || '';
 
     let created = 0;
     let updated = 0;
@@ -638,7 +718,9 @@ router.post('/digiflazz/import-batch', async (req, res) => {
           productName: (item.productName || '').trim(),
           category: item.category,
           brand: item.brand,
-          basePrice: item.basePrice
+          basePrice: item.basePrice,
+          variantGroup: batchGroup,
+          variantType: batchType
         });
         if (result.created) created++; else updated++;
       } catch (err) {
@@ -689,8 +771,8 @@ router.post('/digiflazz/margin', (req, res) => {
 // halaman) supaya baris itu aja yang keupdate di UI, gak ilang filter/hasil pencarian yang lagi dibuka.
 router.post('/digiflazz/import', (req, res) => {
   try {
-    const { buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue } = req.body;
-    const result = importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue });
+    const { buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue, variantGroup, variantType } = req.body;
+    const result = importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, brand, basePrice, gamePreset, marginType, marginValue, variantGroup, variantType });
 
     res.json({
       ok: true,
