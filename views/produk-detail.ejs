@@ -73,27 +73,42 @@
           <ol class="buy-guide-list">
             <% if (variants && variants.length > 1) { %>
             <li class="buy-guide-item">
-              <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Pilih <b>nominal</b> yang kamu butuhkan di daftar pilihan.</span>
+              <div class="buy-guide-icon-col"><div class="buy-guide-icon"><i class="fa-solid fa-gem"></i><span class="buy-guide-num"><%= guideStep++ %></span></div></div>
+              <div class="buy-guide-body">
+                <div class="buy-guide-title">Pilih Nominal</div>
+                <div class="buy-guide-text">Pilih <b>nominal</b> yang kamu butuhkan di daftar pilihan.</div>
+              </div>
             </li>
             <% } %>
             <li class="buy-guide-item">
-              <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Atur <b>jumlah (qty)</b> yang mau dibeli, lalu cek total harganya.</span>
+              <div class="buy-guide-icon-col"><div class="buy-guide-icon"><i class="fa-solid fa-hashtag"></i><span class="buy-guide-num"><%= guideStep++ %></span></div></div>
+              <div class="buy-guide-body">
+                <div class="buy-guide-title">Atur Jumlah</div>
+                <div class="buy-guide-text">Atur <b>jumlah (qty)</b> yang mau dibeli, lalu cek total harganya.</div>
+              </div>
             </li>
             <% if (product.targetFields && product.targetFields.length > 0) { %>
             <li class="buy-guide-item">
-              <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Isi <b><%= product.targetFields.map(f => f.label).join(' & ') %></b> dengan benar. Data yang salah bisa bikin pesanan gagal terkirim.</span>
+              <div class="buy-guide-icon-col"><div class="buy-guide-icon"><i class="fa-solid fa-id-card"></i><span class="buy-guide-num"><%= guideStep++ %></span></div></div>
+              <div class="buy-guide-body">
+                <div class="buy-guide-title">Isi Data Tujuan</div>
+                <div class="buy-guide-text">Isi <b><%= product.targetFields.map(f => f.label).join(' & ') %></b> dengan benar. Data yang salah bisa bikin pesanan gagal terkirim.</div>
+              </div>
             </li>
             <% } %>
             <li class="buy-guide-item">
-              <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Pilih <b>metode pembayaran</b>: Saldo akun atau QRIS.</span>
+              <div class="buy-guide-icon-col"><div class="buy-guide-icon"><i class="fa-solid fa-wallet"></i><span class="buy-guide-num"><%= guideStep++ %></span></div></div>
+              <div class="buy-guide-body">
+                <div class="buy-guide-title">Pilih Pembayaran</div>
+                <div class="buy-guide-text">Pilih <b>metode pembayaran</b>: Saldo akun atau QRIS.</div>
+              </div>
             </li>
             <li class="buy-guide-item">
-              <span class="buy-guide-num"><%= guideStep++ %></span>
-              <span class="buy-guide-text">Klik <b>Beli Sekarang</b>. Setelah pembayaran berhasil, produk terkirim <b>otomatis & instan</b>.</span>
+              <div class="buy-guide-icon-col"><div class="buy-guide-icon"><i class="fa-solid fa-bolt"></i><span class="buy-guide-num"><%= guideStep++ %></span></div></div>
+              <div class="buy-guide-body">
+                <div class="buy-guide-title">Selesai!</div>
+                <div class="buy-guide-text">Klik <b>Beli Sekarang</b>. Setelah pembayaran berhasil, produk terkirim <b>otomatis & instan</b>.</div>
+              </div>
             </li>
           </ol>
         </div>
@@ -158,7 +173,16 @@
                 <div class="variant-card-icon-placeholder"><i class="fa-solid fa-gem"></i></div>
               <% } %>
               <span class="variant-card-name"><%= v.name %></span>
-              <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
+              <% if (v.showMember && isMemberUser) { %>
+                <span class="variant-card-price-old">Rp <%= v.normalPrice.toLocaleString('id-ID') %></span>
+                <span class="variant-card-price">Rp <%= v.memberPrice.toLocaleString('id-ID') %></span>
+                <span class="variant-card-member-tag <%= user.membership %>"><i class="fa-solid fa-gem"></i> Harga <%= v.memberTierLabel %></span>
+              <% } else { %>
+                <span class="variant-card-price">Rp <%= v.normalPrice.toLocaleString('id-ID') %></span>
+                <% if (v.showMember) { %>
+                  <span class="variant-card-member-tag teaser"><i class="fa-solid fa-gem"></i> Member <%= v.memberTierLabel %> Rp <%= v.memberPrice.toLocaleString('id-ID') %></span>
+                <% } %>
+              <% } %>
               <% if (vOutOfStock) { %><span class="variant-card-warn">Stok habis</span><% } %>
               <div class="variant-card-badge <%= vIsAuto ? '' : 'manual' %>">
                 <% if (vIsAuto) { %>
@@ -182,7 +206,10 @@
                 <div class="variant-card-icon-placeholder"><i class="fa-solid fa-gem"></i></div>
               <% } %>
               <span class="variant-card-name"><%= v.name %></span>
-              <span class="variant-card-price">Rp <%= v.finalPrice.toLocaleString('id-ID') %></span>
+              <span class="variant-card-price">Rp <%= v.normalPrice.toLocaleString('id-ID') %></span>
+              <% if (v.showMember) { %>
+                <span class="variant-card-member-tag teaser"><i class="fa-solid fa-gem"></i> Member <%= v.memberTierLabel %> Rp <%= v.memberPrice.toLocaleString('id-ID') %></span>
+              <% } %>
               <% if (vOutOfStock) { %><span class="variant-card-warn">Stok habis</span><% } %>
               <div class="variant-card-badge <%= vIsAuto ? '' : 'manual' %>">
                 <% if (vIsAuto) { %>
@@ -197,8 +224,17 @@
         <% } %>
         <% } %>
 
-        <div class="detail-price-main">
-          <span class="detail-price-now" id="priceNow">Rp <%= finalPrice.toLocaleString('id-ID') %></span>
+        <div class="detail-price-main" id="detailPriceMain">
+          <% if (mainPricing.showMember && isMemberUser) { %>
+            <span class="detail-price-old">Rp <%= mainPricing.normalPrice.toLocaleString('id-ID') %></span>
+            <span class="detail-price-now" id="priceNow">Rp <%= mainPricing.memberPrice.toLocaleString('id-ID') %></span>
+            <span class="detail-price-member-tag <%= user.membership %>"><i class="fa-solid fa-gem"></i> Harga <%= mainPricing.memberTierLabel %></span>
+          <% } else { %>
+            <span class="detail-price-now" id="priceNow">Rp <%= mainPricing.normalPrice.toLocaleString('id-ID') %></span>
+            <% if (mainPricing.showMember) { %>
+              <span class="detail-price-member-tag teaser"><i class="fa-solid fa-gem"></i> Member <%= mainPricing.memberTierLabel %> Rp <%= mainPricing.memberPrice.toLocaleString('id-ID') %></span>
+            <% } %>
+          <% } %>
         </div>
 
         <% if (user) { %>
@@ -398,6 +434,12 @@
   var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
   var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
+  // Dipakai buat render ulang blok "Harga Umum vs Member" pas ganti nominal (lihat listener klik
+  // #variantGrid di bawah) -- SAMA PERSIS logika isMemberUser di routes/user.js, cuma disalin ke
+  // JS karena keputusan "tampilan mana yang jadi harga besar utama" harus ikut update live tanpa
+  // reload halaman waktu user pilih nominal lain.
+  var isMemberUser = <%- isMemberUser ? 'true' : 'false' %>;
+  var currentMembership = '<%= user ? user.membership : "" %>';
   // Isi Data Tujuan selalu di posisi PALING ATAS di box beli (lihat markup di atas), jadi kalau
   // nomor langkah lagi dipakai (produk ini punya >1 varian nominal), section itu selalu "1."
   // -- termasuk pas dimunculin ulang lewat JS ini waktu user ganti pilihan varian.
@@ -644,8 +686,23 @@
       variantGrid.querySelectorAll('.variant-card').forEach(function(c){c.classList.remove('selected');});
       card.classList.add('selected');
 
-      var priceNow=document.getElementById('priceNow');
-      if(priceNow) priceNow.textContent=fmt(v.finalPrice);
+      // Render ulang blok "Harga Umum vs Member" persis logika di server (lihat mainPricing di
+      // routes/user.js) -- BUKAN cuma ganti teks priceNow, soalnya elemen dicoret & tag member-nya
+      // perlu muncul/ilang tergantung varian yang dipilih juga punya selisih harga member atau
+      // tidak (misal 1 grup ada varian promo yang harga umum & member-nya udah sama).
+      var priceMainEl=document.getElementById('detailPriceMain');
+      if(priceMainEl){
+        if(v.showMember && isMemberUser){
+          priceMainEl.innerHTML =
+            '<span class="detail-price-old">'+fmt(v.normalPrice)+'</span>'+
+            '<span class="detail-price-now" id="priceNow">'+fmt(v.memberPrice)+'</span>'+
+            '<span class="detail-price-member-tag '+currentMembership+'"><i class="fa-solid fa-gem"></i> Harga '+v.memberTierLabel+'</span>';
+        } else {
+          priceMainEl.innerHTML =
+            '<span class="detail-price-now" id="priceNow">'+fmt(v.normalPrice)+'</span>' +
+            (v.showMember ? '<span class="detail-price-member-tag teaser"><i class="fa-solid fa-gem"></i> Member '+v.memberTierLabel+' '+fmt(v.memberPrice)+'</span>' : '');
+        }
+      }
 
       // FIX BUG: stat "Stok" di baris atas (dekat nama produk) sebelumnya gak ikut ke-update
       // pas ganti nominal. Stat "Harga" di baris ini sudah DIHAPUS (dulu duplikat sama harga
