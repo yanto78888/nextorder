@@ -62,6 +62,67 @@
     </div>
 
     <div class="card mt-24">
+      <h3>Kelola Grup &amp; Tipe Nominal</h3>
+      <p class="helper-text">Buat nama Grup (mis. "Mobile Legends") dan Tipe Nominal (mis. "Reguler"/"Promo"/"Special Items") di sini DULU, baru pilih dari dropdown pas nambah/import produk di bawah -- biar penamaannya konsisten, gak kececer beda-beda dikit tiap ngetik manual. Grup &amp; Tipe yang sudah ada bisa diganti nama atau dihapus kapan saja.</p>
+      <div class="grid grid-2">
+        <div>
+          <div class="section-title" style="margin-top:0;"><h4>Grup Varian</h4><div class="line"></div></div>
+          <form method="POST" action="/admin/digiflazz/grup/tambah" class="flex" style="gap:8px; margin-bottom:12px;">
+            <input type="text" name="name" placeholder="Nama grup baru, mis. Mobile Legends" required style="flex:1;">
+            <button type="submit" class="btn small solid">+ Buat</button>
+          </form>
+          <% if (groupNames.length === 0) { %>
+            <div class="empty-state">Belum ada grup tersimpan.</div>
+          <% } else { %>
+          <div class="df-tag-list">
+            <% groupNames.forEach(g => { %>
+            <div class="df-tag-row">
+              <span class="df-tag-name"><%= g.name %></span>
+              <div class="df-tag-actions">
+                <form method="POST" action="/admin/digiflazz/grup/<%= g.id %>/edit" onsubmit="return dfPromptRename(this, '<%= g.name.replace(/'/g, "\\'") %>', 'grup');" style="display:inline;">
+                  <input type="hidden" name="name" value="">
+                  <button type="submit" class="btn small ghost" title="Ganti nama"><i class="fa-solid fa-pen"></i></button>
+                </form>
+                <form method="POST" action="/admin/digiflazz/grup/<%= g.id %>/hapus" onsubmit="return confirm('Hapus grup &quot;<%= g.name %>&quot;? Semua produk di dalamnya (kalau ada) ikut terhapus.');" style="display:inline;">
+                  <button type="submit" class="btn small danger" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                </form>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+        <div>
+          <div class="section-title" style="margin-top:0;"><h4>Tipe Nominal</h4><div class="line"></div></div>
+          <form method="POST" action="/admin/digiflazz/tipe/tambah" class="flex" style="gap:8px; margin-bottom:12px;">
+            <input type="text" name="name" placeholder="Nama tipe baru, mis. Promo" required style="flex:1;">
+            <button type="submit" class="btn small solid">+ Buat</button>
+          </form>
+          <% if (typeNames.length === 0) { %>
+            <div class="empty-state">Belum ada tipe tersimpan.</div>
+          <% } else { %>
+          <div class="df-tag-list">
+            <% typeNames.forEach(t => { %>
+            <div class="df-tag-row">
+              <span class="df-tag-name"><%= t.name %></span>
+              <div class="df-tag-actions">
+                <form method="POST" action="/admin/digiflazz/tipe/<%= t.id %>/edit" onsubmit="return dfPromptRename(this, '<%= t.name.replace(/'/g, "\\'") %>', 'tipe');" style="display:inline;">
+                  <input type="hidden" name="name" value="">
+                  <button type="submit" class="btn small ghost" title="Ganti nama"><i class="fa-solid fa-pen"></i></button>
+                </form>
+                <form method="POST" action="/admin/digiflazz/tipe/<%= t.id %>/hapus" onsubmit="return confirm('Hapus tipe &quot;<%= t.name %>&quot;? Produk yang masih pakai tipe ini TIDAK ikut terhapus, cuma tipenya gak muncul lagi di daftar pilihan.');" style="display:inline;">
+                  <button type="submit" class="btn small danger" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                </form>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-24">
       <h3>Cari &amp; Import Produk dari Digiflazz</h3>
       <div class="helper-text">Pilih Kategori → Brand/Judul → Tipe biar hasil makin fokus (tiap dropdown aktif setelah yang sebelumnya dipilih), atau langsung ketik nama produk/SKU. Centang hasil yang mau ditambah — judul tiap produk bisa diedit dulu di kolom "Produk" kalau mau pakai judul sendiri, lalu klik "Tambah Produk Terpilih".</div>
 
@@ -82,6 +143,14 @@
       <div id="dfBulkBar" class="df-bulk-bar" style="display:none;">
         <label class="df-select-all"><input type="checkbox" id="dfSelectAllChk"> Pilih semua</label>
         <span id="dfSelectedCount" class="helper-text">0 dipilih</span>
+        <select id="dfGroupSelect" title="Grup Varian buat produk yang ditambah">
+          <option value="">Grup: otomatis dari Digiflazz</option>
+          <% groupNames.forEach(g => { %><option value="<%= g.name %>"><%= g.name %></option><% }) %>
+        </select>
+        <select id="dfTypeSelect2" title="Tipe Nominal buat produk yang ditambah">
+          <option value="">Tipe: (tanpa tab)</option>
+          <% typeNames.forEach(t => { %><option value="<%= t.name %>"><%= t.name %></option><% }) %>
+        </select>
         <button type="button" class="btn ghost small" id="dfAddSelectedBtn" disabled><i class="fa-solid fa-plus"></i> Tambah Produk Terpilih</button>
       </div>
 
@@ -247,6 +316,19 @@ function nfPromptRenameGroup(form, oldName) {
   if (!trimmed) { alert('Nama grup gak boleh kosong'); return false; }
   if (trimmed === oldName) return false; // gak ada perubahan, gak usah submit form-nya
   form.querySelector('input[name="newName"]').value = trimmed;
+  return true;
+}
+// Dipakai form edit di kartu "Kelola Grup & Tipe Nominal" -- beda dari nfPromptRenameGroup di
+// atas (itu buat grup yang udah PASTI ada produknya, field hidden-nya "newName"; ini generik
+// buat grup ATAU tipe yang di halaman "Kelola..." -- namanya "name", termasuk yang masih kosongan
+// belum ada produknya sama sekali).
+function dfPromptRename(form, oldName, jenis) {
+  var newName = prompt('Nama baru untuk ' + jenis + ' "' + oldName + '":', oldName);
+  if (newName === null) return false;
+  var trimmed = newName.trim();
+  if (!trimmed) { alert('Nama gak boleh kosong'); return false; }
+  if (trimmed === oldName) return false;
+  form.querySelector('input[name="name"]').value = trimmed;
   return true;
 }
 (function () {
@@ -471,6 +553,8 @@ function nfPromptRenameGroup(form, oldName) {
     if (!productName) { alert('Judul produk tidak boleh kosong.'); return; }
     btn.disabled = true;
     btn.textContent = '...';
+    var groupSelect = document.getElementById('dfGroupSelect');
+    var typeSelect2 = document.getElementById('dfTypeSelect2');
     fetch('/admin/digiflazz/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -479,7 +563,9 @@ function nfPromptRenameGroup(form, oldName) {
         productName: productName,
         category: item.category || 'Games',
         brand: item.brand || '',
-        basePrice: item.price
+        basePrice: item.price,
+        variantGroup: groupSelect ? groupSelect.value : '',
+        variantType: typeSelect2 ? typeSelect2.value : ''
       })
     })
       .then(function (r) { return r.json(); })
@@ -531,10 +617,16 @@ function nfPromptRenameGroup(form, oldName) {
 
     addSelectedBtn.disabled = true;
     addSelectedBtn.textContent = 'Menambahkan...';
+    var groupSelect = document.getElementById('dfGroupSelect');
+    var typeSelect2 = document.getElementById('dfTypeSelect2');
     fetch('/admin/digiflazz/import-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: items })
+      body: JSON.stringify({
+        items: items,
+        variantGroup: groupSelect ? groupSelect.value : '',
+        variantType: typeSelect2 ? typeSelect2.value : ''
+      })
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
