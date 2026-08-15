@@ -907,6 +907,30 @@ router.post('/digiflazz/group/:group/hapus', (req, res) => {
   }
 });
 
+// Masukkan/pindahkan produk-produk TERPILIH (checkbox) dalam 1 grup ke Tipe Nominal (tab)
+// tertentu sekaligus -- dipakai toolbar "Masukkan ke Tab" di tiap kartu grup halaman ini.
+// Tab kosong ('') berarti "Tanpa Tab" (otomatis jatuh ke bucket "Reguler" default di tampilan
+// publik & di kartu grup ini, sama kayak logic showVariantTypeTabs di routes/user.js). Cuma
+// produk Digiflazz yang beneran anggota grup ini yang diproses, biar id nyasar dari grup lain
+// gak bisa nyelonong lewat form yang dimanipulasi.
+router.post('/digiflazz/group/:group/set-type', (req, res) => {
+  const groupName = decodeURIComponent(req.params.group);
+  const rawIds = req.body.ids;
+  const ids = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+  const variantType = String(req.body.variantType || '').trim();
+  try {
+    const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'digiflazz' && p.variantGroup === groupName);
+    products.forEach(p => updateProduct(p.id, { variantType }));
+    renderDigiflazzPage(req, res, {
+      success: products.length > 0
+        ? `${products.length} produk di grup "${groupName}" dimasukkan ke tab "${variantType || 'Tanpa Tab'}".`
+        : 'Tidak ada produk yang dicentang.'
+    });
+  } catch (err) {
+    renderDigiflazzPage(req, res, { error: err.message });
+  }
+});
+
 // Ganti nama tampilan 1 grup (mis. brand mentah dari Digiflazz "ML" -> nama custom "Mobile
 // Legends: Bang Bang") -- semua nominal di dalamnya ikut pindah otomatis. Foto folder yang udah
 // di-upload (kalau ada) ikut dipindah ke nama baru juga, biar gak "ilang" gara-gara nyangkut di
