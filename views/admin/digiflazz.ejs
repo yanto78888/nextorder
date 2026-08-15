@@ -221,11 +221,46 @@
                 </form>
               </div>
 
+              <%
+                // Kelompokkan produk grup ini per Tipe Nominal (tab), SAMA PERSIS logic-nya kayak
+                // showVariantTypeTabs/variantTypeGroups di routes/user.js buat produk-detail publik --
+                // biar tampilan "per tab" di admin ini konsisten sama yang customer lihat. variantType
+                // kosong dianggap "Reguler" & selalu ditaruh paling depan kalau ada.
+                const typeOrder = []; const typeMap = {};
+                groupProducts.slice().sort((a, b) => a.price - b.price).forEach(p => {
+                  const key = p.variantType || 'Reguler';
+                  if (!typeMap[key]) { typeMap[key] = []; typeOrder.push(key); }
+                  typeMap[key].push(p);
+                });
+                if (typeOrder.includes('Reguler')) { typeOrder.splice(typeOrder.indexOf('Reguler'), 1); typeOrder.unshift('Reguler'); }
+                const showTypeTabs = typeOrder.length > 1;
+              %>
               <div class="df-group-body">
+                <div class="df-bulk-bar df-type-bulk-bar" onclick="event.stopPropagation()">
+                  <label class="df-select-all"><input type="checkbox" class="df-group-select-all"> Pilih semua di grup ini</label>
+                  <span class="helper-text df-group-selected-count">0 dipilih</span>
+                  <select class="df-group-type-select" title="Tab tujuan buat produk yang dicentang">
+                    <option value="">Tab: (Tanpa Tab / Reguler)</option>
+                    <% typeNames.forEach(t => { %><option value="<%= t.name %>"><%= t.name %></option><% }) %>
+                  </select>
+                  <button type="button" class="btn small ghost df-group-set-type-btn" disabled><i class="fa-solid fa-layer-group"></i> Masukkan ke Tab</button>
+                </div>
+                <form method="POST" action="/admin/digiflazz/group/<%= encodeURIComponent(groupName) %>/set-type" class="df-group-set-type-form" style="display:none;"></form>
+
+                <% if (showTypeTabs) { %>
+                <div class="df-type-tabs" onclick="event.stopPropagation()">
+                  <% typeOrder.forEach((t, ti) => { %>
+                    <button type="button" class="df-type-tab <%= ti === 0 ? 'active' : '' %>" data-df-type-index="<%= ti %>"><%= t %> <span class="df-type-tab-count"><%= typeMap[t].length %></span></button>
+                  <% }) %>
+                </div>
+                <% } %>
+
+                <% typeOrder.forEach((t, ti) => { %>
+                <div class="df-type-panel" data-df-type-index="<%= ti %>" <%= (showTypeTabs && ti > 0) ? 'style="display:none;"' : '' %>>
                 <table>
                   <thead><tr><th></th><th>Nama</th><th>SKU</th><th>Modal</th><th>Margin</th><th>Harga Jual</th><th>Aksi</th></tr></thead>
                   <tbody>
-                    <% groupProducts.slice().sort((a, b) => a.price - b.price).forEach(p => { %>
+                    <% typeMap[t].forEach(p => { %>
                     <tr>
                       <td><input type="checkbox" class="df-unlink-cb" value="<%= p.id %>"></td>
                       <td><%= p.name %></td>
@@ -258,6 +293,8 @@
                     <% }) %>
                   </tbody>
                 </table>
+                </div>
+                <% }) %>
               </div>
             </div>
           <% }) %>
@@ -694,6 +731,81 @@ function dfPromptRename(form, oldName, jenis) {
       var card = header.closest('[data-df-group]');
       if (card) card.classList.toggle('open');
     });
+  });
+})();
+
+// ===== Tab "Tipe Nominal" per kartu grup: klik tab buat switch panel yang ditampilkan (murni
+// toggle display, gak reload/re-fetch data) -- polanya sama kayak variantTypeTabs di halaman
+// produk publik, biar admin lihat isi grup persis kayak yang customer lihat per tab. =====
+(function () {
+  document.querySelectorAll('.df-type-tabs').forEach(function (tabs) {
+    var card = tabs.closest('[data-df-group]');
+    if (!card) return;
+    tabs.addEventListener('click', function (e) {
+      var btn = e.target.closest('.df-type-tab');
+      if (!btn) return;
+      var idx = btn.dataset.dfTypeIndex;
+      tabs.querySelectorAll('.df-type-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      card.querySelectorAll('.df-type-panel').forEach(function (panel) {
+        panel.style.display = (panel.dataset.dfTypeIndex === idx) ? '' : 'none';
+      });
+    });
+  });
+})();
+
+// ===== Toolbar "Masukkan ke Tab" per kartu grup: centang produk (pilih semua ATAU satu-satu,
+// lintas semua tab di grup itu) lalu tetapkan Tipe Nominal buat produk yang dicentang -- di-scope
+// ke kartu grup masing2 (pakai .closest('[data-df-group]')) walau checkbox-nya class yang sama
+// ('.df-unlink-cb') dipakai bareng fitur "Lepas Terpilih" global, supaya milih di 1 grup gak
+// kecampur/ketuker sama grup lain. =====
+(function () {
+  document.querySelectorAll('[data-df-group]').forEach(function (card) {
+    var selectAllChk = card.querySelector('.df-group-select-all');
+    var countEl = card.querySelector('.df-group-selected-count');
+    var typeSelect = card.querySelector('.df-group-type-select');
+    var btn = card.querySelector('.df-group-set-type-btn');
+    var form = card.querySelector('.df-group-set-type-form');
+    if (!selectAllChk || !btn || !form) return;
+
+    function getCbs() { return Array.prototype.slice.call(card.querySelectorAll('.df-unlink-cb')); }
+
+    function refresh() {
+      var cbs = getCbs();
+      var checked = cbs.filter(function (c) { return c.checked; });
+      countEl.textContent = checked.length + ' dipilih';
+      btn.disabled = checked.length === 0;
+      selectAllChk.checked = cbs.length > 0 && checked.length === cbs.length;
+    }
+
+    card.addEventListener('change', function (e) {
+      if (e.target.classList && e.target.classList.contains('df-unlink-cb')) refresh();
+    });
+
+    selectAllChk.addEventListener('change', function () {
+      getCbs().forEach(function (c) { c.checked = selectAllChk.checked; });
+      refresh();
+    });
+
+    btn.addEventListener('click', function () {
+      var checked = getCbs().filter(function (c) { return c.checked; });
+      if (checked.length === 0) return;
+      var typeVal = typeSelect.value;
+      var typeLabel = typeVal || 'Tanpa Tab';
+      if (!confirm('Masukkan ' + checked.length + ' produk terpilih ke tab "' + typeLabel + '"?')) return;
+      form.innerHTML = '';
+      checked.forEach(function (c) {
+        var input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'ids'; input.value = c.value;
+        form.appendChild(input);
+      });
+      var typeInput = document.createElement('input');
+      typeInput.type = 'hidden'; typeInput.name = 'variantType'; typeInput.value = typeVal;
+      form.appendChild(typeInput);
+      form.submit();
+    });
+
+    refresh();
   });
 })();
 </script>
