@@ -7,7 +7,7 @@ import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail,
-  ensureReferralCode
+  ensureReferralCode, findUserByReferralCode
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
@@ -108,6 +108,9 @@ router.get('/profile', requireLogin, (req, res) => {
   const orders = getOrdersByUser(user.id);
   const referralCode = ensureReferralCode(user.id);
   const referralStats = getReferralStatsForUser(user.id);
+  // Kalau akun ini udah "terikat" ke referrer (didaftarin/pakai kode punya orang lain), ambil
+  // username-nya buat ditampilin di kartu "Kode Undangan" -- biar user tau dia kehubung ke siapa.
+  const referrer = user.referredBy ? findUserById(user.referredBy) : null;
   res.render('profile', {
     user, error: req.query.error || null, success: req.query.success || null, config: getConfig(),
     membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership),
@@ -119,8 +122,35 @@ router.get('/profile', requireLogin, (req, res) => {
     referralLink: `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`,
     referralStats,
     referralCommissionPercent: REFERRAL_COMMISSION_PERCENT,
+    referrerUsername: referrer ? referrer.username : '',
     noindex: true
   });
+});
+
+// Pakai kode undangan/referral SETELAH akun udah kedaftar (mis. lupa isi pas daftar dulu, atau
+// akun lama sebelum fitur ini ada) -- lewat kartu "Kode Undangan" di halaman Profil. Cuma bisa
+// dipakai SEKALI: sama kayak pas daftar, referredBy yang udah keisi gak boleh diganti lagi
+// (lihat catatan "SELAMANYA" di lib/referrals.js), jadi begitu berhasil dipakai kartunya otomatis
+// ilang diganti tampilan "sudah terhubung ke <username>".
+router.post('/profile/kode-undangan', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  const code = String(req.body.referralCode || '').trim().toUpperCase();
+
+  if (user.referredBy) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Akun kamu sudah terhubung ke kode undangan sebelumnya, gak bisa diganti lagi.') + '#referral');
+  }
+  if (!code) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Kode undangan wajib diisi') + '#referral');
+  }
+  const referrer = findUserByReferralCode(code);
+  if (!referrer) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Kode undangan tidak ditemukan') + '#referral');
+  }
+  if (referrer.id === user.id) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Gak bisa pakai kode undangan sendiri') + '#referral');
+  }
+  updateUser(user.id, { referredBy: referrer.id });
+  res.redirect('/profile?success=' + encodeURIComponent(`Kode undangan berhasil dipakai! Akun kamu sekarang terhubung ke ${referrer.username}.`) + '#referral');
 });
 
 router.post('/profile', requireLogin, (req, res) => {
@@ -811,7 +841,10 @@ router.post('/order', requireLogin, async (req, res) => {
       refType: 'order'
     });
 
-    const orders = await fulfillAndRecordOrders({ user, product, qty, targetData, targetText, unitPriceOverride: effectiveUnitPrice });
+    const orders = await fulfillAndRecordOrders({
+      user, product, qty, targetData, targetText, unitPriceOverride: effectiveUnitPrice,
+      paidNote: 'Dibayar via Saldo', paymentMethod: 'Saldo (Lunas)'
+    });
 
     // Kode promo baru kepakai (usedCount naik) begitu MINIMAL SATU order-nya beneran jadi --
     // kalau SEMUA item malah cancelled/refund total, kode promo-nya gak ikut "terbakar" sia-sia.

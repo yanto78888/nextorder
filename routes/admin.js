@@ -1433,7 +1433,9 @@ router.post('/order/manual', async (req, res) => {
       productName,
       total: order.total,
       orderId: order.id,
-      source: 'admin'
+      source: 'admin',
+      paymentMethod: 'Manual oleh Admin',
+      orderStatus: order.status
     }).catch(() => {});
 
     res.redirect('/admin/order');

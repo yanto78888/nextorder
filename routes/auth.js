@@ -46,6 +46,12 @@ router.get('/auth/google', (req, res) => {
   // yang sudah ada), simpan juga id user-nya -- callback nanti tinggal nempelin googleId ke akun
   // ini, BUKAN nyari/bikin akun baru kayak alur login biasa dari halaman /login.
   req.session.googleOAuthLinkUserId = req.session.user ? req.session.user.id : null;
+  // Kode referral dari link ajakan (mis. /register?ref=AB23CD -> tombol "Daftar dengan Google" di
+  // halaman itu ikut bawa ?ref= yang sama). Disimpan di sesi biar kebawa lewat round-trip ke
+  // Google & balik lagi ke /auth/google/callback, lalu dipasang ke akun BARU yang kebentuk di sana
+  // -- gak ngaruh ke akun yang connect/login Google-nya doang (bukan daftar baru), lihat parameter
+  // referredBy di findOrCreateGoogleUser.
+  req.session.googleOAuthRefCode = req.session.user ? '' : String(req.query.ref || '').trim().toUpperCase();
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -63,8 +69,10 @@ router.get('/auth/google/callback', async (req, res) => {
 
   const expectedState = req.session.googleOAuthState;
   const linkUserId = req.session.googleOAuthLinkUserId;
+  const pendingRefCode = req.session.googleOAuthRefCode || '';
   delete req.session.googleOAuthState;
   delete req.session.googleOAuthLinkUserId;
+  delete req.session.googleOAuthRefCode;
 
   const backTo = linkUserId ? '/profile' : '/login';
 
@@ -122,12 +130,18 @@ router.get('/auth/google/callback', async (req, res) => {
       return res.redirect('/profile?success=' + encodeURIComponent('Akun Google berhasil dihubungkan'));
     }
 
-    // Mode login biasa dari halaman /login
+    // Mode login biasa dari halaman /login (atau daftar baru lewat tombol "Daftar dengan Google")
+    // -- kalau ada kode referral yang kebawa dari link ajakan (pendingRefCode), coba pasangkan ke
+    // akun BARU yang kebentuk di findOrCreateGoogleUser. Aman dipanggil terus tanpa dicek dulu
+    // "akun ini baru atau lama": findOrCreateGoogleUser cuma makein referredBy ini pas BENERAN
+    // bikin user baru, akun Google yang udah ada gak kesentuh/gak keganti referredBy-nya.
+    const referrer = pendingRefCode ? findUserByReferralCode(pendingRefCode) : null;
     const user = findOrCreateGoogleUser({
       googleId: profile.sub,
       email: profile.email,
       name: profile.name,
-      picture: profile.picture
+      picture: profile.picture,
+      referredBy: referrer ? referrer.id : ''
     });
     if (user.status === 'banned') {
       return res.redirect('/login?error=' + encodeURIComponent('Akun anda diblokir. Hubungi admin.'));

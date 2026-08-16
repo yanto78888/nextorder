@@ -359,7 +359,8 @@ async function processOrderRequest(req, res, { expectedProvider, label }) {
       paidNote: 'Dibayar via API (saldo)',
       unitPriceOverride: unitPrice,
       sourceOverride: 'api',
-      apiRefId: refId
+      apiRefId: refId,
+      paymentMethod: 'Saldo (API Reseller, Lunas)'
     });
 
     const defaultMsg = orders.length === 1
