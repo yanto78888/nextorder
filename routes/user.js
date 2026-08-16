@@ -108,9 +108,6 @@ router.get('/profile', requireLogin, (req, res) => {
   const orders = getOrdersByUser(user.id);
   const referralCode = ensureReferralCode(user.id);
   const referralStats = getReferralStatsForUser(user.id);
-  // Kalau akun ini udah "terikat" ke referrer (didaftarin/pakai kode punya orang lain), ambil
-  // username-nya buat ditampilin di kartu "Kode Undangan" -- biar user tau dia kehubung ke siapa.
-  const referrer = user.referredBy ? findUserById(user.referredBy) : null;
   res.render('profile', {
     user, error: req.query.error || null, success: req.query.success || null, config: getConfig(),
     membershipList: getMembershipList(), currentTier: getMembershipTier(user.membership),
@@ -122,7 +119,6 @@ router.get('/profile', requireLogin, (req, res) => {
     referralLink: `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`,
     referralStats,
     referralCommissionPercent: REFERRAL_COMMISSION_PERCENT,
-    referrerUsername: referrer ? referrer.username : '',
     noindex: true
   });
 });
