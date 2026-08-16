@@ -7,7 +7,7 @@
   <div class="bs-heading"><i class="fa-solid fa-fire"></i> Paling Laris</div>
   <div class="bs-track">
     <% bestsellers.forEach((item, idx) => { %>
-      <a href="/produk/<%= item.id %>" class="bs-card">
+      <a href="/produk/<%= slugify(item.variantGroup || item.name) %>" class="bs-card">
         <span class="bs-rank bs-rank-<%= idx + 1 %>">#<%= idx + 1 %></span>
         <div class="bs-card-thumb">
           <% if (item.thumbnail) { %><img src="<%= item.thumbnail %>" alt="<%= item.name %>" loading="lazy" onload="this.classList.add('is-loaded')"><% } else { %><span class="nf-noimg"><%= item.name.slice(0,1) %></span><% } %>
