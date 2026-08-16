@@ -88,6 +88,22 @@
       </div>
     </div>
 
+    <% if (!user.referredBy) { %>
+    <div class="card mt-16">
+      <h3 style="margin-top:0;">Punya Kode Undangan?</h3>
+      <div class="helper-text">Kalau kamu diajak pakai kode punya orang lain (mis. lupa isi pas daftar dulu), masukkan di sini. Cuma bisa dipakai <b>1x</b> dan gak bisa diganti lagi setelah tersimpan.</div>
+      <form method="POST" action="/profile/kode-undangan" class="flex" style="gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <input type="text" name="referralCode" placeholder="Contoh: AB23CD" maxlength="6" style="text-transform:uppercase; flex:1; min-width:160px;" required>
+        <button type="submit" class="btn small solid">Pakai Kode</button>
+      </form>
+    </div>
+    <% } else { %>
+    <div class="card mt-16">
+      <h3 style="margin-top:0;">Kode Undangan</h3>
+      <div class="helper-text">Akun kamu terhubung ke kode undangan dari <b><%= referrerUsername %></b>.</div>
+    </div>
+    <% } %>
+
     <div class="grid grid-2">
       <div class="card stat-card success">
         <div class="label">Total Komisi Didapat</div>

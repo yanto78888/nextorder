@@ -27,7 +27,7 @@
 
         <% const googleLoginReady = !!(config.google && config.google.enabled && config.google.clientId && config.google.clientSecret); %>
         <% if (googleLoginReady) { %>
-        <a href="/auth/google" class="btn google-btn" style="width:100%;"><i class="fa-brands fa-google"></i> Daftar dengan Google</a>
+        <a href="/auth/google<%= (typeof refCode !== 'undefined' && refCode) ? ('?ref=' + encodeURIComponent(refCode)) : '' %>" class="btn google-btn" style="width:100%;"><i class="fa-brands fa-google"></i> Daftar dengan Google</a>
         <div class="auth-divider"><span>atau isi form</span></div>
         <% } %>
 
