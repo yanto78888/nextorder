@@ -2285,6 +2285,34 @@ html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(-
 .adm-order-date { font-size:10px; color:var(--text-dim); margin-top:1px; }
 .adm-order-arrow { font-size:20px; color:var(--text-dim); padding:0 4px; flex-shrink:0; line-height:1; }
 
+/* ---- List ringkas + expand detail ke bawah (dipakai admin/order.ejs & admin/users.ejs, ganti
+   tabel lebar yang bikin baris jadi tinggi & berantakan di layar sempit -- baris cuma nampilin
+   info intinya (ID/username + status/role), detail lengkap + form aksi baru muncul KE BAWAH pas
+   diklik, bukan ke samping lewat scroll horizontal tabel). ---- */
+.adm-collapsible-list { display:flex; flex-direction:column; gap:8px; }
+.adm-collapsible-row {
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px;
+  overflow:hidden;
+}
+.adm-collapsible-main {
+  display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer;
+}
+.adm-collapsible-id {
+  font-family:monospace; font-size:12px; font-weight:700; flex:1; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.adm-collapsible-caret { color:var(--text-dim); transition:transform .15s; flex-shrink:0; }
+.adm-collapsible-row.open .adm-collapsible-caret { transform:rotate(180deg); }
+.adm-collapsible-detail { display:none; padding:0 14px 14px; border-top:1px solid var(--border-glow); }
+.adm-collapsible-row.open .adm-collapsible-detail { display:block; padding-top:12px; }
+.adm-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin-bottom:12px; }
+.adm-detail-grid .full { grid-column:1 / -1; }
+.adm-detail-label { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); margin-bottom:2px; }
+.adm-detail-value { font-size:13px; word-break:break-word; white-space:pre-wrap; }
+@media (max-width: 480px) {
+  .adm-detail-grid { grid-template-columns:1fr; }
+}
+
 /* ---- Admin review list (dashboard) ---- */
 .adm-review-list { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
 .adm-review-card {
