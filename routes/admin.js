@@ -1626,7 +1626,8 @@ function handleSettingsSave(req, res) {
     ownerWhatsapp,
     seoSiteUrl, seoMetaDescription, seoMetaKeywords,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
-    marqueeEnabled, marqueeText
+    marqueeEnabled, marqueeText,
+    referralDigitalPercent, referralManualFlat
   } = req.body;
 
   const categories = (catalogCategories || 'Games')
@@ -1695,7 +1696,14 @@ function handleSettingsSave(req, res) {
     },
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on', notifyOnWithdrawal: notifyOnWithdrawal === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
-    marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' }
+    marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
+    // Komisi referral: produk digital (Digiflazz/IndoSMM) PERSEN dari total transaksi, produk
+    // manual FLAT per transaksi -- lihat lib/referrals.js creditReferralCommission(). Fallback ke
+    // default lama (1% / Rp 500) kalau field dikirim kosong/bukan angka, biar gak kesimpen NaN.
+    referral: {
+      digitalPercent: (referralDigitalPercent !== undefined && referralDigitalPercent !== '' && !isNaN(parseFloat(referralDigitalPercent))) ? parseFloat(referralDigitalPercent) : 1,
+      manualFlat: (referralManualFlat !== undefined && referralManualFlat !== '' && !isNaN(parseInt(referralManualFlat))) ? parseInt(referralManualFlat) : 500
+    }
     // NOTE: "banners" sengaja tidak disentuh di sini. Banner dikelola sepenuhnya lewat
     // /admin/settings/banner/add dan /admin/settings/banner/delete/:id (form terpisah di halaman
     // settings), supaya klik "Simpan Pengaturan" tidak pernah menimpa/menghapus banner yang sudah ada.
