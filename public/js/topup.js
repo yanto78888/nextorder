@@ -58,15 +58,40 @@ function showQr(deposit) {
 }
 
 document.getElementById('btn-download-qr').addEventListener('click', () => {
-  const img = document.getElementById('qr-image');
-  if (!img || !img.src) return;
-  const link = document.createElement('a');
-  link.href = img.src;
-  link.download = 'QRIS-' + (currentTrxid || 'deposit') + '.png';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  downloadQrImage(document.getElementById('qr-image'), 'QRIS-' + (currentTrxid || 'deposit') + '.png');
 });
+
+// BUG: sebelumnya link.href diisi LANGSUNG dari img.src (data:image/png;base64,...) + atribut
+// download. Ini kelihatan jalan di desktop, tapi di banyak browser mobile -- terutama Chrome
+// Android -- atribut `download` TIDAK didukung buat data: URI, jadi klik tombolnya cuma buka
+// gambarnya di tab baru (atau gak ngapa-ngapain), bukan beneran ke-download. Fix-nya: ubah dulu
+// data URI itu jadi Blob (via fetch(), yang bisa baca data: URI) lalu pakai Blob URL
+// (createObjectURL) buat link download-nya -- dukungan `download` buat blob: URL jauh lebih
+// konsisten lintas browser & HP dibanding data: URI langsung.
+async function downloadQrImage(imgEl, filename) {
+  if (!imgEl || !imgEl.src) return;
+  try {
+    const res = await fetch(imgEl.src);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch (err) {
+    // Fallback kalau fetch() ke data: URI-nya somehow gagal -- daripada tombolnya diem gak
+    // ngapa-ngapain sama sekali, tetap coba cara lama sebagai upaya terakhir.
+    const link = document.createElement('a');
+    link.href = imgEl.src;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
 
 document.getElementById('btn-cancel').addEventListener('click', async () => {
   if (!currentTrxid) return;
