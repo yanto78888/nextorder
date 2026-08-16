@@ -16,87 +16,113 @@
       <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
     <% } %>
 
-    <div class="card">
-      <h3><i class="fa-solid fa-screwdriver-wrench"></i> Kirim Pesanan Manual</h3>
-      <p class="helper-text">Buat order langsung untuk user tertentu (misalnya pembayaran di luar sistem, bonus, atau pengiriman produk manual).</p>
-      <form method="POST" action="/admin/order/manual">
-        <div class="grid grid-2">
-          <div>
-            <label>Pilih User</label>
-            <select name="userId" required>
-              <option value="">-- pilih user --</option>
-              <% users.forEach(u => { %>
-                <option value="<%= u.id %>"><%= u.username %> (saldo Rp <%= u.saldo.toLocaleString('id-ID') %>)</option>
-              <% }) %>
-            </select>
-
-            <label>Pilih Produk (opsional)</label>
-            <select name="productId">
-              <option value="">-- atau isi manual di bawah --</option>
-              <% products.forEach(p => { %>
-                <option value="<%= p.id %>"><%= p.name %> - Rp <%= p.price.toLocaleString('id-ID') %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div>
-            <label>Nama Produk Manual (jika tidak pilih di atas)</label>
-            <input type="text" name="customName" placeholder="Contoh: Netflix Premium 1 Bulan">
-            <label>Harga Manual (Rp)</label>
-            <input type="number" name="customPrice" placeholder="0">
-            <label>Status</label>
-            <select name="status">
-              <option value="completed">Selesai</option>
-              <option value="processing">Diproses</option>
-            </select>
-          </div>
-        </div>
-        <label>Catatan</label>
-        <input type="text" name="note" placeholder="Catatan internal (opsional)">
-        <label>Detail / Isi Produk yang Dikirim ke User</label>
-        <textarea name="detail" placeholder="Contoh: Email: xxx@gmail.com | Password: xxxx"></textarea>
-        <button class="btn magenta mt-24" type="submit"><i class="fa-solid fa-paper-plane"></i> Kirim Pesanan</button>
-      </form>
+    <div class="card" style="margin-bottom:14px;">
+      <input type="text" id="orderSearchInput" placeholder="Cari ID pesanan..." style="width:100%;">
     </div>
+    <div id="orderSearchEmpty" class="card empty-state" style="display:none;">Order "<span id="orderSearchEmptyTerm"></span>" tidak ditemukan.</div>
 
     <div class="section-title"><h3>Semua Order</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (orders.length === 0) { %>
-        <div class="empty-state">Belum ada order.</div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>User</th><th>Produk</th><th>Tujuan</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Update</th></tr></thead>
-        <tbody>
-          <% orders.forEach(o => { %>
-          <tr>
-            <td class="mono"><%= o.id %></td>
-            <td><%= o.username %></td>
-            <td><%= o.productName %></td>
-            <td style="max-width:160px; font-size:12px; color:var(--text-dim); white-space:pre-wrap;"><%= o.targetText || '-' %></td>
-            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
-            <td>
-              <span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : (o.manualRequired ? 'cancelled' : 'admin') %>"><%= o.deliveryMode || o.source %></span>
-              <% if (o.manualRequired && o.status === 'processing') { %><br><span class="helper-text" style="color:var(--danger);">butuh manual</span><% } %>
-            </td>
-            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
-            <td style="max-width:180px; font-size:12px; color:var(--text-dim);"><%= o.detail || '-' %></td>
-            <td>
-              <form method="POST" action="/admin/order/<%= o.id %>/status" class="flex">
-                <select name="status" style="width:120px;">
-                  <option value="processing" <%= o.status === 'processing' ? 'selected' : '' %>>Diproses</option>
-                  <option value="completed" <%= o.status === 'completed' ? 'selected' : '' %>>Selesai</option>
-                  <option value="cancelled" <%= o.status === 'cancelled' ? 'selected' : '' %>>Batal</option>
-                </select>
-                <textarea name="detail" placeholder="isi produk..." style="width:180px; min-height:42px;"><%= o.detail || '' %></textarea>
-                <button class="btn small solid" type="submit">Update</button>
-              </form>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
+    <% if (orders.length === 0) { %>
+      <div class="card empty-state">Belum ada order.</div>
+    <% } else { %>
+    <!-- Sengaja BUKAN tabel lebar kayak sebelumnya -- kolom "Tujuan"/"Detail" isinya teks bebas
+         (kadang panjang/multi-baris, mis. detail login yang dikirim ke user) yang bikin baris jadi
+         SANGAT TINGGI, dan karena kolom kanan ke-scroll keluar layar di HP, baris kelihatan cuma ID
+         doang tapi dengan jarak kosong raksasa di bawahnya -- itu penyebab tampilan "berantakan" di
+         mobile. Sekarang tiap order cuma baris ringkas ID + status, detail lengkapnya (termasuk
+         Waktu Penyelesaian & form update status) baru muncul KE BAWAH pas diklik, bukan ke samping. -->
+    <div class="adm-collapsible-list">
+      <% orders.forEach(o => { %>
+      <div class="adm-collapsible-row" data-order-row data-order-id="<%= o.id.toLowerCase() %>">
+        <div class="adm-collapsible-main" data-order-toggle>
+          <span class="adm-collapsible-id"><%= o.id %></span>
+          <span class="badge <%= o.status %>"><%= o.status %></span>
+          <i class="fa-solid fa-chevron-down adm-collapsible-caret"></i>
+        </div>
+        <div class="adm-collapsible-detail">
+          <div class="adm-detail-grid">
+            <div>
+              <div class="adm-detail-label">User</div>
+              <div class="adm-detail-value"><%= o.username %></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Produk</div>
+              <div class="adm-detail-value"><%= o.productName %></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Total</div>
+              <div class="adm-detail-value mono">Rp <%= o.total.toLocaleString('id-ID') %></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Mode</div>
+              <div class="adm-detail-value">
+                <span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : (o.manualRequired ? 'cancelled' : 'admin') %>"><%= o.deliveryMode || o.source %></span>
+                <% if (o.manualRequired && o.status === 'processing') { %> <span class="helper-text" style="color:var(--danger);">butuh manual</span><% } %>
+              </div>
+            </div>
+            <div class="full">
+              <div class="adm-detail-label">Tujuan</div>
+              <div class="adm-detail-value"><%= o.targetText || '-' %></div>
+            </div>
+            <div class="full">
+              <div class="adm-detail-label">Waktu Penyelesaian</div>
+              <div class="adm-detail-value"><%= o.status === 'completed' ? new Date(o.updatedAt).toLocaleString('id-ID') : '-' %></div>
+            </div>
+            <div class="full">
+              <div class="adm-detail-label">Detail / Isi Produk</div>
+              <div class="adm-detail-value"><%= o.detail || '-' %></div>
+            </div>
+          </div>
+          <form method="POST" action="/admin/order/<%= o.id %>/status" class="flex" style="flex-wrap:wrap; gap:8px;">
+            <select name="status" style="width:120px;">
+              <option value="processing" <%= o.status === 'processing' ? 'selected' : '' %>>Diproses</option>
+              <option value="completed" <%= o.status === 'completed' ? 'selected' : '' %>>Selesai</option>
+              <option value="cancelled" <%= o.status === 'cancelled' ? 'selected' : '' %>>Batal</option>
+            </select>
+            <textarea name="detail" placeholder="isi produk..." style="flex:1; min-width:160px; min-height:42px;"><%= o.detail || '' %></textarea>
+            <button class="btn small solid" type="submit">Update</button>
+          </form>
+        </div>
+      </div>
+      <% }) %>
     </div>
+    <% } %>
   </div>
 </div>
+
+<script>
+// ===== Klik baris (ID + status) buat expand/collapse detail KE BAWAH =====
+(function () {
+  document.querySelectorAll('[data-order-toggle]').forEach(function (main) {
+    main.addEventListener('click', function () {
+      var row = main.closest('[data-order-row]');
+      if (row) row.classList.toggle('open');
+    });
+  });
+})();
+
+// ===== Search ID pesanan (client-side, filter baris yang udah di-render) =====
+(function () {
+  var input = document.getElementById('orderSearchInput');
+  if (!input) return;
+  var rows = document.querySelectorAll('[data-order-row]');
+  var emptyBox = document.getElementById('orderSearchEmpty');
+  var emptyTerm = document.getElementById('orderSearchEmptyTerm');
+
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var match = !q || row.dataset.orderId.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (emptyBox) {
+      emptyBox.style.display = (q && visible === 0) ? '' : 'none';
+      if (emptyTerm) emptyTerm.textContent = input.value.trim();
+    }
+  });
+})();
+</script>
 </body>
 </html>

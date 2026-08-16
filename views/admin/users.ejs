@@ -18,61 +18,86 @@
     </div>
     <div id="userSearchEmpty" class="card empty-state" style="display:none;">User "<span id="userSearchEmptyTerm"></span>" tidak ditemukan.</div>
 
-    <div class="card">
-      <table>
-        <thead><tr><th>Username</th><th>Email</th><th>Saldo</th><th>Role</th><th>Member</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% users.forEach(u => { %>
-          <tr data-user-row data-username="<%= u.username.toLowerCase() %>" data-email="<%= (u.email || '').toLowerCase() %>">
-            <td><%= u.username %></td>
-            <td><%= u.email || '-' %></td>
-            <td class="mono">Rp <%= u.saldo.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= u.role %>"><%= u.role %></span></td>
-            <td><span class="badge member-<%= u.membership || 'reguler' %>"><%= (u.membership || 'reguler') %></span></td>
-            <td><span class="badge <%= u.status === 'active' ? 'active' : 'cancelled' %>"><%= u.status %></span></td>
-            <td>
-              <div class="flex" style="flex-wrap:wrap;">
-                <form method="POST" action="/admin/users/<%= u.id %>/saldo" class="flex">
-                  <input type="number" name="amount" placeholder="+/- saldo" style="width:110px;">
-                  <button class="btn small solid" type="submit">Set</button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/status">
-                  <input type="hidden" name="status" value="<%= u.status === 'active' ? 'banned' : 'active' %>">
-                  <button class="btn small <%= u.status === 'active' ? 'danger' : 'ghost' %>" type="submit">
-                    <%= u.status === 'active' ? 'Blokir' : 'Aktifkan' %>
-                  </button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/role">
-                  <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
-                  <button class="btn small ghost" type="submit">
-                    Jadikan <%= u.role === 'admin' ? 'User' : 'Admin' %>
-                  </button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/membership" class="flex">
-                  <select name="membership" style="width:110px;">
-                    <% membershipList.forEach(t => { %>
-                      <option value="<%= t.key %>" <%= (u.membership || 'reguler') === t.key ? 'selected' : '' %>><%= t.label %></option>
-                    <% }) %>
-                  </select>
-                  <button class="btn small magenta" type="submit">Set Member</button>
-                </form>
-                <form method="POST" action="/admin/users/<%= u.id %>/password" class="flex" style="gap:4px;"
-                      onsubmit="return confirm('Ganti password <%= u.username %>?');">
-                  <input type="password" name="newPassword" placeholder="Password baru" minlength="6" style="width:100px;" required>
-                  <input type="password" name="newPassword2" placeholder="Ulangi" minlength="6" style="width:90px;" required>
-                  <button class="btn small ghost" type="submit">Ganti Password</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
+    <!-- Sama kayak halaman Kelola Order -- baris cuma nampilin username + status, sisanya (email,
+         saldo, role, member, dan semua form aksi) baru muncul KE BAWAH pas diklik, biar gak perlu
+         scroll tabel ke samping lagi di HP. -->
+    <div class="adm-collapsible-list">
+      <% users.forEach(u => { %>
+      <div class="adm-collapsible-row" data-user-row data-username="<%= u.username.toLowerCase() %>" data-email="<%= (u.email || '').toLowerCase() %>">
+        <div class="adm-collapsible-main" data-user-toggle>
+          <span class="adm-collapsible-id"><%= u.username %></span>
+          <span class="badge <%= u.status === 'active' ? 'active' : 'cancelled' %>"><%= u.status %></span>
+          <i class="fa-solid fa-chevron-down adm-collapsible-caret"></i>
+        </div>
+        <div class="adm-collapsible-detail">
+          <div class="adm-detail-grid">
+            <div>
+              <div class="adm-detail-label">Email</div>
+              <div class="adm-detail-value"><%= u.email || '-' %></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Saldo</div>
+              <div class="adm-detail-value mono">Rp <%= u.saldo.toLocaleString('id-ID') %></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Role</div>
+              <div class="adm-detail-value"><span class="badge <%= u.role %>"><%= u.role %></span></div>
+            </div>
+            <div>
+              <div class="adm-detail-label">Member</div>
+              <div class="adm-detail-value"><span class="badge member-<%= u.membership || 'reguler' %>"><%= (u.membership || 'reguler') %></span></div>
+            </div>
+          </div>
+          <div class="flex" style="flex-wrap:wrap; gap:8px;">
+            <form method="POST" action="/admin/users/<%= u.id %>/saldo" class="flex">
+              <input type="number" name="amount" placeholder="+/- saldo" style="width:110px;">
+              <button class="btn small solid" type="submit">Set</button>
+            </form>
+            <form method="POST" action="/admin/users/<%= u.id %>/status">
+              <input type="hidden" name="status" value="<%= u.status === 'active' ? 'banned' : 'active' %>">
+              <button class="btn small <%= u.status === 'active' ? 'danger' : 'ghost' %>" type="submit">
+                <%= u.status === 'active' ? 'Blokir' : 'Aktifkan' %>
+              </button>
+            </form>
+            <form method="POST" action="/admin/users/<%= u.id %>/role">
+              <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+              <button class="btn small ghost" type="submit">
+                Jadikan <%= u.role === 'admin' ? 'User' : 'Admin' %>
+              </button>
+            </form>
+            <form method="POST" action="/admin/users/<%= u.id %>/membership" class="flex">
+              <select name="membership" style="width:110px;">
+                <% membershipList.forEach(t => { %>
+                  <option value="<%= t.key %>" <%= (u.membership || 'reguler') === t.key ? 'selected' : '' %>><%= t.label %></option>
+                <% }) %>
+              </select>
+              <button class="btn small magenta" type="submit">Set Member</button>
+            </form>
+            <form method="POST" action="/admin/users/<%= u.id %>/password" class="flex" style="gap:4px;"
+                  onsubmit="return confirm('Ganti password <%= u.username %>?');">
+              <input type="password" name="newPassword" placeholder="Password baru" minlength="6" style="width:100px;" required>
+              <input type="password" name="newPassword2" placeholder="Ulangi" minlength="6" style="width:90px;" required>
+              <button class="btn small ghost" type="submit">Ganti Password</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <% }) %>
     </div>
   </div>
 </div>
 
 <script>
+// ===== Klik baris (username + status) buat expand/collapse detail KE BAWAH =====
+(function () {
+  document.querySelectorAll('[data-user-toggle]').forEach(function (main) {
+    main.addEventListener('click', function () {
+      var row = main.closest('[data-user-row]');
+      if (row) row.classList.toggle('open');
+    });
+  });
+})();
+
 (function () {
   var input = document.getElementById('userSearchInput');
   if (!input) return;
