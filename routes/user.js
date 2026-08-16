@@ -9,7 +9,7 @@ import {
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail,
   ensureReferralCode, findUserByReferralCode
 } from '../lib/users.js';
-import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
+import { getActiveProducts, findProductById, countStock, slugify } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
 import { maskUsername, maskTarget } from '../lib/masking.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
@@ -41,7 +41,7 @@ import {
   fulfillAndRecordOrders, summarizeOrders
 } from '../lib/orderEngine.js';
 import { validatePromoForUser, redeemPromoCode, computePromoDiscount } from '../lib/promocodes.js';
-import { creditReferralCommission, getReferralStatsForUser, REFERRAL_COMMISSION_PERCENT } from '../lib/referrals.js';
+import { creditReferralCommission, getReferralStatsForUser, REFERRAL_COMMISSION_FLAT } from '../lib/referrals.js';
 
 const router = express.Router();
 
@@ -118,7 +118,7 @@ router.get('/profile', requireLogin, (req, res) => {
     referralCode,
     referralLink: `${req.protocol}://${req.get('host')}/register?ref=${referralCode}`,
     referralStats,
-    referralCommissionPercent: REFERRAL_COMMISSION_PERCENT,
+    referralCommissionFlat: REFERRAL_COMMISSION_FLAT,
     noindex: true
   });
 });
@@ -440,7 +440,8 @@ router.get('/produk', (req, res) => {
     flashSaleSettings: getFlashSaleSettings(),
     error: req.query.error || null,
     pageTitle: `${cfg.siteName || 'NEXORDER'} - ${cfg.siteTagline || 'Top Up Game Termurah & Terpercaya'}`,
-    pageDescription: (cfg.seo && cfg.seo.metaDescription) || `Top up ${categoryOrder.join(', ') || 'game'} murah dan cepat di ${cfg.siteName || 'NEXORDER'}. Proses otomatis 24 jam, pembayaran QRIS.`
+    pageDescription: (cfg.seo && cfg.seo.metaDescription) || `Top up ${categoryOrder.join(', ') || 'game'} murah dan cepat di ${cfg.siteName || 'NEXORDER'}. Proses otomatis 24 jam, pembayaran QRIS.`,
+    slugify
   });
 });
 
@@ -1204,7 +1205,7 @@ router.post('/order/qris-status/:trxid/cancel', requireLogin, async (req, res) =
 });
 
 // ==================== DETAIL PRODUK ====================
-router.get('/produk/:id', (req, res) => {
+router.get('/produk/:slug', (req, res) => {
   const user = req.session.user ? findUserById(req.session.user.id) : null;
 
   // Ambil SEKALI aja daftar produk aktif, dipakai buat cari produk utama & susun daftar varian
@@ -1212,7 +1213,21 @@ router.get('/produk/:id', (req, res) => {
   // implisit lewat findProductById, sekali lagi eksplisit buat varian) -- salah satu penyebab
   // halaman ini kerasa lag, apalagi buat produk yang variannya banyak (mis. semua nominal 1 game).
   const activeProducts = getActiveProducts();
-  const product = activeProducts.find(p => p.id === req.params.id);
+
+  // Link produk di beranda (lihat views/produk.ejs) sekarang pakai SLUG nama grup (mis.
+  // "mobile-legends"), bukan kode/id acak kayak sebelumnya -- lebih enak dibaca & lebih stabil
+  // (id representatif 1 grup bisa berubah-ubah ikut varian termurah, lihat collapseVariantGroups).
+  // Dicoba cocokkan APA ADANYA dulu (id asli) biar link lama/API/bookmark yang masih pakai kode
+  // tetap jalan, baru fallback ke slug. Kalau ketemu lewat slug & grup itu punya beberapa varian,
+  // ambil yang harganya PALING MURAH -- representatif yang SAMA persis dengan yang dipakai buat
+  // href kartu di collapseVariantGroups(), biar link kartu beranda selalu nyambung konsisten.
+  let product = activeProducts.find(p => p.id === req.params.slug);
+  if (!product) {
+    const bySlug = activeProducts.filter(p => slugify(p.variantGroup || p.name) === req.params.slug);
+    if (bySlug.length > 0) {
+      product = bySlug.reduce((cheapest, p) => (p.price < cheapest.price ? p : cheapest), bySlug[0]);
+    }
+  }
   if (!product) {
     return res.redirect('/produk?error=Produk tidak ditemukan');
   }

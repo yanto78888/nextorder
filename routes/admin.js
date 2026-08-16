@@ -8,13 +8,13 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, getProductCostPrice, deleteProductsByGroup, renameProductGroup,
+  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, deleteProductsByGroup, renameProductGroup,
   getAllGroupNames, createGroupName, renameGroupName, deleteGroupName,
   getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
-import { getAllOrders, findOrderById, createOrder, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
+import { getAllOrders, findOrderById, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
-import { notifyOrder, notifyWithdrawal } from '../lib/telegram.js';
+import { notifyWithdrawal } from '../lib/telegram.js';
 import {
   getAllWithdrawals, findWithdrawalById, updateWithdrawalStatus, getWithdrawSettings
 } from '../lib/withdrawal.js';
@@ -1371,7 +1371,7 @@ router.post('/otp/:id/unlink', (req, res) => {
 router.get('/order', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.render('admin/order', {
-    orders, config: getConfig(), products: getAllProducts(), users: getAllUsers(),
+    orders, config: getConfig(),
     success: req.query.success || null,
     error: req.query.error || null
   });
@@ -1389,59 +1389,6 @@ router.post('/order/:id/status', async (req, res) => {
     updateOrderStatus(req.params.id, status, detail);
     res.redirect('/admin/order');
   } catch (err) {
-    res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
-  }
-});
-
-// Kirim pesanan manual oleh admin
-router.post('/order/manual', async (req, res) => {
-  try {
-    const { userId, productId, customName, customPrice, note, detail, status } = req.body;
-    const user = findUserById(userId);
-    if (!user) return res.redirect('/admin/order?error=' + encodeURIComponent('User tidak ditemukan'));
-
-    let productName, price, costPrice = 0;
-    if (productId) {
-      const product = findProductById(productId);
-      if (!product) return res.redirect('/admin/order?error=' + encodeURIComponent('Produk tidak ditemukan'));
-      productName = product.name;
-      price = product.price;
-      costPrice = getProductCostPrice(product);
-    } else {
-      productName = customName || 'Order Manual';
-      price = Number(customPrice) || 0;
-    }
-
-    const order = createOrder({
-      userId: user.id,
-      username: user.username,
-      productId: productId || null,
-      productName,
-      price,
-      qty: 1,
-      source: 'admin',
-      status: status || 'completed',
-      deliveryMode: 'manual',
-      manualRequired: false,
-      note: note || '',
-      detail: detail || '',
-      costPrice
-    });
-
-    notifyOrder({
-      username: user.username,
-      productName,
-      total: order.total,
-      orderId: order.id,
-      source: 'admin',
-      paymentMethod: 'Manual oleh Admin',
-      orderStatus: order.status
-    }).catch(() => {});
-
-    res.redirect('/admin/order');
-  } catch (err) {
-    // Sama alasannya kayak /order/:id/status di atas -- jaga-jaga kalau createOrder/getProductCostPrice
-    // dst suatu saat throw (mis. data produk korup), 1 request salah gak boleh nge-down-in seluruh app.
     res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
   }
 });
