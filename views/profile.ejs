@@ -82,9 +82,11 @@
       </div>
       <div class="ref-how">
         Bagikan kode atau link di atas. <b>Setiap orang yang daftar pakai kode kamu</b> akan
-        otomatis terhubung ke akunmu, dan kamu dapat <b>komisi Rp <%= referralCommissionFlat.toLocaleString('id-ID') %></b>
-        dari <b>setiap transaksi sukses</b> yang mereka lakukan — bukan cuma transaksi pertama.
-        Komisi langsung masuk ke saldo, otomatis.
+        otomatis terhubung ke akunmu, dan kamu dapat komisi dari <b>setiap transaksi sukses</b>
+        yang mereka lakukan — bukan cuma transaksi pertama:
+        <b><%= referralCommissionSettings.digitalPercent %>%</b> dari transaksi produk digital
+        (Mobile Legends, Free Fire, dll), atau <b>Rp <%= referralCommissionSettings.manualFlat.toLocaleString('id-ID') %></b>
+        flat dari transaksi produk manual. Komisi langsung masuk ke saldo, otomatis.
       </div>
     </div>
 

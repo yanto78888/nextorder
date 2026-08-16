@@ -69,17 +69,39 @@
   var timerEl = document.getElementById('timerEl');
   var settled = false;
 
-  // Download QR sebagai file PNG (gambarnya sudah base64 inline, jadi tinggal di-download langsung
-  // tanpa perlu request lagi ke server).
+  // Download QR sebagai file PNG. BUG: sebelumnya link.href diisi LANGSUNG dari data:image/png;base64
+  // (img.src) + atribut download -- di banyak browser mobile (terutama Chrome Android), atribut
+  // `download` TIDAK didukung buat data: URI, jadi klik tombolnya cuma buka gambarnya di tab baru,
+  // bukan beneran ke-download. Fix: ubah dulu data URI itu jadi Blob (fetch() bisa baca data: URI)
+  // lalu pakai Blob URL (createObjectURL) -- dukungan `download` buat blob: URL jauh lebih
+  // konsisten lintas browser & HP.
   var downloadBtn = document.getElementById('btnDownloadQr');
   if (downloadBtn) {
     downloadBtn.addEventListener('click', function () {
-      var link = document.createElement('a');
-      link.href = document.getElementById('qrisImg').src;
-      link.download = 'QRIS-' + trxid + '.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      var img = document.getElementById('qrisImg');
+      if (!img || !img.src) return;
+      var filename = 'QRIS-' + trxid + '.png';
+      fetch(img.src)
+        .then(function (res) { return res.blob(); })
+        .then(function (blob) {
+          var blobUrl = URL.createObjectURL(blob);
+          var link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 1000);
+        })
+        .catch(function () {
+          // Fallback kalau fetch()-nya somehow gagal -- tetap coba cara lama sebagai upaya terakhir.
+          var link = document.createElement('a');
+          link.href = img.src;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
     });
   }
 
