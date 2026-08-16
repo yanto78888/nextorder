@@ -23,6 +23,7 @@
       const google = config.google || {};
       const seo = config.seo || {};
       const smtp = config.smtp || {};
+      const referral = config.referral || {};
       const currentAdmin = (typeof adminUser !== 'undefined' && adminUser) ? adminUser : {};
     %>
 
@@ -72,6 +73,19 @@
           <label>Kategori yang Ditampilkan di Katalog</label>
           <input type="text" name="catalogCategories" placeholder="Games" value="<%= (config.catalog && config.catalog.categories) ? config.catalog.categories.join(', ') : 'Games' %>">
           <div class="helper-text">Pisahkan dengan koma kalau lebih dari satu, misal: <code>Games, E-Money</code>. Kategori di luar daftar ini tidak akan tampil di halaman katalog user. Kosongkan untuk menampilkan Games saja (default).</div>
+
+          <div class="section-title"><h3>Komisi Referral</h3><div class="line"></div></div>
+          <div class="grid grid-2 form-mini-grid">
+            <div>
+              <label>Produk Digital (Digiflazz/IndoSMM) -- % dari total transaksi</label>
+              <input type="number" step="0.01" min="0" name="referralDigitalPercent" value="<%= (typeof referral.digitalPercent !== 'undefined' && referral.digitalPercent !== null) ? referral.digitalPercent : 1 %>">
+            </div>
+            <div>
+              <label>Produk Manual -- Rp flat per transaksi</label>
+              <input type="number" min="0" name="referralManualFlat" value="<%= (typeof referral.manualFlat !== 'undefined' && referral.manualFlat !== null) ? referral.manualFlat : 500 %>">
+            </div>
+          </div>
+          <div class="helper-text">Dikreditkan otomatis ke saldo referrer tiap kali akun yang dia undang SUKSES transaksi (bukan cuma transaksi pertama). Produk digital (auto Digiflazz/IndoSMM) dihitung PERSEN dari total transaksi; produk manual dapat nominal FLAT per transaksi, gak peduil besar total belanjanya.</div>
 
           <div class="section-title"><h3>QRIS</h3><div class="line"></div></div>
 
