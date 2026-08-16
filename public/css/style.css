@@ -522,7 +522,7 @@ input[name="referralCode"]::placeholder { text-transform: none; }
   font-size: 12px;
   overflow: hidden;
 }
-.product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.product-thumb img { width: 100%; height: 100%; object-fit: contain; }
 
 .thumb-preview {
   display: flex;
@@ -534,7 +534,8 @@ input[name="referralCode"]::placeholder { text-transform: none; }
   width: 80px;
   height: 120px;
   aspect-ratio: 2 / 3;
-  object-fit: cover;
+  object-fit: contain;
+  background: linear-gradient(135deg, #f4f5f7, #e9ebee);
   border-radius: var(--radius);
   border: 1px solid var(--border-glow);
 }
@@ -563,7 +564,7 @@ input[type="file"] {
 .df-group-header:hover { background: rgba(0,0,0,0.035); }
 .df-group-thumb {
   width: 48px; height: 48px; border-radius: var(--radius);
-  object-fit: cover; border: 1px solid var(--border-glow); flex-shrink: 0;
+  object-fit: contain; border: 1px solid var(--border-glow); flex-shrink: 0;
   background: var(--bg-panel);
 }
 .df-group-thumb-placeholder {
@@ -873,7 +874,7 @@ input[type="file"]::file-selector-button {
   overflow: hidden;
 }
 .nf-card-thumb img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   opacity: 0;
   transition: opacity .35s ease;
 }
@@ -1324,11 +1325,12 @@ input[type="file"]::file-selector-button {
   max-height: 480px;
   overflow: hidden;
   flex-shrink: 0;
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
 }
 .detail-thumb {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   filter: brightness(0.6);
   opacity: 0;
@@ -2772,7 +2774,7 @@ html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(-
   overflow: hidden;
 }
 .fs-card-thumb img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   opacity: 0; transition: opacity .35s ease;
 }
 .fs-card-thumb img.is-loaded { opacity: 1; }
@@ -2872,7 +2874,7 @@ html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(-
   overflow: hidden;
 }
 .bs-card-thumb img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   opacity: 0; transition: opacity .35s ease;
 }
 .bs-card-thumb img.is-loaded { opacity: 1; }
@@ -2911,7 +2913,7 @@ html[data-theme="dark"] .bs-card-thumb {
 }
 .fs-adm-row.dragging { opacity: .35; }
 .fs-adm-drag { color: var(--text-dim); flex-shrink: 0; padding: 4px; }
-.fs-adm-thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: var(--bg-panel-2); flex-shrink: 0; }
+.fs-adm-thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: contain; background: var(--bg-panel-2); flex-shrink: 0; }
 .fs-adm-info { min-width: 130px; flex: 1 1 150px; }
 .fs-adm-name { font-size: 12.5px; font-weight: 700; }
 .fs-adm-meta { font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
