@@ -45,13 +45,12 @@ import { creditReferralCommission, getReferralStatsForUser, getReferralCommissio
 
 const router = express.Router();
 
-// Diskon promo (nominal tetap, mis. Rp 2.000) diterapkan lewat UNIT PRICE (bukan potong
+// Diskon promo (persentase, mis. potong 10% dari total) diterapkan lewat UNIT PRICE (bukan potong
 // langsung dari total) supaya konsisten sama fulfillAndRecordOrders() di lib/orderEngine.js --
 // fungsi itu cuma nerima unitPriceOverride, BUKAN total override, dan menghitung ulang total
 // dari unitPrice*qty (atau formula rate/1000 punya IndoSMM) sendiri di dalam. Caranya: hitung
 // rawTotal beneran lewat computeOrderTotal (BUKAN unitPrice*qty polos -- biar IndoSMM ikut
-// bener), potong nominal diskonnya dari situ, lalu tarik proporsinya balik ke unitPrice. Untuk
-// kasus umum (qty=1, non-IndoSMM) ini persis sama dengan unitPrice - discountAmount.
+// bener), potong persentase diskonnya dari situ, lalu tarik proporsinya balik ke unitPrice.
 function applyPromoToUnitPrice(product, unitPrice, qty, promo) {
   if (!promo) return unitPrice;
   const rawTotal = computeOrderTotal(product, unitPrice, qty);
@@ -781,7 +780,7 @@ router.post('/promo/validate', requireLogin, (req, res) => {
     res.json({
       valid: true,
       code: check.promo.code,
-      discountAmount: check.promo.discountAmount,
+      discountPercent: check.promo.discountPercent,
       minPurchase: check.promo.minPurchase
     });
   } catch (err) {
