@@ -13,7 +13,7 @@
 
     <div class="card" style="padding:16px; margin-bottom:16px;">
       <div class="helper-text" style="margin-top:0; margin-bottom:12px;">
-        <i class="fa-solid fa-circle-info"></i> Diskon berupa <b style="color:var(--text-main);">potongan nominal tetap</b> (Rupiah), bisa dikasih syarat minimal belanja. Kuota (Maks. Dipakai) itu jatah GABUNGAN semua orang -- tiap orang sendiri cuma boleh pakai kode yang sama <b style="color:var(--text-main);">1x, tidak bisa dobel</b>, walau kuota totalnya masih sisa.
+        <i class="fa-solid fa-circle-info"></i> Diskon berupa <b style="color:var(--text-main);">potongan persentase (%)</b> dari total belanja, bisa dikasih syarat minimal belanja. Kuota (Maks. Dipakai) itu jatah GABUNGAN semua orang -- tiap orang sendiri cuma boleh pakai kode yang sama <b style="color:var(--text-main);">1x, tidak bisa dobel</b>, walau kuota totalnya masih sisa.
       </div>
 
       <div class="section-title" style="margin-top:0;"><h3>+ Buat Kode Promo</h3><div class="line"></div></div>
@@ -22,8 +22,8 @@
         <input type="text" name="code" placeholder="Contoh: HEMAT2K" maxlength="20" style="text-transform:uppercase;" required>
         <div class="helper-text" style="margin-top:0;">3-20 karakter, huruf/angka/-/_ saja (otomatis jadi huruf besar).</div>
 
-        <label>Potongan Diskon (Rp)</label>
-        <input type="number" name="discountAmount" placeholder="Contoh: 2000" min="1" required>
+        <label>Potongan Diskon (%)</label>
+        <input type="number" name="discountPercent" placeholder="Contoh: 10" min="1" max="100" required>
 
         <label>Minimal Belanja (Rp) <span style="opacity:.6;">(kosongkan / isi 0 kalau tanpa syarat)</span></label>
         <input type="number" name="minPurchase" placeholder="Contoh: 50000" min="0">
@@ -46,7 +46,7 @@
           <% items.forEach(p => { %>
           <tr>
             <td><b style="letter-spacing:.5px;"><%= p.code %></b></td>
-            <td>Rp <%= p.discountAmount.toLocaleString('id-ID') %></td>
+            <td><%= p.discountPercent %>%</td>
             <td><%= p.minPurchase > 0 ? ('Rp ' + p.minPurchase.toLocaleString('id-ID')) : '-' %></td>
             <td>
               <span class="badge <%= p.usedCount >= p.maxUses ? 'cancelled' : 'pending' %>" style="font-size:9.5px; padding:2px 7px;">
