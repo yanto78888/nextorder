@@ -45,7 +45,13 @@ import { getAllPromoCodes, createPromoCode, deletePromoCode } from '../lib/promo
 // sebagai customer_no, jadi produk tanpa field ID Tujuan sama sekali bakal gagal saat
 // dibeli. Admin tetap bisa ganti manual ke preset lain / custom di halaman Kelola Produk
 // kalau ternyata game itu butuh 2 field (ID + Server) yang belum ada presetnya.
-function guessGamePreset(text) {
+// category dicek DULUAN (lebih diandalkan daripada nebak dari nama produk) -- kalau kategori
+// Digiflazz-nya "Pulsa" atau "Data" (paket data internet), targetnya sudah pasti NOMOR HP,
+// bukan User ID/Zone ID kayak game, jadi langsung pakai preset phone_number.
+function guessGamePreset(text, category) {
+  const cat = String(category || '').toLowerCase();
+  if (cat.includes('pulsa') || cat.includes('data')) return 'phone_number';
+
   const t = String(text || '').toLowerCase();
   if (t.includes('mobile legends') || t.includes('ml ')) return 'mobile_legends';
   if (t.includes('free fire') || t.includes('ff ')) return 'free_fire';
@@ -655,7 +661,7 @@ function importOrUpdateDigiflazzProduct({ buyerSkuCode, productName, category, b
   const existing = getAllProducts().find(p => p.provider === 'digiflazz' && p.digiflazzSku === buyerSkuCode);
   const base = Number(basePrice) || 0;
   const sellPrice = computeSellPrice(base, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
-  const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`);
+  const detectedPreset = gamePreset || guessGamePreset(`${productName} ${brand || ''}`, category);
   // Grup: kalau admin PILIH grup dari dropdown (halaman "Kelola Grup & Tipe"), pakai itu -- kalau
   // dibiarkan default/kosong, jatuh balik ke nama brand mentah dari Digiflazz (perilaku lama,
   // tetap dipertahankan biar import cepat tanpa harus pilih grup manual tiap kali kalau gak perlu).
