@@ -150,7 +150,7 @@
                 <% }) %>
               </select>
             <% } else { %>
-              <input type="text" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
+              <input type="<%= (f.type === 'tel' || f.type === 'email') ? f.type : 'text' %>" class="target-field-input" data-key="<%= f.key %>" placeholder="<%= f.placeholder || '' %>" <%= f.required ? 'required' : '' %>>
             <% } %>
           <% }) %>
           <div class="helper-text">Pastikan data di atas benar. Kesalahan <%= product.targetFields.some(f => /zone/i.test(f.key)) ? 'ID/Zone' : 'data' %> bisa membuat pesanan gagal terkirim.</div>
@@ -608,7 +608,8 @@
         });
         html+='</select>';
       } else {
-        html+='<input type="text" class="target-field-input" data-key="'+f.key+'" placeholder="'+(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
+        var inputType = (f.type === 'tel' || f.type === 'email') ? f.type : 'text';
+        html+='<input type="'+inputType+'" class="target-field-input" data-key="'+f.key+'" placeholder="'+(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
       }
     });
     var hasZoneField = fields.some(function(f){ return /zone/i.test(f.key); });
