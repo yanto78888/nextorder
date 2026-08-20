@@ -4,6 +4,7 @@ import { findUserById, deductSaldo, addSaldo } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, findOrderById, findOrdersByApiRefId, createOrder, patchOrder } from '../lib/orders.js';
 import { createDeposit, getDeposit, getDepositsByUser } from '../lib/deposit.js';
+import { creditReferralCommission } from '../lib/referrals.js';
 import {
   isHerosmsEnabled, getNumber as getHerosmsNumber, getActivationStatus, finishActivation, cancelActivation
 } from '../lib/herosms.js';
@@ -362,6 +363,13 @@ async function processOrderRequest(req, res, { expectedProvider, label }) {
       apiRefId: refId,
       paymentMethod: 'Saldo (API Reseller, Lunas)'
     });
+
+    // Komisi referral juga berlaku buat order lewat API reseller (bukan cuma checkout web biasa)
+    // -- "setiap transaksi sukses" itu APAPUN jalurnya, gak dibatasin cuma yang lewat web.
+    const netSuccessTotal = orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
+    if (netSuccessTotal > 0) {
+      creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
+    }
 
     const defaultMsg = orders.length === 1
       ? (orders[0].status === 'completed'

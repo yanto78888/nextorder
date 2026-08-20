@@ -851,10 +851,11 @@ router.post('/order', requireLogin, async (req, res) => {
     // Komisi referral (ke akun yang ngundang user ini, KALAU user ini daftar pakai kode
     // referral) -- dihitung dari total order yang BENERAN sukses aja (bukan cancelled/direfund),
     // bukan dari `total` kotor di atas, biar akurat kalau sebagian item dalam 1x checkout gagal.
-    // isDigital nentuin besarannya persen atau flat, lihat creditReferralCommission().
+    // Satu persentase SAMA RATA berlaku ke SEMUA jenis produk & metode bayar, lihat
+    // creditReferralCommission().
     const netSuccessTotal = orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
     if (netSuccessTotal > 0) {
-      creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id, isDigital: product.provider !== 'manual' });
+      creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
     }
 
     if (orders.every(o => o.status === 'cancelled')) {
