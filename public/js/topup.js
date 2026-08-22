@@ -95,7 +95,8 @@ async function downloadQrImage(imgEl, filename) {
 
 document.getElementById('btn-cancel').addEventListener('click', async () => {
   if (!currentTrxid) return;
-  if (!confirm('Batalkan transaksi top up ini?')) return;
+  const confirmed = await showConfirm('Batalkan transaksi top up ini?', { title: 'Batalkan Top Up', danger: true });
+  if (!confirmed) return;
 
   const btn = document.getElementById('btn-cancel');
   btn.disabled = true;
@@ -112,7 +113,7 @@ document.getElementById('btn-cancel').addEventListener('click', async () => {
     btn.style.display = 'none';
     setTimeout(() => window.location.reload(), 1200);
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, { title: 'Gagal' });
     btn.disabled = false;
     btn.textContent = 'Batal Transaksi';
   }
