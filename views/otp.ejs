@@ -200,10 +200,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // 4. Submit sewa nomor
   if (btnBeli) {
     btnBeli.addEventListener('click', function () {
-      if (!selectedProduct) { alert('Pilih negara dan nama aplikasi dulu.'); return; }
+      if (!selectedProduct) { showToast('Pilih negara dan nama aplikasi dulu.'); return; }
       if (userSaldo < selectedProduct.price) return;
-      var ok = confirm('Sewa nomor ' + selectedProduct.otpServiceName + ' - ' + selectedProduct.otpCountryName + ' seharga ' + fmt(selectedProduct.price) + '?');
-      if (ok && otpOrderForm) otpOrderForm.submit();
+      showConfirm('Sewa nomor ' + selectedProduct.otpServiceName + ' - ' + selectedProduct.otpCountryName + ' seharga ' + fmt(selectedProduct.price) + '?', { title: 'Konfirmasi Sewa Nomor' }).then(function (ok) {
+        if (ok && otpOrderForm) otpOrderForm.submit();
+      });
     });
   }
 });

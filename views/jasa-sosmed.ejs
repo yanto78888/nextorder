@@ -397,17 +397,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const note = catatanInput.value.trim();
             
             if(!link) {
-                alert('Silakan isi Link Target.');
+                showToast('Silakan isi Link Target.');
                 linkInput.focus();
                 return;
             }
             if(isNaN(q) || q < minQ) {
-                alert('Jumlah minimal pemesanan adalah ' + minQ);
+                showToast('Jumlah minimal pemesanan adalah ' + minQ);
                 jumlahInput.focus();
                 return;
             }
             if(q > maxQ) {
-                alert('Jumlah maksimal pemesanan adalah ' + maxQ);
+                showToast('Jumlah maksimal pemesanan adalah ' + maxQ);
                 jumlahInput.focus();
                 return;
             }

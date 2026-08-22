@@ -46,11 +46,6 @@
 
       <!-- Stats -->
       <div class="detail-stats-row">
-        <div class="detail-stat">
-          <div class="detail-stat-val"><%= product.totalSold || 0 %></div>
-          <div class="detail-stat-label">Terjual</div>
-        </div>
-        <div class="detail-stat-divider"></div>
         <% if (isAuto) { %>
         <div class="detail-stat">
           <div class="detail-stat-val" style="color:var(--success);"><i class="fa-solid fa-bolt"></i> Instan</div>
@@ -617,43 +612,8 @@
     wrap.innerHTML=html;
   }
 
-  // ---- Toast notification, pengganti alert() bawaan browser yang keliatan murahan ----
-  function showToast(msg, opts){
-    opts = opts || {};
-    var type = opts.type || 'error';
-    var title = opts.title || (type === 'error' ? 'Belum lengkap' : type === 'success' ? 'Berhasil' : 'Info');
-    var duration = opts.duration || 3800;
-    var icon = type === 'error' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info';
-
-    var stack = document.getElementById('toastStack');
-    if (!stack) {
-      stack = document.createElement('div');
-      stack.id = 'toastStack';
-      stack.className = 'toast-stack';
-      document.body.appendChild(stack);
-    }
-
-    var card = document.createElement('div');
-    card.className = 'toast-card ' + type;
-    card.innerHTML =
-      '<div class="toast-icon"><i class="fa-solid ' + icon + '"></i></div>' +
-      '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>' +
-      '<button type="button" class="toast-close" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>' +
-      '<div class="toast-progress"></div>';
-    // textContent (bukan innerHTML) buat title/msg -- aman walau pesannya nanti dari input user.
-    card.querySelector('.toast-title').textContent = title;
-    card.querySelector('.toast-msg').textContent = msg;
-    card.querySelector('.toast-progress').style.animationDuration = duration + 'ms';
-    stack.appendChild(card);
-
-    var timer = setTimeout(remove, duration);
-    card.querySelector('.toast-close').addEventListener('click', function(){ clearTimeout(timer); remove(); });
-
-    function remove(){
-      card.classList.add('toast-out');
-      card.addEventListener('animationend', function(){ card.remove(); }, { once: true });
-    }
-  }
+  // showToast() sekarang global, didefinisikan sekali di public/js/notify.js (dimuat lewat
+  // partials/head.ejs) -- gak perlu lagi didefinisikan ulang di sini.
 
   // ---- Form ulasan: klik bintang buat kasih nilai ----
   // Sebelumnya bagian ini juga ngurusin "rating & ulasan ikut ganti pas user pilih nominal lain"

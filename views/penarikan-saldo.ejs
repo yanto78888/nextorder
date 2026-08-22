@@ -117,10 +117,16 @@
   var form = document.getElementById('withdrawForm');
   if (!form) return;
   form.addEventListener('submit', function (e) {
+    if (form.dataset.confirmed === '1') { delete form.dataset.confirmed; return; }
+    e.preventDefault();
     var amount = document.getElementById('wdAmount').value;
     var number = document.getElementById('wdNumber').value;
-    var ok = confirm('Konfirmasi penarikan saldo:\n\nNominal: Rp ' + Number(amount || 0).toLocaleString('id-ID') + '\nNomor tujuan: ' + number + '\n\nPastikan nomor di atas SUDAH BENAR. Kesalahan input bukan tanggung jawab admin. Lanjutkan?');
-    if (!ok) e.preventDefault();
+    var msg = 'Nominal: Rp ' + Number(amount || 0).toLocaleString('id-ID') + '\nNomor tujuan: ' + number + '\n\nPastikan nomor di atas SUDAH BENAR. Kesalahan input bukan tanggung jawab admin. Lanjutkan?';
+    showConfirm(msg, { title: 'Konfirmasi Penarikan Saldo', danger: true }).then(function (ok) {
+      if (!ok) return;
+      form.dataset.confirmed = '1';
+      if (form.requestSubmit) form.requestSubmit(); else form.submit();
+    });
   });
 })();
 </script>

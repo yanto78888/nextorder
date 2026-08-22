@@ -82,7 +82,7 @@
 
         <div class="inv-actions">
           <% if (order.status === 'processing') { %>
-          <form method="POST" action="/otp/status/<%= order.id %>/cancel" style="flex:1;" onsubmit="return confirm('Batalkan sewa nomor ini? Saldo akan dikembalikan penuh (hanya bisa dibatalkan selama kode belum masuk).')">
+          <form method="POST" action="/otp/status/<%= order.id %>/cancel" style="flex:1;" class="js-confirm-submit" data-confirm-title="Batalkan Sewa Nomor" data-confirm-msg="Batalkan sewa nomor ini? Saldo akan dikembalikan penuh (hanya bisa dibatalkan selama kode belum masuk)." data-confirm-danger="true">
             <button class="btn danger" type="submit" style="width:100%;"><i class="fa-solid fa-ban"></i> Batalkan</button>
           </form>
           <% } else { %>

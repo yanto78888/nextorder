@@ -58,7 +58,7 @@
             <td><%= new Date(d.createdAt).toLocaleString('id-ID') %></td>
             <td>
               <% if (d.status === 'pending') { %>
-              <form method="POST" action="/topup/<%= d.trxid %>/batal" onsubmit="return confirm('Batalkan transaksi top up ini?')">
+              <form method="POST" action="/topup/<%= d.trxid %>/batal" class="js-confirm-submit" data-confirm-title="Batalkan Top Up" data-confirm-msg="Batalkan transaksi top up ini?" data-confirm-danger="true">
                 <button class="btn small danger" type="submit">Batal</button>
               </form>
               <% } else { %>

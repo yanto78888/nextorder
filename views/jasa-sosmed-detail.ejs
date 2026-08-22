@@ -204,12 +204,12 @@
     // Validasi Minimal dan Maksimal Jumlah di Sini (LANGKAH 3)
     var q = parseInt(qEl.value);
     if (isNaN(q) || q < minQty) { 
-      alert('Jumlah minimal pemesanan adalah ' + minQty); 
+      showToast('Jumlah minimal pemesanan adalah ' + minQty); 
       qEl.focus(); 
       return; 
     }
     if (q > maxQty) { 
-      alert('Jumlah maksimal pemesanan adalah ' + maxQty); 
+      showToast('Jumlah maksimal pemesanan adalah ' + maxQty); 
       qEl.focus(); 
       return; 
     }
@@ -217,7 +217,7 @@
     var m = 'saldo';
     radios.forEach(function (r) { if (r.checked) m = r.value; });
     var f = m === 'qris' ? document.getElementById('buyFormQris') : document.getElementById('buyFormSaldo');
-    if (!injectTargetFields(f)) { alert('Isi dulu Link Target-nya'); return; }
+    if (!injectTargetFields(f)) { showToast('Isi dulu Link Target-nya'); return; }
     if (f) f.submit();
   });
 })();

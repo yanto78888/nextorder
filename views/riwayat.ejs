@@ -50,12 +50,12 @@
               <div class="flex" style="flex-wrap:wrap; gap:6px;">
                 <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
                 <% if (o.canCancel) { %>
-                <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" onsubmit="return confirm('Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga).')">
+                <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Pembatalan" data-confirm-msg="Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga)." data-confirm-danger="true">
                   <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
                 </form>
                 <% } %>
                 <% if (o.canRefill) { %>
-                <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" onsubmit="return confirm('Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.')">
+                <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Refill" data-confirm-msg="Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.">
                   <button class="btn small magenta" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
                 </form>
                 <% } %>

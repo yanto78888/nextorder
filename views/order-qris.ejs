@@ -107,10 +107,12 @@
 
   document.getElementById('btnBatal').addEventListener('click', function () {
     if (settled) { window.location.href = '/produk/' + productId; return; }
-    if (!confirm('Batalkan pembayaran ini?')) return;
-    fetch('/order/qris-status/' + trxid + '/cancel', { method: 'POST' })
-      .catch(function () {})
-      .finally(function () { window.location.href = '/produk/' + productId; });
+    showConfirm('Batalkan pembayaran ini?', { title: 'Batalkan Pembayaran', danger: true }).then(function (ok) {
+      if (!ok) return;
+      fetch('/order/qris-status/' + trxid + '/cancel', { method: 'POST' })
+        .catch(function () {})
+        .finally(function () { window.location.href = '/produk/' + productId; });
+    });
   });
 
   function updateTimer() {

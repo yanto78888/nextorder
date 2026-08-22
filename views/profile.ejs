@@ -48,7 +48,10 @@
       </div>
     </div>
 
-    <div class="section-title"><h3>Order Terbaru</h3><div class="line"></div></div>
+    <div class="section-title">
+      <h3>Order Terbaru</h3><div class="line"></div>
+      <a href="/riwayat" class="btn small ghost" style="flex:none;">Riwayat Order</a>
+    </div>
     <div class="card">
       <% if (recentOrders.length === 0) { %>
         <div class="empty-state">Belum ada order. <a href="/produk" style="color:var(--cyan)">Mulai belanja →</a></div>
@@ -182,7 +185,7 @@
           </div>
         </div>
         <% if (user.googleId) { %>
-          <form method="POST" action="/profile/google/disconnect" onsubmit="return confirm('Putuskan akun Google dari profil ini? Kamu tetap bisa masuk pakai username &amp; password.');" style="margin:0;">
+          <form method="POST" action="/profile/google/disconnect" class="js-confirm-submit" data-confirm-title="Putuskan Akun Google" data-confirm-msg="Putuskan akun Google dari profil ini? Kamu tetap bisa masuk pakai username &amp; password." style="margin:0;">
             <button class="btn small ghost" type="submit">Putuskan</button>
           </form>
         <% } else if (googleReady) { %>
@@ -208,7 +211,7 @@
           <button type="button" class="btn small ghost" onclick="copyKey('apiKeyTransactionField', this)">Salin</button>
         </div>
         <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyTransactionIp || '-' %></code></div>
-        <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Transaksi? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
+        <form method="POST" action="/profile/api-key/generate" class="js-confirm-submit" data-confirm-title="Generate Ulang Key" data-confirm-msg="Generate ulang API Key Transaksi? Key lama langsung berhenti berfungsi." style="margin:0 0 10px;">
           <input type="hidden" name="scope" value="transaction">
           <label style="font-size:12px;">IP baru (IPv4/IPv6, kosongkan buat pakai yang sama: <%= user.apiKeyTransactionIp || '-' %>)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
@@ -216,7 +219,7 @@
             <button class="btn small ghost" type="submit">Generate Ulang</button>
           </div>
         </form>
-        <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API Key Transaksi? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
+        <form method="POST" action="/profile/api-key/revoke" class="js-confirm-submit" data-confirm-title="Cabut API Key" data-confirm-msg="Cabut API Key Transaksi? Semua integrasi yang pakai key ini langsung berhenti bisa akses." data-confirm-danger="true" style="margin:0;">
           <input type="hidden" name="scope" value="transaction">
           <button class="btn small danger" type="submit">Cabut Key Transaksi</button>
         </form>
@@ -242,7 +245,7 @@
           <button type="button" class="btn small ghost" onclick="copyKey('apiKeyDepositField', this)">Salin</button>
         </div>
         <div class="helper-text" style="margin:8px 0;">Terdaftar untuk IP: <code><%= user.apiKeyDepositIp || '-' %></code></div>
-        <form method="POST" action="/profile/api-key/generate" onsubmit="return confirm('Generate ulang API Key Deposit? Key lama langsung berhenti berfungsi.')" style="margin:0 0 10px;">
+        <form method="POST" action="/profile/api-key/generate" class="js-confirm-submit" data-confirm-title="Generate Ulang Key" data-confirm-msg="Generate ulang API Key Deposit? Key lama langsung berhenti berfungsi." style="margin:0 0 10px;">
           <input type="hidden" name="scope" value="deposit">
           <label style="font-size:12px;">IP baru (IPv4/IPv6, kosongkan buat pakai yang sama: <%= user.apiKeyDepositIp || '-' %>)</label>
           <div class="flex" style="gap:8px; margin-top:4px;">
@@ -250,7 +253,7 @@
             <button class="btn small ghost" type="submit">Generate Ulang</button>
           </div>
         </form>
-        <form method="POST" action="/profile/api-key/revoke" onsubmit="return confirm('Cabut API Key Deposit? Semua integrasi yang pakai key ini langsung berhenti bisa akses.')" style="margin:0;">
+        <form method="POST" action="/profile/api-key/revoke" class="js-confirm-submit" data-confirm-title="Cabut API Key" data-confirm-msg="Cabut API Key Deposit? Semua integrasi yang pakai key ini langsung berhenti bisa akses." data-confirm-danger="true" style="margin:0;">
           <input type="hidden" name="scope" value="deposit">
           <button class="btn small danger" type="submit">Cabut Key Deposit</button>
         </form>

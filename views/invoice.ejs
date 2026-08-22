@@ -2,32 +2,93 @@
 <html lang="id">
 <head><%- include('partials/head') %>
 <style>
-.inv-wrap { max-width: 460px; margin: 0 auto; padding: 20px 16px 100px; }
-.inv-card { background: var(--bg-panel); border: 1.5px solid var(--border-glow); border-radius: 16px; overflow: hidden; }
-.inv-status-band { padding: 20px; text-align: center; }
-.inv-status-band.completed { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(46,204,113,0.05)); }
-.inv-status-band.processing { background: linear-gradient(135deg, rgba(245,197,24,0.18), rgba(245,197,24,0.05)); }
-.inv-status-band.cancelled { background: linear-gradient(135deg, rgba(229,9,20,0.18), rgba(229,9,20,0.05)); }
-.inv-status-icon { font-size: 46px; margin-bottom: 8px; }
-.inv-status-icon.completed { color: #2ecc71; }
-.inv-status-icon.processing { color: #f5c518; }
-.inv-status-icon.cancelled { color: var(--danger); }
-.inv-status-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
-.inv-status-sub { font-size: 12px; color: var(--text-dim); }
-.inv-body { padding: 20px; }
+.inv-wrap { max-width: 460px; margin: 0 auto; padding: 24px 16px 100px; }
+
+/* ---- Kop kecil di atas kartu: identitas situs + label "E-Invoice" ---- */
+.inv-brand-head { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; color: var(--text-dim); }
+.inv-brand-head .inv-brand-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; flex: none; }
+.inv-brand-head b { color: var(--text-main); font-weight: 800; }
+.inv-brand-head span { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; opacity: .75; }
+
+.inv-card {
+  background: var(--bg-panel);
+  border: 1.5px solid var(--border-glow);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 12px 32px rgba(0,0,0,0.12);
+  position: relative;
+}
+.inv-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--amber));
+}
+
+.inv-status-band { padding: 28px 20px 22px; text-align: center; }
+.inv-status-band.completed { background: linear-gradient(180deg, rgba(46,204,113,0.14), transparent); }
+.inv-status-band.processing { background: linear-gradient(180deg, rgba(245,197,24,0.14), transparent); }
+.inv-status-band.cancelled { background: linear-gradient(180deg, rgba(229,9,20,0.14), transparent); }
+
+.inv-status-icon-circle {
+  width: 64px; height: 64px; margin: 0 auto 12px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+}
+.inv-status-band.completed .inv-status-icon-circle { background: rgba(46,204,113,0.14); color: #2ecc71; box-shadow: 0 0 0 6px rgba(46,204,113,0.07); }
+.inv-status-band.cancelled .inv-status-icon-circle { background: rgba(229,9,20,0.14); color: var(--danger); box-shadow: 0 0 0 6px rgba(229,9,20,0.07); }
+.inv-status-band.processing .inv-status-icon-circle { background: rgba(245,197,24,0.16); color: #d9a000; box-shadow: 0 0 0 6px rgba(245,197,24,0.08); animation: invPulse 1.8s ease-in-out infinite; }
+@keyframes invPulse { 0%, 100% { box-shadow: 0 0 0 6px rgba(245,197,24,0.08); } 50% { box-shadow: 0 0 0 10px rgba(245,197,24,0.03); } }
+
+.inv-status-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.inv-status-sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; max-width: 320px; margin: 0 auto; }
+
+/* ---- "Sobekan" tiket pemisah antara status band & rincian, gaya struk ---- */
+.inv-cut { height: 1px; margin: 0 20px; background-image: linear-gradient(90deg, var(--border-glow) 60%, transparent 0); background-size: 12px 1px; background-repeat: repeat-x; }
+
+.inv-body { padding: 18px 20px 6px; }
 .inv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-glow); font-size: 13px; gap: 12px; }
 .inv-row:last-child { border-bottom: none; }
 .inv-row .inv-label { color: var(--text-dim); flex-shrink: 0; }
 .inv-row .inv-value { text-align: right; font-weight: 600; word-break: break-word; }
 .inv-row .inv-value.mono { font-family: 'Courier New', monospace; }
-.inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--bg-panel-2); }
-.inv-total-label { font-size: 13px; color: var(--text-dim); font-weight: 700; }
-.inv-total-value { font-size: 20px; font-weight: 800; color: var(--cyan); }
-.inv-detail-box { margin: 0 20px 20px; padding: 14px; background: var(--bg-panel-2); border-radius: 10px; border: 1px solid var(--border-glow); }
-.inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
+
+.inv-id-box { margin: 14px 20px 0; }
+.inv-id-box .copy-field-value { font-size: 15px; }
+
+.inv-total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 18px 20px 0; padding: 16px 18px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(21,101,192,0.1), rgba(21,101,192,0.03));
+  border: 1px solid rgba(21,101,192,0.18);
+}
+.inv-total-label { font-size: 12.5px; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.inv-total-value { font-size: 22px; font-weight: 800; color: var(--cyan); font-family: var(--font-mono); }
+
+.inv-detail-box { margin: 16px 20px 0; padding: 14px; background: var(--bg-panel-2); border-radius: 12px; border: 1px solid var(--border-glow); }
+.inv-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.inv-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); }
 .inv-detail-content { font-size: 13px; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
-.inv-actions { display: flex; gap: 8px; padding: 0 20px 20px; }
-.inv-barcode { text-align: center; padding: 0 20px 20px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+
+.inv-actions { display: flex; gap: 10px; padding: 22px 20px 20px; }
+
+/* ---- Barcode dekoratif (visual, bukan barcode asli terscan) ---- */
+.inv-barcode-box { margin: 4px 20px 4px; padding: 14px 10px 8px; text-align: center; }
+.inv-barcode-bars {
+  height: 42px;
+  background-image: repeating-linear-gradient(90deg,
+    var(--text-main) 0px, var(--text-main) 2px,
+    transparent 2px, transparent 5px,
+    var(--text-main) 5px, var(--text-main) 6px,
+    transparent 6px, transparent 10px,
+    var(--text-main) 10px, var(--text-main) 13px,
+    transparent 13px, transparent 15px,
+    var(--text-main) 15px, var(--text-main) 16px,
+    transparent 16px, transparent 20px);
+  opacity: .82;
+  border-radius: 2px;
+}
+.inv-barcode-code { margin-top: 6px; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 3px; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -37,12 +98,17 @@
   <div class="main no-bottom-nav">
     <div class="inv-wrap">
 
+      <div class="inv-brand-head">
+        <span class="inv-brand-icon"><i class="fa-solid fa-bolt"></i></span>
+        <b><%= config.siteName %></b><span>&middot; E-Invoice</span>
+      </div>
+
       <% if (success) { %><div class="alert success" style="margin-bottom:14px;"><%= success %></div><% } %>
 
       <div class="inv-card">
         <% const statusClass = order.status === 'completed' ? 'completed' : (order.status === 'cancelled' ? 'cancelled' : 'processing'); %>
         <div class="inv-status-band <%= statusClass %>">
-          <div class="inv-status-icon <%= statusClass %>">
+          <div class="inv-status-icon-circle">
             <% if (statusClass === 'completed') { %><i class="fa-solid fa-circle-check"></i>
             <% } else if (statusClass === 'cancelled') { %><i class="fa-solid fa-circle-xmark"></i>
             <% } else { %><i class="fa-solid fa-hourglass-half"></i><% } %>
@@ -61,11 +127,9 @@
           </div>
         </div>
 
+        <div class="inv-cut"></div>
+
         <div class="inv-body">
-          <div class="inv-row">
-            <span class="inv-label">No. Invoice</span>
-            <span class="inv-value mono"><%= order.id %></span>
-          </div>
           <div class="inv-row">
             <span class="inv-label">Produk</span>
             <span class="inv-value"><%= order.productName %></span>
@@ -90,6 +154,13 @@
           </div>
         </div>
 
+        <div class="inv-id-box">
+          <div class="copy-field-row">
+            <span class="copy-field-value" id="invIdField"><%= order.id %></span>
+            <button type="button" class="copy-chip-btn" onclick="copyInv('invIdField', this)"><i class="fa-solid fa-copy"></i> Salin</button>
+          </div>
+        </div>
+
         <div class="inv-total-row">
           <span class="inv-total-label">Total Bayar</span>
           <span class="inv-total-value">Rp <%= order.total.toLocaleString('id-ID') %></span>
@@ -97,19 +168,25 @@
 
         <% if (order.status === 'completed' && order.detail) { %>
           <div class="inv-detail-box">
-            <div class="inv-detail-title"><i class="fa-solid fa-key"></i> Detail Produk / Kode</div>
-            <div class="inv-detail-content"><%= order.detail %></div>
+            <div class="inv-detail-head">
+              <span class="inv-detail-title"><i class="fa-solid fa-key"></i> Detail Produk / Kode</span>
+              <button type="button" class="copy-chip-btn" onclick="copyInv('invDetailContent', this)"><i class="fa-solid fa-copy"></i> Salin</button>
+            </div>
+            <div class="inv-detail-content" id="invDetailContent"><%= order.detail %></div>
           </div>
         <% } %>
 
         <% if (order.status === 'completed' && usageInstructions) { %>
           <div class="inv-detail-box">
-            <div class="inv-detail-title"><i class="fa-solid fa-circle-info"></i> Cara Menggunakan</div>
+            <div class="inv-detail-head"><span class="inv-detail-title"><i class="fa-solid fa-circle-info"></i> Cara Menggunakan</span></div>
             <div class="inv-detail-content"><%= usageInstructions %></div>
           </div>
         <% } %>
 
-        <div class="inv-barcode">* * * * * <%= order.id %> * * * * *</div>
+        <div class="inv-barcode-box">
+          <div class="inv-barcode-bars"></div>
+          <div class="inv-barcode-code"><%= order.id %></div>
+        </div>
 
         <div class="inv-actions">
           <a href="/riwayat" class="btn ghost" style="flex:1;">Riwayat Lain</a>
@@ -120,6 +197,33 @@
     </div>
   </div>
 </div>
+
+<script>
+function copyInv(fieldId, btn) {
+  var field = document.getElementById(fieldId);
+  if (!field) return;
+  var text = field.value !== undefined ? field.value : field.textContent;
+  function done() {
+    if (!btn) return;
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin';
+    btn.classList.add('copied');
+    setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1500);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(done);
+  } else {
+    var range = document.createRange();
+    range.selectNodeContents(field);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+    done();
+  }
+}
+</script>
 
 <% if (order.status === 'processing') { %>
 <script>
