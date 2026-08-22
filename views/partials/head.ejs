@@ -3,11 +3,16 @@
 <script>
 // Terapkan mode malam/terang SEBELUM CSS lain dimuat, biar halaman gak
 // "kedip" putih dulu baru gelap saat direfresh dengan mode malam aktif.
+// Default situs sekarang MODE MALAM (senada sama referensi tampilan gelap),
+// kecuali user pernah eksplisit milih mode terang lewat toggle (tersimpan
+// di localStorage sebagai 'light').
 (function () {
   try {
     var saved = localStorage.getItem('nx_theme');
-    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-  } catch (e) {}
+    if (saved !== 'light') document.documentElement.setAttribute('data-theme', 'dark');
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +24,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/css/style.css">
+<!-- Notifikasi custom (toast & modal konfirmasi) pengganti alert()/confirm() bawaan browser,
+     dimuat global di semua halaman lewat head ini. Lihat public/js/notify.js. -->
+<script src="/js/notify.js" defer></script>
 <%
   // ---------- Meta SEO & Open Graph ----------
   // Semua halaman otomatis dapat title/description/OG yang masuk akal dari config.siteName +
