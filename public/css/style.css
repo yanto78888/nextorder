@@ -764,6 +764,20 @@ input[type="file"]::file-selector-button {
   width: auto;
   margin: 0;
 }
+
+/* ---- Toolbar Pilih Semua / Hapus Terpilih di Kelola Produk ---- */
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+}
+.bulk-actions-bar .check-row { background: transparent; border: none; padding: 0; }
 .account-card { position: sticky; top: 82px; }
 .account-note { margin-bottom: 0; }
 
