@@ -141,6 +141,25 @@
         </div>
         <div class="helper-text">Produk auto top up Digiflazz dan Jasa Sosmed (IndoSMM) dikelola terpisah di halamannya masing-masing supaya tidak tercampur dengan stok manual di bawah ini.</div>
 
+        <% if (manualProducts.length > 0) { %>
+        <!-- Form kosong (gak nge-wrap tabel) -- checkbox & tombol di bawah nempel ke form ini
+             lewat atribut form="...", bukan lewat nesting <form>, karena tiap baris produk udah
+             punya form Edit/Hapus sendiri-sendiri (form gak boleh nested di HTML). -->
+        <form id="bulkDeleteForm" method="POST" action="/admin/produk/bulk-hapus"></form>
+        <form id="deleteAllForm" method="POST" action="/admin/produk/hapus-semua" class="js-confirm-submit" data-confirm-title="Hapus Semua Produk Manual" data-confirm-msg="Hapus SEMUA <%= manualProducts.length %> produk stok manual sekaligus? Produk Digiflazz &amp; Jasa Sosmed tidak ikut terhapus. Tindakan ini tidak bisa dibatalkan." data-confirm-danger="true"></form>
+
+        <div class="bulk-actions-bar" id="bulkActionsBar">
+          <label class="check-row" style="margin:0;">
+            <input type="checkbox" id="selectAllProducts"> Pilih Semua
+          </label>
+          <span class="helper-text" id="bulkSelectedCount">0 dipilih</span>
+          <div class="flex" style="gap:8px; margin-left:auto; flex-wrap:wrap;">
+            <button type="submit" form="bulkDeleteForm" class="btn small danger" id="bulkDeleteBtn" disabled>Hapus Terpilih</button>
+            <button type="submit" form="deleteAllForm" class="btn small danger">Hapus Semua (<%= manualProducts.length %>)</button>
+          </div>
+        </div>
+        <% } %>
+
         <% if (manualProducts.length === 0) { %>
           <div class="empty-state mt-16">Belum ada produk stok manual.</div>
         <% } else { %>
@@ -149,10 +168,11 @@
           <% catOrder.forEach(cat => { %>
             <div class="section-title"><h3><%= cat %></h3><span class="helper-text"><%= catGroups[cat].length %> produk</span><div class="line"></div></div>
             <table>
-              <thead><tr><th>Nama</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
+              <thead><tr><th style="width:32px;"></th><th>Nama</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
                 <% catGroups[cat].forEach(p => { %>
                 <tr>
+                  <td><input type="checkbox" class="produk-select-checkbox" name="ids" value="<%= p.id %>" form="bulkDeleteForm"></td>
                   <td><%= p.name %><br><span class="helper-text"><% if (p.gamePreset && p.gamePreset !== 'none') { %><i class="fa-solid <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).icon || 'fa-gamepad' %>"></i> <%= (gamePresetList.find(g=>g.key===p.gamePreset)||{}).label || p.gamePreset %><% } else { %>&nbsp;<% } %></span></td>
                   <td class="mono">Rp <%= p.price.toLocaleString('id-ID') %></td>
                   <td><span class="badge <%= (p.stockItems && p.stockItems.length) ? 'completed' : 'cancelled' %>"><%= p.stockItems ? p.stockItems.length : 0 %></span></td>
@@ -214,10 +234,49 @@
   (function () {
     var select = document.getElementById('gamePresetSelect');
     var box = document.getElementById('customFieldsBox');
-    if (!select || !box) return;
-    select.addEventListener('change', function () {
-      box.style.display = select.value === 'custom' ? '' : 'none';
+    if (select && box) {
+      select.addEventListener('change', function () {
+        box.style.display = select.value === 'custom' ? '' : 'none';
+      });
+    }
+  })();
+
+  // ---- Pilih Semua / Hapus Terpilih (Kelola Produk) ----
+  (function () {
+    var selectAll = document.getElementById('selectAllProducts');
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.produk-select-checkbox'));
+    var deleteBtn = document.getElementById('bulkDeleteBtn');
+    var countLabel = document.getElementById('bulkSelectedCount');
+    if (!selectAll || checkboxes.length === 0) return;
+
+    function refresh() {
+      var checked = checkboxes.filter(function (c) { return c.checked; });
+      countLabel.textContent = checked.length + ' dipilih';
+      deleteBtn.disabled = checked.length === 0;
+      deleteBtn.textContent = checked.length > 0 ? 'Hapus Terpilih (' + checked.length + ')' : 'Hapus Terpilih';
+      selectAll.checked = checked.length === checkboxes.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+    }
+    selectAll.addEventListener('change', function () {
+      checkboxes.forEach(function (c) { c.checked = selectAll.checked; });
+      refresh();
     });
+    checkboxes.forEach(function (c) { c.addEventListener('change', refresh); });
+
+    var bulkForm = document.getElementById('bulkDeleteForm');
+    if (bulkForm) {
+      bulkForm.addEventListener('submit', function (e) {
+        var n = checkboxes.filter(function (c) { return c.checked; }).length;
+        if (bulkForm.dataset.confirmed === '1') { delete bulkForm.dataset.confirmed; return; }
+        e.preventDefault();
+        showConfirm('Hapus ' + n + ' produk terpilih? Tindakan ini tidak bisa dibatalkan.', { title: 'Hapus Produk Terpilih', danger: true }).then(function (ok) {
+          if (!ok) return;
+          bulkForm.dataset.confirmed = '1';
+          if (bulkForm.requestSubmit) bulkForm.requestSubmit(); else bulkForm.submit();
+        });
+      });
+    }
+    refresh();
   })();
 </script>
 </body>
