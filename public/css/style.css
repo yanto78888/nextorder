@@ -318,33 +318,47 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 80px; }
 
+/* ---------- BUTTON ----------
+   Style tombol "keren": pill rounded, isi solid pakai gradient tipis, hover ngangkat
+   dikit + glow warna sesuai varian, transisi halus pakai easing yang kerasa "hidup"
+   (bukan linear). Satu class .btn ini dipakai di SELURUH situs, jadi cukup diubah
+   di sini buat konsisten di semua halaman -- dari tombol beli, submit form, sampai
+   tombol di kartu member. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px 22px;
-  border-radius: var(--radius);
-  border: 1px solid var(--cyan);
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: 1.5px solid var(--cyan);
   background: rgba(21,101,192,0.08);
   color: var(--cyan);
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 13px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
   cursor: pointer;
-  text-transform: uppercase;
-  transition: all .15s ease;
+  text-transform: none;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s cubic-bezier(.2,.8,.2,1), background .18s ease, color .18s ease, filter .18s ease;
 }
-.btn:hover { background: var(--cyan); color: var(--bg-deep); box-shadow: 0 2px 8px rgba(21,101,192,0.28); }
-.btn.solid { background: var(--cyan); color: var(--bg-deep); }
+.btn:hover { background: var(--cyan); color: #fff; box-shadow: 0 6px 16px rgba(21,101,192,0.3); transform: translateY(-1.5px); }
+.btn:active { transform: translateY(0) scale(.97); }
+.btn.solid {
+  background: linear-gradient(135deg, var(--cyan-light) 0%, var(--cyan) 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(21,101,192,0.3);
+}
+.btn.solid:hover { box-shadow: 0 8px 22px rgba(21,101,192,0.4); transform: translateY(-2px); filter: brightness(1.06); color: #fff; }
 .btn.magenta { border-color: var(--magenta); color: var(--magenta); background: rgba(150,105,10,0.08); }
-.btn.magenta:hover { background: var(--magenta); color: #fff; box-shadow: 0 2px 8px rgba(150,105,10,0.28); }
+.btn.magenta:hover { background: linear-gradient(135deg, var(--magenta) 0%, var(--amber) 100%); color: #fff; box-shadow: 0 6px 16px rgba(150,105,10,0.3); transform: translateY(-1.5px); }
 .btn.danger { border-color: var(--danger); color: var(--danger); background: rgba(229,9,20,0.08); }
-.btn.danger:hover { background: var(--danger); color: #fff; }
-.btn.ghost { border-color: var(--border-glow); color: var(--text-dim); background: transparent; }
-.btn.small { padding: 7px 14px; font-size: 11px; }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.danger:hover { background: var(--danger); color: #fff; box-shadow: 0 6px 16px rgba(229,9,20,0.28); transform: translateY(-1.5px); }
+.btn.ghost { border-color: var(--border-glow); color: var(--text-dim); background: transparent; box-shadow: none; }
+.btn.ghost:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(21,101,192,0.06); box-shadow: none; transform: translateY(-1.5px); }
+.btn.small { padding: 8px 15px; font-size: 11.5px; border-radius: 9px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
 /* ---------- TABLE ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -979,23 +993,20 @@ input[type="file"]::file-selector-button {
 /* ---- HD polish: bolder glow, thicker borders, crisper cards ---- */
 .card {
   border-width: 1.5px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.05);
   backdrop-filter: blur(6px);
 }
 .card::before { height: 3px; box-shadow: 0 0 14px rgba(21,101,192,0.23); }
 .nf-card {
   border-width: 1.5px;
-  box-shadow: 0 6px 8px rgba(0,0,0,0.23);
+  /* Shadow tipis -- elevasi halus, bukan bayangan tebal/gelap kayak sebelumnya. */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.06);
 }
 .nf-card:hover {
-  box-shadow: 0 10px 28px rgba(21,101,192,0.25), 0 0 0 1px var(--cyan) inset;
+  box-shadow: 0 8px 20px rgba(21,101,192,0.16), 0 0 0 1px var(--cyan) inset;
 }
-.btn {
-  border-width: 1.5px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.16);
-}
-.btn.solid { box-shadow: 0 2px 6px rgba(21,101,192,0.20); }
-.btn.magenta { box-shadow: 0 2px 6px rgba(150,105,10,0.18); }
+/* Shadow tombol udah didefinisikan per-varian di block .btn utama (lihat atas) --
+   gak perlu override di sini lagi. */
 /* Header sticky ini backgroundnya udah solid/opaque (gradient hitam pekat di atas, gak ada
    transparansi sama sekali) -- jadi backdrop-filter di sini gak pernah kelihatan efeknya blur
    apa pun, cuma numpang lewat doang. Padahal karena elemennya position:sticky, browser tetap
@@ -3497,6 +3508,77 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
   .toast-card, .toast-progress { animation-duration: .01ms !important; }
 }
 
+/* ===== CONFIRM MODAL ================================================================
+   Pengganti window.confirm() bawaan browser. Dipicu lewat showConfirm(pesan, opts)
+   di notify.js, ngembaliin Promise<boolean>. Style-nya senada sama .group-modal
+   (overlay gelap + kartu tengah dengan aksen gradient di atas). ===== */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.confirm-modal-overlay.show { opacity: 1; pointer-events: auto; }
+.confirm-modal {
+  width: 100%;
+  max-width: 360px;
+  background: linear-gradient(165deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+  border: 1.5px solid var(--border-glow);
+  border-radius: 18px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.32), 0 0 16px rgba(21,101,192,0.15);
+  transform: scale(.92) translateY(10px);
+  transition: transform .18s cubic-bezier(.2,.8,.2,1);
+}
+.confirm-modal-overlay.show .confirm-modal { transform: scale(1) translateY(0); }
+.confirm-modal::before {
+  content: '';
+  position: absolute; top: -1px; left: -1px; right: -1px; height: 4px;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--amber));
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 0 16px rgba(21,101,192,0.27);
+}
+.confirm-modal.danger::before { background: linear-gradient(90deg, var(--danger), var(--amber)); }
+.confirm-modal-icon {
+  width: 52px; height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px;
+  background: rgba(21,101,192,0.12);
+  color: var(--cyan);
+  filter: drop-shadow(0 0 10px rgba(21,101,192,0.35));
+}
+.confirm-modal.danger .confirm-modal-icon {
+  background: rgba(255,107,107,0.14);
+  color: var(--danger);
+  filter: drop-shadow(0 0 10px rgba(255,107,107,0.35));
+}
+.confirm-modal-title {
+  font-size: 19px;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+.confirm-modal-msg {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin: 0 0 22px;
+  white-space: pre-line;
+}
+.confirm-modal-actions { display: flex; gap: 10px; }
+.confirm-modal-actions .btn { flex: 1; margin: 0; }
+
 /* ===== SKIRK HERO (banner brand ikonik di atas /produk) =====================================
    Warna & style di-scope sendiri lewat custom property berawalan --hero- di selector
    .skirk-hero -- SENGAJA gak numpang di --cyan/--bg-panel dkk milik tema situs, biar hero ini
@@ -3541,8 +3623,6 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
 @keyframes hsSpin { to { transform: rotate(360deg); } }
 .skirk-hero .hs-rune-inner { position: absolute; inset: 30px; animation: hsSpinRev 18s linear infinite; transform-origin: 50% 50%; opacity: .4; }
 @keyframes hsSpinRev { to { transform: rotate(-360deg); } }
-.skirk-hero .hs-mascot-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; animation: hsFloat 5s ease-in-out infinite; }
-@keyframes hsFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .skirk-hero .hs-glint { animation: hsGlintSweep 3.6s ease-in-out infinite; }
 @keyframes hsGlintSweep { 0%, 100% { opacity: 0; transform: translateX(-12px); } 45% { opacity: 0; } 55% { opacity: .9; transform: translateX(0); } 70% { opacity: 0; transform: translateX(12px); } }
 .skirk-hero .hs-shard { position: absolute; animation: hsDrift 4.5s ease-in-out infinite; opacity: .8; }
@@ -3574,7 +3654,7 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
   .skirk-hero .hs-stars { inset: 0 0 0 45%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skirk-hero .hs-star, .skirk-hero .hs-rune, .skirk-hero .hs-rune-inner, .skirk-hero .hs-mascot-wrap,
+  .skirk-hero .hs-star, .skirk-hero .hs-rune, .skirk-hero .hs-rune-inner,
   .skirk-hero .hs-glint, .skirk-hero .hs-shard, .skirk-hero .hs-cta { animation-duration: .01ms !important; }
 }
 
