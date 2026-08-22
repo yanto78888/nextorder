@@ -712,6 +712,12 @@ router.get('/otp/status/:id/check', requireLogin, async (req, res) => {
     const result = await getActivationStatus(order.providerRefId);
     if (result.state === 'code' || result.state === 'waiting_retry') {
       patchOrder(order.id, { status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
+      // Komisi referral juga berlaku buat produk OTP (satu persentase SAMA RATA ke SEMUA jenis
+      // transaksi, lihat lib/referrals.js) -- SEBELUMNYA order OTP gak pernah lewat sini sama
+      // sekali karena dibuat manual di POST /otp/order (bukan lewat fulfillAndRecordOrders yang
+      // dipakai checkout produk lain), jadi referrer gak pernah dapet komisi dari sewa nomor OTP.
+      const otpBuyer = findUserById(order.userId);
+      if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id });
       finishActivation(order.providerRefId).catch(() => {});
       return res.json({ success: true, status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
     }
@@ -849,11 +855,15 @@ router.post('/order', requireLogin, async (req, res) => {
     }
 
     // Komisi referral (ke akun yang ngundang user ini, KALAU user ini daftar pakai kode
-    // referral) -- dihitung dari total order yang BENERAN sukses aja (bukan cancelled/direfund),
-    // bukan dari `total` kotor di atas, biar akurat kalau sebagian item dalam 1x checkout gagal.
-    // Satu persentase SAMA RATA berlaku ke SEMUA jenis produk & metode bayar, lihat
-    // creditReferralCommission().
-    const netSuccessTotal = orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
+    // referral) -- dihitung dari order yang udah PASTI 'completed' di titik ini aja (stok manual/
+    // instant delivery). Order Digiflazz & IndoSMM yang masih 'processing' di titik ini SENGAJA
+    // belum dikreditkan sekarang -- baru dikreditkan belakangan pas beneran 'completed' (lihat
+    // lib/digiflazz.js resolveDigiflazzOrder() & lib/indosmm.js checkPendingIndosmmOrders()).
+    // Kalau dikreditkan di sini buat yang masih 'processing', order yang ternyata GAGAL di sisi
+    // provider (saldo di-refund ke buyer) tetap bikin referrer kepotong komisi dari transaksi yang
+    // gak jadi -- gak bisa ditarik balik lagi. Satu persentase SAMA RATA berlaku ke SEMUA jenis
+    // produk & metode bayar, lihat creditReferralCommission().
+    const netSuccessTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.total, 0);
     if (netSuccessTotal > 0) {
       creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
     }

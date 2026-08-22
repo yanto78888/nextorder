@@ -184,6 +184,10 @@ router.get('/order/:id', requireApiKey('transaction'), async (req, res) => {
       const result = await getActivationStatus(order.providerRefId);
       if (result.state === 'code' || result.state === 'waiting_retry') {
         current = patchOrder(order.id, { status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
+        // Komisi referral juga berlaku buat produk OTP -- lihat catatan lengkap di routes/user.js
+        // GET /otp/status/:id/check (bug yang sama, dua jalur beda buat cek status yang sama).
+        const otpBuyer = findUserById(order.userId);
+        if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id });
         finishActivation(order.providerRefId).catch(() => {});
       } else if (result.state === 'cancelled') {
         current = patchOrder(order.id, { status: 'cancelled', note: 'Aktivasi dibatalkan oleh provider' });
@@ -365,8 +369,10 @@ async function processOrderRequest(req, res, { expectedProvider, label }) {
     });
 
     // Komisi referral juga berlaku buat order lewat API reseller (bukan cuma checkout web biasa)
-    // -- "setiap transaksi sukses" itu APAPUN jalurnya, gak dibatasin cuma yang lewat web.
-    const netSuccessTotal = orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
+    // -- "setiap transaksi sukses" itu APAPUN jalurnya, gak dibatasin cuma yang lewat web. Dihitung
+    // dari order yang udah PASTI 'completed' di titik ini aja -- yang masih 'processing' baru
+    // dikreditkan belakangan pas beneran selesai, lihat catatan lengkap di routes/user.js.
+    const netSuccessTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.total, 0);
     if (netSuccessTotal > 0) {
       creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
     }

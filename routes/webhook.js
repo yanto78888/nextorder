@@ -5,6 +5,8 @@ import { processQiospayCallbackForOrder } from '../lib/orderQris.js';
 import { processDigiflazzWebhook, verifyDigiflazzSignature } from '../lib/digiflazz.js';
 import { patchOrder, getAllOrders } from '../lib/orders.js';
 import { finishActivation } from '../lib/herosms.js';
+import { findUserById } from '../lib/users.js';
+import { creditReferralCommission } from '../lib/referrals.js';
 
 const router = express.Router();
 
@@ -183,6 +185,11 @@ router.post('/webhooks/herosms/:secret', async (req, res) => {
     }
 
     patchOrder(order.id, { status: 'completed', detail: code, note: 'Kode OTP diterima via webhook' });
+
+    // Komisi referral juga berlaku buat produk OTP -- lihat catatan lengkap di routes/user.js
+    // GET /otp/status/:id/check (bug yang sama, di jalur webhook real-time HeroSMS).
+    const otpBuyer = findUserById(order.userId);
+    if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id });
 
     // Beritahu HeroSMS bahwa kode sudah berhasil dipakai (setStatus 6 = "completed") supaya
     // slot nomor dilepas dan tidak terus di-charge. Fire-and-forget biar response cepat balik.

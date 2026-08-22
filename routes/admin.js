@@ -8,11 +8,12 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, findProductById, addProductStock, deleteProductStock, deleteProductsByGroup, renameProductGroup,
+  getAllProducts, createProduct, updateProduct, deleteProduct, deleteProductsByIds, deleteAllManualProducts, findProductById, addProductStock, deleteProductStock, deleteProductsByGroup, renameProductGroup,
   getAllGroupNames, createGroupName, renameGroupName, deleteGroupName,
   getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
+import { creditReferralCommission } from '../lib/referrals.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { notifyWithdrawal } from '../lib/telegram.js';
 import {
@@ -388,6 +389,23 @@ router.post('/produk/:id/stock/:stockId/hapus', (req, res) => {
 router.post('/produk/:id/hapus', (req, res) => {
   deleteProduct(req.params.id);
   removeFlashSaleItemsByProductId(req.params.id);
+  res.redirect('/admin/produk');
+});
+
+// Hapus beberapa produk manual sekaligus (checkbox "pilih" di tabel + tombol "Hapus Terpilih"),
+// biar admin gak perlu klik Hapus satu-satu kayak sebelumnya.
+router.post('/produk/bulk-hapus', (req, res) => {
+  const ids = Array.isArray(req.body.ids) ? req.body.ids : (req.body.ids ? [req.body.ids] : []);
+  const deleted = deleteProductsByIds(ids);
+  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
+  res.redirect('/admin/produk');
+});
+
+// Hapus SEMUA produk Stok Manual sekaligus (produk Digiflazz & IndoSMM gak ikut -- lihat
+// catatan di deleteAllManualProducts()).
+router.post('/produk/hapus-semua', (req, res) => {
+  const deleted = deleteAllManualProducts();
+  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
   res.redirect('/admin/produk');
 });
 
@@ -1392,7 +1410,24 @@ router.get('/order', (req, res) => {
 router.post('/order/:id/status', async (req, res) => {
   try {
     const { status, detail } = req.body;
+    // Simpan status SEBELUM diubah -- dipakai buat nentuin apa order ini baru aja "berubah jadi
+    // completed" (bukan udah completed dari awal terus disimpen ulang) sebelum manggil
+    // updateOrderStatus() di bawah. Ditaruh di variabel duluan karena updateOrderStatus() langsung
+    // nimpa status lama di DB.
+    const before = findOrderById(req.params.id);
+    const wasAlreadyCompleted = before && before.status === 'completed';
     updateOrderStatus(req.params.id, status, detail);
+    // Komisi referral buat order yang tadinya 'processing' (paling sering: stok manual sempat
+    // habis, admin baru bisa kirim & tandain 'Selesai' belakangan lewat form ini) lalu admin
+    // set jadi 'completed' DI SINI -- SEBELUMNYA gak pernah kekreditkan sama sekali karena
+    // checkout hanya kredit order yang udah 'completed' SAAT ITU JUGA (lihat catatan lengkap di
+    // routes/user.js), dan order manual-out-of-stock gak pernah lewat resolver Digiflazz/IndoSMM
+    // yang juga udah dikasih kredit komisi. Dicek wasAlreadyCompleted biar gak dobel-kredit kalau
+    // admin cuma edit ulang detail tanpa beneran ganti status.
+    if (status === 'completed' && !wasAlreadyCompleted && before) {
+      const buyer = findUserById(before.userId);
+      if (buyer) creditReferralCommission({ buyer, orderTotal: before.total, orderId: before.id });
+    }
     res.redirect('/admin/order');
   } catch (err) {
     res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
