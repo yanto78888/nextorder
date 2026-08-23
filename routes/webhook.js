@@ -189,7 +189,7 @@ router.post('/webhooks/herosms/:secret', async (req, res) => {
     // Komisi referral juga berlaku buat produk OTP -- lihat catatan lengkap di routes/user.js
     // GET /otp/status/:id/check (bug yang sama, di jalur webhook real-time HeroSMS).
     const otpBuyer = findUserById(order.userId);
-    if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id });
+    if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id, isManualStock: false });
 
     // Beritahu HeroSMS bahwa kode sudah berhasil dipakai (setStatus 6 = "completed") supaya
     // slot nomor dilepas dan tidak terus di-charge. Fire-and-forget biar response cepat balik.

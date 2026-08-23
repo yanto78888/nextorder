@@ -875,6 +875,35 @@ router.post('/digiflazz/sync-all', async (req, res) => {
   }
 });
 
+// Sinkron per-BATCH (dipanggil berkali-kali dari client dengan jeda + progress bar lewat
+// runBatchJob(), bukan sekali jalan buat SEMUA produk kayak /sync-all di atas) -- dipakai
+// tombol "Sinkron Semua Harga" yang sekarang JS-driven (bukan form-submit biasa), biar
+// gak nge-block lama & konsisten sama pola batching Import/Hapus massal. 1x fetch price
+// list PER PANGGILAN batch (bukan di-cache lintas panggilan) -- lebih simpel, dan wajar
+// buat aksi admin yang gak sering-sering dipanggil.
+router.post('/digiflazz/sync-batch', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.productIds) ? req.body.productIds : [];
+    if (ids.length === 0) return res.json({ ok: true, updated: 0, notFound: 0 });
+    const list = await getDigiflazzPriceList('prepaid');
+    const priceMap = new Map(list.map(item => [item.buyer_sku_code, item.price]));
+    let updated = 0;
+    let notFound = 0;
+    ids.forEach(id => {
+      const p = findProductById(id);
+      if (!p || p.provider !== 'digiflazz') return;
+      const basePrice = priceMap.get(p.digiflazzSku);
+      if (basePrice === undefined) { notFound++; return; }
+      const sellPrice = computeSellPrice(basePrice, p.marginType || null, p.marginValue);
+      updateProduct(p.id, { digiflazzBasePrice: basePrice, price: sellPrice });
+      updated++;
+    });
+    res.json({ ok: true, updated, notFound });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 // Lepas produk dari Digiflazz (jadi produk manual biasa, stok manual kosong)
 router.post('/digiflazz/:id/unlink', (req, res) => {
   updateProduct(req.params.id, { provider: 'manual' });
@@ -1433,7 +1462,7 @@ router.post('/order/:id/status', async (req, res) => {
     // admin cuma edit ulang detail tanpa beneran ganti status.
     if (status === 'completed' && !wasAlreadyCompleted && before) {
       const buyer = findUserById(before.userId);
-      if (buyer) creditReferralCommission({ buyer, orderTotal: before.total, orderId: before.id });
+      if (buyer) creditReferralCommission({ buyer, orderTotal: before.total, orderId: before.id, isManualStock: before.provider === 'manual' });
     }
     res.redirect('/admin/order');
   } catch (err) {
@@ -1675,7 +1704,7 @@ function handleSettingsSave(req, res) {
     seoSiteUrl, seoMetaDescription, seoMetaKeywords,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
     marqueeEnabled, marqueeText,
-    referralPercent
+    referralPercent, referralManualFlatAmount
   } = req.body;
 
   const categories = (catalogCategories || 'Games')
@@ -1745,11 +1774,13 @@ function handleSettingsSave(req, res) {
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on', notifyOnWithdrawal: notifyOnWithdrawal === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
-    // Komisi referral: satu persentase SAMA RATA buat SEMUA jenis transaksi (produk digital,
-    // manual, apapun metode bayarnya) -- lihat lib/referrals.js creditReferralCommission().
-    // Fallback ke default lama (1%) kalau field dikirim kosong/bukan angka, biar gak kesimpen NaN.
+    // Komisi referral: DUA skema -- persentase buat produk selain stok manual, dan nominal FLAT
+    // (Rp) khusus produk stok manual -- lihat catatan lengkap di lib/referrals.js
+    // creditReferralCommission(). Fallback ke default lama (1% / Rp500) kalau field dikirim
+    // kosong/bukan angka, biar gak kesimpen NaN.
     referral: {
-      percent: (referralPercent !== undefined && referralPercent !== '' && !isNaN(parseFloat(referralPercent))) ? parseFloat(referralPercent) : 1
+      percent: (referralPercent !== undefined && referralPercent !== '' && !isNaN(parseFloat(referralPercent))) ? parseFloat(referralPercent) : 1,
+      manualFlatAmount: (referralManualFlatAmount !== undefined && referralManualFlatAmount !== '' && !isNaN(parseFloat(referralManualFlatAmount))) ? parseFloat(referralManualFlatAmount) : 500
     }
     // NOTE: "banners" sengaja tidak disentuh di sini. Banner dikelola sepenuhnya lewat
     // /admin/settings/banner/add dan /admin/settings/banner/delete/:id (form terpisah di halaman

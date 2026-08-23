@@ -717,7 +717,7 @@ router.get('/otp/status/:id/check', requireLogin, async (req, res) => {
       // sekali karena dibuat manual di POST /otp/order (bukan lewat fulfillAndRecordOrders yang
       // dipakai checkout produk lain), jadi referrer gak pernah dapet komisi dari sewa nomor OTP.
       const otpBuyer = findUserById(order.userId);
-      if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id });
+      if (otpBuyer) creditReferralCommission({ buyer: otpBuyer, orderTotal: order.total, orderId: order.id, isManualStock: false });
       finishActivation(order.providerRefId).catch(() => {});
       return res.json({ success: true, status: 'completed', detail: result.code, note: 'Kode OTP diterima' });
     }
@@ -855,18 +855,18 @@ router.post('/order', requireLogin, async (req, res) => {
     }
 
     // Komisi referral (ke akun yang ngundang user ini, KALAU user ini daftar pakai kode
-    // referral) -- dihitung dari order yang udah PASTI 'completed' di titik ini aja (stok manual/
-    // instant delivery). Order Digiflazz & IndoSMM yang masih 'processing' di titik ini SENGAJA
-    // belum dikreditkan sekarang -- baru dikreditkan belakangan pas beneran 'completed' (lihat
-    // lib/digiflazz.js resolveDigiflazzOrder() & lib/indosmm.js checkPendingIndosmmOrders()).
+    // referral) -- diproses PER-ORDER (bukan digabung/dijumlah dulu), karena skemanya beda-beda
+    // tergantung provider produknya masing-masing (flat buat stok manual, persen buat lainnya --
+    // lihat lib/referrals.js). Cuma order yang udah PASTI 'completed' di titik ini aja (stok
+    // manual/instant delivery). Order Digiflazz & IndoSMM yang masih 'processing' di titik ini
+    // SENGAJA belum dikreditkan sekarang -- baru dikreditkan belakangan pas beneran 'completed'
+    // (lihat lib/digiflazz.js resolveDigiflazzOrder() & lib/indosmm.js checkPendingIndosmmOrders()).
     // Kalau dikreditkan di sini buat yang masih 'processing', order yang ternyata GAGAL di sisi
     // provider (saldo di-refund ke buyer) tetap bikin referrer kepotong komisi dari transaksi yang
-    // gak jadi -- gak bisa ditarik balik lagi. Satu persentase SAMA RATA berlaku ke SEMUA jenis
-    // produk & metode bayar, lihat creditReferralCommission().
-    const netSuccessTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.total, 0);
-    if (netSuccessTotal > 0) {
-      creditReferralCommission({ buyer: user, orderTotal: netSuccessTotal, orderId: orders[0].id });
-    }
+    // gak jadi -- gak bisa ditarik balik lagi.
+    orders.filter(o => o.status === 'completed').forEach(o => {
+      creditReferralCommission({ buyer: user, orderTotal: o.total, orderId: o.id, isManualStock: o.provider === 'manual' });
+    });
 
     if (orders.every(o => o.status === 'cancelled')) {
       return res.redirect('/produk?error=' + encodeURIComponent(orders[0].note + ', saldo sudah dikembalikan'));
