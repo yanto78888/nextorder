@@ -342,6 +342,28 @@ router.post('/produk', uploadThumbnail, (req, res) => {
   res.redirect('/admin/produk');
 });
 
+// PENTING: dua route literal di bawah ini ("bulk-hapus" & "hapus-semua") HARUS didaftarkan
+// SEBELUM router.post('/produk/:id', ...) di bawahnya. Express mencocokkan route berdasar
+// urutan pendaftaran, dan keduanya sama-sama berbentuk 2-segmen ("/produk/<sesuatu>") kayak
+// "/produk/:id" -- kalau :id didaftar duluan, dia bakal "nyaplok" request ke sini duluan
+// (nganggep "bulk-hapus"/"hapus-semua" sebagai ID produk), trus updateProduct() throw "Produk
+// tidak ditemukan" karena ID itu emang gak ada -> 500 Internal Server Error. (Ini persis bug
+// yang sempat kejadian -- sudah pernah salah taruh routenya SETELAH /produk/:id.)
+router.post('/produk/bulk-hapus', (req, res) => {
+  const ids = Array.isArray(req.body.ids) ? req.body.ids : (req.body.ids ? [req.body.ids] : []);
+  const deleted = deleteProductsByIds(ids);
+  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
+  res.redirect('/admin/produk');
+});
+
+// Hapus SEMUA produk Stok Manual sekaligus (produk Digiflazz & IndoSMM gak ikut -- lihat
+// catatan di deleteAllManualProducts()).
+router.post('/produk/hapus-semua', (req, res) => {
+  const deleted = deleteAllManualProducts();
+  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
+  res.redirect('/admin/produk');
+});
+
 router.post('/produk/:id', uploadThumbnail, (req, res) => {
   const { name, category, description, price, stockNote, status, stockItems, gamePreset, provider, digiflazzSku, digiflazzCustomerNoTemplate, variantGroup, variantType, costPrice, usageInstructions } = req.body;
   const existing = findProductById(req.params.id);
@@ -394,21 +416,6 @@ router.post('/produk/:id/hapus', (req, res) => {
 
 // Hapus beberapa produk manual sekaligus (checkbox "pilih" di tabel + tombol "Hapus Terpilih"),
 // biar admin gak perlu klik Hapus satu-satu kayak sebelumnya.
-router.post('/produk/bulk-hapus', (req, res) => {
-  const ids = Array.isArray(req.body.ids) ? req.body.ids : (req.body.ids ? [req.body.ids] : []);
-  const deleted = deleteProductsByIds(ids);
-  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
-  res.redirect('/admin/produk');
-});
-
-// Hapus SEMUA produk Stok Manual sekaligus (produk Digiflazz & IndoSMM gak ikut -- lihat
-// catatan di deleteAllManualProducts()).
-router.post('/produk/hapus-semua', (req, res) => {
-  const deleted = deleteAllManualProducts();
-  deleted.forEach(p => removeFlashSaleItemsByProductId(p.id));
-  res.redirect('/admin/produk');
-});
-
 // ---------- FLASH SALE (nav khusus, kelola item + jadwal countdown) ----------
 
 function renderFlashSalePage(req, res, extra = {}) {
