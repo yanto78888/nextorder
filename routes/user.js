@@ -7,7 +7,7 @@ import { requireLogin } from '../middleware/auth.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail,
-  ensureReferralCode, findUserByReferralCode
+  ensureReferralCode, findUserByReferralCode, findUserByUsername
 } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock, slugify } from '../lib/products.js';
 import { getOrdersByUser, getAllOrders, getStats, getTotalSoldMap, updateOrderStatus, patchOrder, getPublicDailyStats, getPublicMonthlyStats } from '../lib/orders.js';
@@ -167,6 +167,43 @@ router.post('/profile', requireLogin, (req, res) => {
   }
   updateUser(user.id, { email: emailNormalized });
   res.redirect('/profile?success=' + encodeURIComponent('Profil berhasil diperbarui'));
+});
+
+// Ganti username sendiri lewat halaman Profil -- terpisah dari form email di atas karena
+// username dipakai buat LOGIN (routes/auth.js POST /login nerima username ATAU email), jadi
+// wajib konfirmasi password saat ini dulu (analog sama /profile/password di bawah), biar gak
+// bisa diubah diam-diam kalau sesi browser dibajak (mis. lewat XSS/CSRF) tanpa korban sadar.
+// Akun yang login lewat Google & belum pernah bikin password lokal (user.password kosong)
+// dikecualikan dari syarat ini -- gak ada password buat dicocokkan (sama kayak logika
+// isCreatingFirstPassword di /profile/password).
+router.post('/profile/username', requireLogin, (req, res) => {
+  const user = findUserById(req.session.user.id);
+  const newUsername = String(req.body.newUsername || '').trim();
+  const currentPassword = req.body.currentPassword || '';
+
+  if (!newUsername || newUsername === user.username) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Username baru tidak boleh sama dengan yang sekarang'));
+  }
+  if (newUsername.length < 3 || newUsername.length > 32) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Username harus 3-32 karakter'));
+  }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(newUsername)) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Username hanya boleh huruf, angka, titik, strip, dan underscore'));
+  }
+  if (user.password && !verifyPassword(user, currentPassword)) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Password saat ini salah'));
+  }
+  const taken = findUserByUsername(newUsername);
+  if (taken && taken.id !== user.id) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Username sudah dipakai orang lain'));
+  }
+
+  updateUser(user.id, { username: newUsername });
+  // Refresh session biar konsisten kalau ada bagian lain yang baca dari session (bukan fetch
+  // ulang dari DB) -- login tetap jalan normal walau ini gak di-refresh (session dipegang lewat
+  // id, bukan username, lihat middleware/auth.js requireLogin), tapi tetap dijaga biar akurat.
+  req.session.user.username = newUsername;
+  res.redirect('/profile?success=' + encodeURIComponent('Username berhasil diganti jadi "' + newUsername + '"'));
 });
 
 // Ganti foto profil (avatar bulat di pojok kanan atas)
