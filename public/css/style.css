@@ -3593,6 +3593,58 @@ html[data-theme="dark"] .theme-toggle-btn .fa-moon { display: none; }
 .confirm-modal-actions { display: flex; gap: 10px; }
 .confirm-modal-actions .btn { flex: 1; margin: 0; }
 
+/* ===== PROGRESS MODAL =================================================================
+   Dipakai runBatchJob() (public/js/admin-batch.js) buat operasi massal admin (Hapus
+   Terpilih, Import Produk, Sinkron Harga, dst) yang diproses bertahap per-batch kecil,
+   biar gak kena "Payload Too Large" kalau jumlah produknya banyak. Style-nya senada sama
+   .confirm-modal (overlay gelap + kartu tengah). ===== */
+.progress-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.progress-modal-overlay.show { opacity: 1; pointer-events: auto; }
+.progress-modal {
+  width: 100%;
+  max-width: 340px;
+  background: linear-gradient(165deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+  border: 1.5px solid var(--border-glow);
+  border-radius: 18px;
+  padding: 26px 24px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.32), 0 0 16px rgba(21,101,192,0.15);
+}
+.progress-modal-title { font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
+.progress-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-panel-2);
+  overflow: hidden;
+  border: 1px solid var(--border-glow);
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta));
+  border-radius: 999px;
+  transition: width .25s ease;
+}
+.progress-modal-detail {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
 /* ===== SKIRK HERO (banner brand ikonik di atas /produk) =====================================
    Warna & style di-scope sendiri lewat custom property berawalan --hero- di selector
    .skirk-hero -- SENGAJA gak numpang di --cyan/--bg-panel dkk milik tema situs, biar hero ini
