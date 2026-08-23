@@ -49,9 +49,7 @@
             <div class="detail-stat-label">Produk Terhubung</div>
           </div>
         </div>
-        <form method="POST" action="/admin/digiflazz/sync-all" class="mt-16">
-          <button class="btn ghost" type="submit" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga dari Digiflazz</button>
-        </form>
+        <button type="button" class="btn ghost mt-16" id="dfSyncAllBtn" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga dari Digiflazz</button>
         <div class="helper-text mt-16">Sinkron akan ambil harga modal terbaru dari Digiflazz untuk semua produk yang sudah diimport, lalu hitung ulang harga jual pakai margin masing-masing (atau margin default kalau tidak ada override).</div>
         <% if (digiflazzProducts.length > 0) { %>
         <form method="POST" action="/admin/digiflazz/unlink-all" class="mt-16" onsubmit="return confirm('Lepas SEMUA (<%= digiflazzProducts.length %>) produk dari Digiflazz? Semua akan jadi produk stok manual biasa, checkout otomatis Digiflazz berhenti untuk produk-produk ini.')">
@@ -170,6 +168,7 @@
           <label class="df-select-all"><input type="checkbox" id="dfUnlinkSelectAllChk"> Pilih semua</label>
           <span id="dfUnlinkSelectedCount" class="helper-text">0 dipilih</span>
           <button type="button" class="btn small danger" id="dfUnlinkSelectedBtn" disabled><i class="fa-solid fa-link-slash"></i> Lepas yang Dicentang</button>
+          <button type="button" class="btn small danger" id="dfDeleteSelectedBtn" disabled><i class="fa-solid fa-trash"></i> Hapus yang Dicentang</button>
         </div>
         <form method="POST" action="/admin/digiflazz/unlink-selected" id="dfUnlinkForm" style="display:none;"></form>
         <% const dfCatOrder = []; const dfCatGroups = {}; %>
@@ -650,42 +649,60 @@ function dfPromptRename(form, oldName, jenis) {
         basePrice: item.price
       });
     });
-    if (!items.length) { alert('Judul produk tidak boleh kosong.'); return; }
+    if (!items.length) { showToast('Judul produk tidak boleh kosong.'); return; }
 
-    addSelectedBtn.disabled = true;
-    addSelectedBtn.textContent = 'Menambahkan...';
     var groupSelect = document.getElementById('dfGroupSelect');
     var typeSelect2 = document.getElementById('dfTypeSelect2');
-    fetch('/admin/digiflazz/import-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: items,
-        variantGroup: groupSelect ? groupSelect.value : '',
-        variantType: typeSelect2 ? typeSelect2.value : ''
-      })
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        addSelectedBtn.textContent = 'Tambah Produk Terpilih';
-        if (!data.ok) { alert('Gagal: ' + data.error); return; }
-        alert(data.message);
-        location.reload(); // refresh biar badge "Sudah diimport" & daftar "Produk Digiflazz Terhubung" di bawah keupdate
-      })
-      .catch(function (err) {
-        addSelectedBtn.textContent = 'Tambah Produk Terpilih';
-        alert('Gagal: ' + err.message);
-      });
+    addSelectedBtn.disabled = true;
+    // Dikirim BERTAHAP per-40 item (bukan semua sekaligus dalam 1 request JSON) biar gak kena
+    // "Payload Too Large" kalau yang dicentang ratusan/ribuan produk -- lihat admin-batch.js.
+    runBatchJob({
+      title: 'Menambahkan produk terpilih...',
+      items: items,
+      chunkSize: 40,
+      delayMs: 250,
+      sendChunk: function (chunkItems) {
+        return fetch('/admin/digiflazz/import-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: chunkItems,
+            variantGroup: groupSelect ? groupSelect.value : '',
+            variantType: typeSelect2 ? typeSelect2.value : ''
+          })
+        }).then(function (r) { return r.json(); });
+      },
+      onComplete: function (results) {
+        addSelectedBtn.disabled = false;
+        var created = 0, updated = 0, errors = [];
+        results.forEach(function (r) {
+          if (!r || !r.ok) { errors.push((r && r.error) || 'Gagal'); return; }
+          created += r.created || 0;
+          updated += r.updated || 0;
+          errors = errors.concat(r.errors || []);
+        });
+        if (created === 0 && updated === 0 && errors.length > 0) {
+          showToast('Gagal: ' + errors[0], { title: 'Import gagal' });
+          return;
+        }
+        showToast(
+          created + ' produk baru ditambahkan' + (updated > 0 ? ', ' + updated + ' produk diperbarui' : '') + (errors.length > 0 ? '. ' + errors.length + ' baris gagal.' : '.'),
+          { type: 'success', title: 'Import Selesai' }
+        );
+        setTimeout(function () { location.reload(); }, 1200); // refresh biar badge "Sudah diimport" & daftar di bawah keupdate
+      }
+    });
   });
 })();
 
-// ===== Lepas produk Digiflazz yang dicentang (checkbox per baris + toolbar) =====
+// ===== Lepas / Hapus produk Digiflazz yang dicentang (checkbox per baris + toolbar) =====
 (function () {
   var selectAllChk = document.getElementById('dfUnlinkSelectAllChk');
   var countEl = document.getElementById('dfUnlinkSelectedCount');
-  var btn = document.getElementById('dfUnlinkSelectedBtn');
+  var unlinkBtn = document.getElementById('dfUnlinkSelectedBtn');
+  var deleteBtn = document.getElementById('dfDeleteSelectedBtn');
   var form = document.getElementById('dfUnlinkForm');
-  if (!selectAllChk || !btn || !form) return;
+  if (!selectAllChk || !unlinkBtn || !form) return;
 
   function getCbs() { return Array.prototype.slice.call(document.querySelectorAll('.df-unlink-cb')); }
 
@@ -693,7 +710,8 @@ function dfPromptRename(form, oldName, jenis) {
     var cbs = getCbs();
     var checked = cbs.filter(function (c) { return c.checked; });
     countEl.textContent = checked.length + ' dipilih';
-    btn.disabled = checked.length === 0;
+    unlinkBtn.disabled = checked.length === 0;
+    if (deleteBtn) deleteBtn.disabled = checked.length === 0;
     selectAllChk.checked = cbs.length > 0 && checked.length === cbs.length;
   }
 
@@ -706,22 +724,90 @@ function dfPromptRename(form, oldName, jenis) {
     refresh();
   });
 
-  btn.addEventListener('click', function () {
+  unlinkBtn.addEventListener('click', function () {
     var checked = getCbs().filter(function (c) { return c.checked; });
     if (checked.length === 0) return;
-    if (!confirm('Lepas ' + checked.length + ' produk terpilih dari Digiflazz? Semua akan jadi produk stok manual biasa.')) return;
-    // Form-nya sengaja dikosongin di HTML, hidden input buat tiap id yang dicentang baru
-    // disuntik pas mau submit -- pola yang sama kayak injectTargetFields() di produk-detail.ejs.
-    form.innerHTML = '';
-    checked.forEach(function (c) {
-      var input = document.createElement('input');
-      input.type = 'hidden'; input.name = 'ids'; input.value = c.value;
-      form.appendChild(input);
+    showConfirm('Lepas ' + checked.length + ' produk terpilih dari Digiflazz? Semua akan jadi produk stok manual biasa.', { title: 'Lepas dari Digiflazz', danger: true }).then(function (ok) {
+      if (!ok) return;
+      // Form-nya sengaja dikosongin di HTML, hidden input buat tiap id yang dicentang baru
+      // disuntik pas mau submit -- pola yang sama kayak injectTargetFields() di produk-detail.ejs.
+      form.innerHTML = '';
+      checked.forEach(function (c) {
+        var input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'ids'; input.value = c.value;
+        form.appendChild(input);
+      });
+      form.submit();
     });
-    form.submit();
   });
 
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function () {
+      var ids = getCbs().filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+      if (ids.length === 0) return;
+      showConfirm('Hapus ' + ids.length + ' produk terpilih SECARA PERMANEN (bukan cuma dilepas)? Stok, harga, dan riwayat margin produk ini akan hilang. Tindakan ini tidak bisa dibatalkan.', { title: 'Hapus Produk Digiflazz', danger: true }).then(function (ok) {
+        if (!ok) return;
+        // Reuse endpoint yang sama kayak "Hapus Terpilih" di Kelola Produk -- endpoint itu
+        // generik, kerja buat produk provider apa aja (manual/digiflazz/indosmm), bukan cuma
+        // manual. Dikirim BERTAHAP biar gak kena "Payload Too Large" kalau dicentangnya banyak.
+        deleteBtn.disabled = true;
+        runBatchJob({
+          title: 'Menghapus produk terpilih...',
+          items: ids,
+          chunkSize: 150,
+          delayMs: 200,
+          sendChunk: function (chunkIds) {
+            var body = new URLSearchParams();
+            chunkIds.forEach(function (id) { body.append('ids', id); });
+            return fetch('/admin/produk/bulk-hapus', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: body.toString()
+            });
+          },
+          onComplete: function () { window.location.reload(); }
+        });
+      });
+    });
+  }
+
   refresh();
+})();
+
+// ===== Sinkron Semua Harga Digiflazz, bertahap per-batch + progress bar =====
+(function () {
+  var btn = document.getElementById('dfSyncAllBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var ids = Array.prototype.slice.call(document.querySelectorAll('.df-unlink-cb')).map(function (c) { return c.value; });
+    if (ids.length === 0) { showToast('Belum ada produk Digiflazz yang terhubung.', { type: 'info', title: 'Kosong' }); return; }
+    // Dikirim BERTAHAP per-60 id (bukan semua sekaligus) biar gak kena "Payload Too Large" &
+    // gak nge-block lama kalau produk terhubungnya banyak -- lihat admin-batch.js.
+    runBatchJob({
+      title: 'Menyinkron harga dari Digiflazz...',
+      items: ids,
+      chunkSize: 60,
+      delayMs: 200,
+      sendChunk: function (chunkIds) {
+        return fetch('/admin/digiflazz/sync-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productIds: chunkIds })
+        }).then(function (r) { return r.json(); });
+      },
+      onComplete: function (results) {
+        var updated = 0, notFound = 0;
+        results.forEach(function (r) {
+          if (r && r.ok) { updated += r.updated || 0; notFound += r.notFound || 0; }
+        });
+        showToast(
+          updated + ' produk berhasil disinkron.' + (notFound > 0 ? ' ' + notFound + ' SKU tidak ditemukan di price list.' : ''),
+          { type: 'success', title: 'Sinkron Selesai' }
+        );
+        setTimeout(function () { window.location.reload(); }, 1200);
+      }
+    });
+  });
 })();
 
 // ===== FOLDER GRUP DIGIFLAZZ: klik header buat buka/tutup isi nominal =====
@@ -809,5 +895,6 @@ function dfPromptRename(form, oldName, jenis) {
   });
 })();
 </script>
+<script src="/js/admin-batch.js"></script>
 </body>
 </html>

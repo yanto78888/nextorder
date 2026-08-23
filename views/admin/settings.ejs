@@ -77,11 +77,15 @@
           <div class="section-title"><h3>Komisi Referral</h3><div class="line"></div></div>
           <div class="grid grid-2 form-mini-grid">
             <div>
-              <label>Persentase Komisi (%) -- berlaku sama rata buat semua transaksi</label>
+              <label>Persentase Komisi (%) -- buat produk Digiflazz/IndoSMM/OTP/dst</label>
               <input type="number" step="0.01" min="0" name="referralPercent" value="<%= (typeof referral.percent !== 'undefined' && referral.percent !== null) ? referral.percent : 1 %>">
             </div>
+            <div>
+              <label>Komisi Flat Produk Stok Manual (Rp)</label>
+              <input type="number" step="1" min="0" name="referralManualFlatAmount" value="<%= (typeof referral.manualFlatAmount !== 'undefined' && referral.manualFlatAmount !== null) ? referral.manualFlatAmount : 500 %>">
+            </div>
           </div>
-          <div class="helper-text">Dikreditkan otomatis ke saldo referrer tiap kali akun yang dia undang SUKSES transaksi apa pun (bukan cuma transaksi pertama) -- produk digital maupun manual, bayar pakai Saldo, QRIS, atau API reseller, semua dapat persentase yang SAMA dari total transaksinya.</div>
+          <div class="helper-text">Dikreditkan otomatis ke saldo referrer tiap kali akun yang dia undang SUKSES transaksi apa pun (bukan cuma transaksi pertama), bayar pakai Saldo, QRIS, atau API reseller. Khusus produk <b>stok manual</b> pakai nominal FLAT tetap per transaksi (kolom kedua), berapa pun harga produknya -- bukan persentase. Kosongkan/isi 0 buat komisi flat kalau mau dimatikan khusus stok manual (produk lain tetap dapat persentase seperti biasa).</div>
 
           <div class="section-title"><h3>QRIS</h3><div class="line"></div></div>
 

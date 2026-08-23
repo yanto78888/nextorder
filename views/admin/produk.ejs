@@ -266,18 +266,35 @@
     var bulkForm = document.getElementById('bulkDeleteForm');
     if (bulkForm) {
       bulkForm.addEventListener('submit', function (e) {
-        var n = checkboxes.filter(function (c) { return c.checked; }).length;
-        if (bulkForm.dataset.confirmed === '1') { delete bulkForm.dataset.confirmed; return; }
         e.preventDefault();
-        showConfirm('Hapus ' + n + ' produk terpilih? Tindakan ini tidak bisa dibatalkan.', { title: 'Hapus Produk Terpilih', danger: true }).then(function (ok) {
+        var ids = checkboxes.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+        if (ids.length === 0) return;
+        showConfirm('Hapus ' + ids.length + ' produk terpilih? Tindakan ini tidak bisa dibatalkan.', { title: 'Hapus Produk Terpilih', danger: true }).then(function (ok) {
           if (!ok) return;
-          bulkForm.dataset.confirmed = '1';
-          if (bulkForm.requestSubmit) bulkForm.requestSubmit(); else bulkForm.submit();
+          // Dikirim BERTAHAP per-150 id (bukan semua sekaligus dalam 1 request) biar gak kena
+          // "Payload Too Large" kalau yang dicentang ribuan produk -- lihat public/js/admin-batch.js.
+          runBatchJob({
+            title: 'Menghapus produk terpilih...',
+            items: ids,
+            chunkSize: 150,
+            delayMs: 200,
+            sendChunk: function (chunkIds) {
+              var body = new URLSearchParams();
+              chunkIds.forEach(function (id) { body.append('ids', id); });
+              return fetch('/admin/produk/bulk-hapus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+              });
+            },
+            onComplete: function () { window.location.reload(); }
+          });
         });
       });
     }
     refresh();
   })();
 </script>
+<script src="/js/admin-batch.js"></script>
 </body>
 </html>
