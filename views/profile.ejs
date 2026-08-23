@@ -141,8 +141,6 @@
       <div class="card">
         <h3>Informasi Akun</h3>
         <form method="POST" action="/profile">
-          <label>Username</label>
-          <input type="text" value="<%= user.username %>" disabled>
           <label>Email</label>
           <input type="email" name="email" required value="<%= user.email || '' %>">
           <div style="font-size:11px; color:var(--text-dim); margin:-6px 0 12px;">Dipakai buat login & reset password, pastikan aktif.</div>
@@ -151,6 +149,22 @@
           <label>Status Member</label>
           <input type="text" value="<%= currentTier.icon %> <%= currentTier.label %>" disabled>
           <button class="btn solid mt-24" type="submit">Simpan Perubahan</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Ganti Username</h3>
+        <div class="helper-text" style="margin-top:0;">Username sekarang: <b><%= user.username %></b>. Dipakai buat login pakai username &amp; password (selain email).</div>
+        <form method="POST" action="/profile/username">
+          <label>Username Baru</label>
+          <input type="text" name="newUsername" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.\-]+" title="Huruf, angka, titik, strip, underscore" value="<%= user.username %>">
+          <% if (user.password) { %>
+          <label>Password Saat Ini</label>
+          <input type="password" name="currentPassword" required>
+          <% } else { %>
+          <div class="helper-text">Akun kamu login lewat Google & belum punya password lokal, jadi gak perlu konfirmasi password buat ganti username.</div>
+          <% } %>
+          <button class="btn solid mt-24" type="submit">Ganti Username</button>
         </form>
       </div>
 
