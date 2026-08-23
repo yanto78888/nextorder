@@ -50,13 +50,19 @@ app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // { verify: ... } nyimpen raw body (Buffer, SEBELUM di-parse jadi objek JS) ke req.rawBody -- WAJIB
 // buat validasi HMAC signature webhook Digiflazz (X-Hub-Signature dihitung dari raw body, bukan dari
 // JSON.stringify ulang hasil parse, yang urutan key/whitespace-nya bisa beda dan bikin HMAC gak
 // pernah cocok). Gak ngubah perilaku body-parsing yang sudah ada sama sekali -- cuma nambah 1
 // referensi buffer yang emang udah kebaca.
+// limit dinaikin dari default 100kb -> 2mb: jaring pengaman TAMBAHAN, bukan solusi utama --
+// solusi utamanya operasi massal (import/sinkron/hapus banyak produk sekaligus di admin) sekarang
+// dikirim BERTAHAP per-batch kecil dari sisi client (lihat public/js/admin-batch.js), jadi body
+// tiap request seharusnya emang udah kecil dari sananya. 2mb cuma buat jaga-jaga kasus lain yang
+// belum kepikiran, bukan izin buat ngirim payload segede itu tiap saat.
 app.use(express.json({
+  limit: '2mb',
   verify: (req, res, buf) => { req.rawBody = buf; }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
