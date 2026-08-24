@@ -129,24 +129,30 @@ const uploadBanner = multer({
   }
 });
 
-// ---------- UPLOAD GAMBAR OG (SEO Open Graph) ----------
-// Disimpan di /public/uploads/seo/ -- path ini yang disimpan ke config.seo.ogImage dan dipakai
-// di <meta og:image> & di template email OTP (lib/mailer.js) buat nampilin logo/gambar brand.
-const ogImageDir = path.join(__dirname, '..', 'public', 'uploads', 'seo');
-fs.mkdirSync(ogImageDir, { recursive: true });
-const ogImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, ogImageDir),
+// ---------- UPLOAD GAMBAR SEO (Open Graph + Favicon/Logo) ----------
+// Disimpan di /public/uploads/seo/ -- ogImage dipakai di <meta og:image> & template email OTP
+// (lib/mailer.js), favicon dipakai di <link rel="icon"> (partials/head.ejs) -- itu yang bikin
+// muncul logo kecil di sebelah nama situs pas hasil pencarian Google & tab browser. Satu
+// instance multer buat DUA field file sekaligus (.fields(), bukan .single()) karena satu form
+// Pengaturan yang sama upload keduanya bareng.
+const seoImageDir = path.join(__dirname, '..', 'public', 'uploads', 'seo');
+fs.mkdirSync(seoImageDir, { recursive: true });
+const seoImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, seoImageDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `og-image${ext}`); // nama tetap (bukan random) supaya URL-nya gak berubah tiap kali upload ulang
+    // Nama tetap (bukan random) per field supaya URL-nya gak berubah tiap kali upload ulang --
+    // browser/Google yang udah nge-cache favicon lama otomatis ke-refresh pas file-nya ditimpa.
+    const base = file.fieldname === 'seoFaviconFile' ? 'favicon' : 'og-image';
+    cb(null, `${base}${ext}`);
   }
 });
-const uploadOgImage = multer({
-  storage: ogImageStorage,
+const uploadSeoImages = multer({
+  storage: seoImageStorage,
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ok = /\.(jpe?g|png|webp)$/i.test(file.originalname) && /^image\/(jpeg|png|webp)$/i.test(file.mimetype || '');
-    ok ? cb(null, true) : cb(new Error('Format OG Image harus JPG, PNG, atau WEBP'));
+    ok ? cb(null, true) : cb(new Error('Format gambar harus JPG, PNG, atau WEBP'));
   }
 });
 
@@ -1462,7 +1468,7 @@ router.post('/order/:id/status', async (req, res) => {
     // admin cuma edit ulang detail tanpa beneran ganti status.
     if (status === 'completed' && !wasAlreadyCompleted && before) {
       const buyer = findUserById(before.userId);
-      if (buyer) creditReferralCommission({ buyer, orderTotal: before.total, orderId: before.id, isManualStock: before.provider === 'manual' });
+      if (buyer) creditReferralCommission({ buyer, orderTotal: before.total, orderId: before.id });
     }
     res.redirect('/admin/order');
   } catch (err) {
@@ -1683,8 +1689,8 @@ router.post('/settings/smtp/test', async (req, res) => {
 router.post('/settings', (req, res, next) => {
   // Wrap multer di sini (bukan pakai middleware langsung) biar error multer (format salah /
   // file terlalu besar) bisa ditangani gracefully, bukan crash ke global error handler.
-  uploadOgImage.single('seoOgImageFile')(req, res, (err) => {
-    if (err) return res.redirect('/admin/settings?error=' + encodeURIComponent('Upload OG Image gagal: ' + err.message));
+  uploadSeoImages.fields([{ name: 'seoOgImageFile', maxCount: 1 }, { name: 'seoFaviconFile', maxCount: 1 }])(req, res, (err) => {
+    if (err) return res.redirect('/admin/settings?error=' + encodeURIComponent('Upload gambar SEO gagal: ' + err.message));
     handleSettingsSave(req, res);
   });
 });
@@ -1704,7 +1710,7 @@ function handleSettingsSave(req, res) {
     seoSiteUrl, seoMetaDescription, seoMetaKeywords,
     groupEnabled, groupTitle, groupMessage, groupLink, groupButtonText,
     marqueeEnabled, marqueeText,
-    referralPercent, referralManualFlatAmount
+    referralPercent
   } = req.body;
 
   const categories = (catalogCategories || 'Games')
@@ -1733,10 +1739,15 @@ function handleSettingsSave(req, res) {
       siteUrl: keepIfBlank(String(seoSiteUrl || '').trim().replace(/\/+$/, ''), (prevCfg.seo || {}).siteUrl),
       metaDescription: keepIfBlank(String(seoMetaDescription || '').trim().slice(0, 160), (prevCfg.seo || {}).metaDescription),
       metaKeywords: String(seoMetaKeywords || '').trim(),
-      // OG Image: kalau ada file yang diupload, pakai path barunya; kalau tidak (field file kosong),
-      // pertahankan nilai lama (sama pola keepIfBlank) biar gambar lama gak ke-hapus cuma karena
-      // admin simpan pengaturan lain tanpa upload ulang.
-      ogImage: req.file ? '/uploads/seo/' + req.file.filename : keepIfBlank('', (prevCfg.seo || {}).ogImage)
+      // OG Image & Favicon: kalau ada file yang diupload di field masing-masing, pakai path
+      // barunya; kalau tidak (field file kosong), pertahankan nilai lama (sama pola keepIfBlank)
+      // biar gambar lama gak ke-hapus cuma karena admin simpan pengaturan lain tanpa upload ulang.
+      ogImage: (req.files && req.files.seoOgImageFile && req.files.seoOgImageFile[0]) ? '/uploads/seo/' + req.files.seoOgImageFile[0].filename : keepIfBlank('', (prevCfg.seo || {}).ogImage),
+      // favicon dipakai <link rel="icon"> di partials/head.ejs -- ini yang bikin logo situs
+      // muncul di sebelah nama domain pas hasil pencarian Google & di tab browser. Sebelum ada
+      // field ini SAMA SEKALI gak ada favicon yang di-serve (gak ada <link rel="icon"> ataupun
+      // file favicon.ico), makanya Google nampilin ikon bulat abu-abu generik.
+      favicon: (req.files && req.files.seoFaviconFile && req.files.seoFaviconFile[0]) ? '/uploads/seo/' + req.files.seoFaviconFile[0].filename : keepIfBlank('', (prevCfg.seo || {}).favicon)
     },
     catalog: { categories: categories.length > 0 ? categories : ['Games'] },
     qris: { qrString, merchantCode, apiKey, secretKey: (secretKey || '').trim(), feePercent: parseFloat(feePercent), depositMin: parseInt(depositMin), expiredMinutes: parseInt(expiredMinutes) },
@@ -1774,13 +1785,11 @@ function handleSettingsSave(req, res) {
     telegram: { botToken, chatId, notifyOnDeposit: notifyOnDeposit === 'on', notifyOnOrder: notifyOnOrder === 'on', notifyOnRegister: notifyOnRegister === 'on', notifyOnWithdrawal: notifyOnWithdrawal === 'on' },
     community: { groupEnabled: groupEnabled === 'on', groupTitle, groupMessage, groupLink, groupButtonText },
     marquee: { enabled: marqueeEnabled === 'on', text: marqueeText || '' },
-    // Komisi referral: DUA skema -- persentase buat produk selain stok manual, dan nominal FLAT
-    // (Rp) khusus produk stok manual -- lihat catatan lengkap di lib/referrals.js
-    // creditReferralCommission(). Fallback ke default lama (1% / Rp500) kalau field dikirim
-    // kosong/bukan angka, biar gak kesimpen NaN.
+    // Komisi referral: satu persentase SAMA RATA buat SEMUA jenis transaksi (produk digital,
+    // manual, apapun metode bayarnya) -- lihat lib/referrals.js creditReferralCommission().
+    // Fallback ke default lama (1%) kalau field dikirim kosong/bukan angka, biar gak kesimpen NaN.
     referral: {
-      percent: (referralPercent !== undefined && referralPercent !== '' && !isNaN(parseFloat(referralPercent))) ? parseFloat(referralPercent) : 1,
-      manualFlatAmount: (referralManualFlatAmount !== undefined && referralManualFlatAmount !== '' && !isNaN(parseFloat(referralManualFlatAmount))) ? parseFloat(referralManualFlatAmount) : 500
+      percent: (referralPercent !== undefined && referralPercent !== '' && !isNaN(parseFloat(referralPercent))) ? parseFloat(referralPercent) : 1
     }
     // NOTE: "banners" sengaja tidak disentuh di sini. Banner dikelola sepenuhnya lewat
     // /admin/settings/banner/add dan /admin/settings/banner/delete/:id (form terpisah di halaman
