@@ -67,6 +67,17 @@
 <meta name="robots" content="<%= isNoindex ? 'noindex, nofollow' : 'index, follow' %>">
 <% if (canonicalUrl) { %><link rel="canonical" href="<%= canonicalUrl %>"><% } %>
 
+<!-- Favicon/logo situs -- muncul di tab browser & di sebelah nama domain pas hasil pencarian
+     Google. SEBELUM INI gak ada satupun <link rel="icon"> ataupun file favicon.ico yang
+     di-serve, itu sebabnya Google nampilin ikon bulat generik. Fallback ke OG Image kalau
+     favicon belum sempat diupload terpisah (Admin > Pengaturan > SEO), lebih baik daripada gak
+     ada ikon sama sekali walau rasio gambarnya belum tentu persegi/pas. -->
+<% const faviconUrl = seo.favicon || seo.ogImage || ''; %>
+<% if (faviconUrl) { %>
+<link rel="icon" href="<%= faviconUrl %>">
+<link rel="apple-touch-icon" href="<%= faviconUrl %>">
+<% } %>
+
 <!-- Open Graph -->
 <meta property="og:type" content="<%= typeof ogType !== 'undefined' ? ogType : 'website' %>">
 <meta property="og:site_name" content="<%= siteName %>">
@@ -82,3 +93,20 @@
 <meta name="twitter:title" content="<%= metaTitle %>">
 <meta name="twitter:description" content="<%= metaDescription %>">
 <% if (absoluteImage) { %><meta name="twitter:image" content="<%= absoluteImage %>"><% } %>
+
+<!-- JSON-LD Organization -- bantu Google ngaitin logo situs ke domain ini (di luar favicon di
+     atas, yang cuma soal ikon kecil di tab/hasil pencarian). Dipasang di semua halaman (bukan
+     cuma beranda) -- gak masalah muncul berulang, Google cukup ambil salah satu. Butuh
+     canonicalUrl & logo, kalau salah satu belum ke-setting di-skip aja daripada nge-render
+     schema yang gak lengkap. -->
+<% if (canonicalUrl && faviconUrl) { %>
+<script type="application/ld+json">
+<%- JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": siteName,
+  "url": origin || canonicalUrl,
+  "logo": /^https?:\/\//i.test(faviconUrl) ? faviconUrl : origin + (faviconUrl.startsWith('/') ? faviconUrl : '/' + faviconUrl)
+}) %>
+</script>
+<% } %>
