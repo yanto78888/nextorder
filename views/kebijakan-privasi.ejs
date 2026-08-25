@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<%
+  const waRawPP = ((typeof config !== 'undefined' && config.ownerWhatsapp) || '').replace(/[^0-9]/g, '');
+  const waNumberPP = waRawPP ? (waRawPP.startsWith('0') ? '62' + waRawPP.slice(1) : waRawPP) : '';
+  const waLinkPP = waNumberPP ? ('https://wa.me/' + waNumberPP + '?text=' + encodeURIComponent('Halo ' + (config.siteName || '') + ', saya mau tanya soal kebijakan privasi.')) : '';
+  const communityPP = (typeof config !== 'undefined' && config.community) ? config.community : {};
+  const updatedAt = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+%>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'kebijakan-privasi', user, config }) %>
+
+  <div class="main no-bottom-nav">
+
+    <div class="topbar" style="margin-bottom: 12px;">
+      <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-user-shield"></i> Kebijakan Privasi</h2>
+    </div>
+
+    <div class="card">
+      <p style="margin:0 0 8px;">Kebijakan ini menjelaskan data apa saja yang <b><%= config.siteName || 'situs ini' %></b> kumpulkan, bagaimana data itu dipakai dan dilindungi, saat kamu menggunakan layanan top up game, jasa sosmed, OTP, dan fitur lain di situs ini.</p>
+      <p style="margin:0;" class="helper-text">Terakhir diperbarui: <%= updatedAt %></p>
+    </div>
+
+    <div class="acc-section open" id="pp-1">
+      <button type="button" class="acc-header" aria-expanded="true">
+        <span class="acc-header-title"><i class="fa-solid fa-database acc-icon"></i> 1. Informasi yang Kami Kumpulkan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li><b>Data akun</b> -- username, email, dan password. Password disimpan dalam bentuk terenkripsi (hash), bukan teks polos, jadi kami sendiri tidak bisa membaca password asli kamu.</li>
+            <li><b>Data profil opsional</b> -- foto profil, kalau kamu unggah sendiri lewat halaman Profil.</li>
+            <li><b>Data transaksi</b> -- produk yang dibeli, ID Game/Zone ID/nomor tujuan yang kamu isi saat checkout, jumlah, harga, metode bayar, dan waktu transaksi.</li>
+            <li><b>Data teknis</b> -- alamat IP, khusus untuk pendaftaran API key reseller (dipakai sebagai pembatas akses, bukan buat melacak aktivitas harian kamu), serta data sesi login di perangkat yang kamu pakai.</li>
+            <li><b>Kode referral</b> -- kalau kamu daftar atau memasukkan kode undangan, kami catat keterkaitan akun pengundang &amp; yang diundang untuk keperluan komisi referral.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-2">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-sliders acc-icon"></i> 2. Bagaimana Data Digunakan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li>Memproses dan mengirim pesanan kamu (top up game, jasa sosmed, OTP) ke penyedia layanan terkait.</li>
+            <li>Memverifikasi pembayaran, baik lewat saldo akun maupun QRIS.</li>
+            <li>Mencegah kecurangan/penyalahgunaan sistem (bot, akun ganda, abuse promo/referral).</li>
+            <li>Mengirim notifikasi terkait akun kamu sendiri, misalnya status pesanan atau perubahan saldo.</li>
+            <li>Menghitung peringkat di halaman Leaderboard dan komisi program referral.</li>
+            <li>Menjaga dan meningkatkan kualitas layanan secara umum.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-3">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-share-nodes acc-icon"></i> 3. Berbagi Data ke Pihak Ketiga</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 8px;">Kami <b>tidak menjual atau menyewakan</b> data pribadi kamu ke pihak mana pun untuk kepentingan pemasaran. Data hanya dibagikan sebatas yang diperlukan supaya pesanan kamu bisa diproses, yaitu ke:</p>
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li><b>Penyedia produk</b> -- misalnya Digiflazz untuk top up game, IndoSMM untuk jasa sosmed, atau HeroSMS untuk nomor OTP, menerima data secukupnya (ID Game/Zone ID/nomor tujuan) yang memang wajib buat memproses pesanan itu.</li>
+            <li><b>Penyedia pembayaran QRIS</b> -- untuk verifikasi mutasi/pembayaran masuk.</li>
+            <li><b>Notifikasi internal</b> -- ringkasan aktivitas (misal ada deposit/pesanan baru) dikirim ke kanal Telegram milik pengelola situs, khusus untuk kebutuhan operasional.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-4">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-eye acc-icon"></i> 4. Live Transaksi &amp; Leaderboard Publik</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Halaman <a href="/live-transaksi" style="color:var(--cyan);">Live Transaksi</a> dan <a href="/leaderboard" style="color:var(--cyan);">Leaderboard</a> bisa dilihat siapa saja tanpa perlu login. Username dan data tujuan yang tampil di halaman-halaman ini <b>sudah disensor sebagian</b> (masking) -- bukan data lengkap/asli -- supaya identitas dan tujuan transaksi kamu tetap terjaga dari pengunjung lain.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-5">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-lock acc-icon"></i> 5. Keamanan Data</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 8px;">Password akun disimpan dalam bentuk hash (bukan teks polos), dan API key reseller wajib didaftarkan ke satu alamat IP tertentu sebagai lapisan pembatas akses tambahan.</p>
+          <p style="margin:0;" class="helper-text">Meski begitu, tidak ada sistem yang 100% bebas risiko. Jaga kerahasiaan password &amp; API key kamu sendiri, jangan bagikan ke siapa pun -- termasuk yang mengaku sebagai admin/CS.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-6">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-cookie-bite acc-icon"></i> 6. Cookie &amp; Penyimpanan Lokal</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Kami memakai cookie sesi untuk menjaga status login kamu, dan <code>localStorage</code> di browser untuk menyimpan preferensi tampilan (mode gelap/terang) serta status apakah popup ajakan gabung grup komunitas sudah pernah kamu lihat. Data ini tersimpan di perangkat kamu sendiri, bukan di server kami.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-7">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-user-check acc-icon"></i> 7. Hak Kamu Sebagai Pengguna</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Kamu bisa memperbarui email, username, dan foto profil kapan saja lewat halaman <a href="/profile" style="color:var(--cyan);">Profil</a>. Untuk permintaan koreksi data lain atau penghapusan akun, silakan hubungi kami lewat kontak di bagian bawah halaman ini.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-8">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-child-reaching acc-icon"></i> 8. Pengguna di Bawah Umur</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Layanan ini melibatkan transaksi keuangan (top up saldo, pembelian produk digital). Pengguna yang belum cukup umur secara hukum untuk melakukan transaksi sendiri disarankan menggunakan layanan ini dengan sepengetahuan &amp; pendampingan orang tua/wali.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-9">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-arrows-rotate acc-icon"></i> 9. Perubahan Kebijakan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Kebijakan privasi ini bisa diperbarui sewaktu-waktu mengikuti perkembangan layanan. Tanggal "Terakhir diperbarui" di atas selalu menunjukkan versi terbaru yang berlaku.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="pp-10">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-headset acc-icon"></i> 10. Kontak</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 10px;">Ada pertanyaan soal privasi &amp; data kamu? Hubungi kami:</p>
+          <% if (waLinkPP) { %><a href="<%= waLinkPP %>" target="_blank" rel="noopener" class="btn small solid" style="margin-right:8px;"><i class="fa-brands fa-whatsapp"></i> Kontak Bantuan</a><% } %>
+          <% if (communityPP.groupLink) { %><a href="<%= communityPP.groupLink %>" target="_blank" rel="noopener" class="btn small ghost"><i class="fa-solid fa-users"></i> Grup Komunitas</a><% } %>
+        </div>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:18px;"><a href="/syarat-ketentuan" style="color:var(--cyan); font-size:13px;">Lihat juga Syarat &amp; Ketentuan &rarr;</a></p>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.acc-section .acc-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var section = header.closest('.acc-section');
+      var open = !section.classList.contains('open');
+      section.classList.toggle('open', open);
+      header.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head') %></head>
+<body>
+<%
+  const waRawTOS = ((typeof config !== 'undefined' && config.ownerWhatsapp) || '').replace(/[^0-9]/g, '');
+  const waNumberTOS = waRawTOS ? (waRawTOS.startsWith('0') ? '62' + waRawTOS.slice(1) : waRawTOS) : '';
+  const waLinkTOS = waNumberTOS ? ('https://wa.me/' + waNumberTOS + '?text=' + encodeURIComponent('Halo ' + (config.siteName || '') + ', saya mau tanya soal syarat & ketentuan.')) : '';
+  const communityTOS = (typeof config !== 'undefined' && config.community) ? config.community : {};
+  const updatedAtTOS = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+%>
+<div class="app-shell">
+  <%- include('partials/user-sidebar', { active: 'syarat-ketentuan', user, config }) %>
+
+  <div class="main no-bottom-nav">
+
+    <div class="topbar" style="margin-bottom: 12px;">
+      <h2 style="margin:0; font-size:20px;"><i class="fa-solid fa-file-contract"></i> Syarat &amp; Ketentuan</h2>
+    </div>
+
+    <div class="card">
+      <p style="margin:0 0 8px;">Dengan mengakses atau menggunakan <b><%= config.siteName || 'situs ini' %></b>, kamu dianggap sudah membaca, memahami, dan menyetujui seluruh syarat &amp; ketentuan di bawah ini.</p>
+      <p style="margin:0;" class="helper-text">Terakhir diperbarui: <%= updatedAtTOS %></p>
+    </div>
+
+    <div class="acc-section open" id="tos-1">
+      <button type="button" class="acc-header" aria-expanded="true">
+        <span class="acc-header-title"><i class="fa-solid fa-id-badge acc-icon"></i> 1. Akun Pengguna</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li>Data yang kamu daftarkan (username, email) harus benar dan milik kamu sendiri.</li>
+            <li>Satu orang hanya diperbolehkan memiliki satu akun -- akun ganda yang dipakai untuk menyalahgunakan promo/referral dapat ditangguhkan.</li>
+            <li>Kamu bertanggung jawab penuh menjaga kerahasiaan password &amp; API key sendiri. Semua aktivitas yang terjadi lewat akunmu dianggap dilakukan oleh kamu sendiri.</li>
+            <li>Segera hubungi kami kalau menduga akunmu diakses pihak lain tanpa izin.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-2">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-gamepad acc-icon"></i> 2. Produk &amp; Layanan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li><b>Top up game</b> diproses otomatis lewat sistem sepanjang stok/provider tersedia; sebagian kecil kasus bisa butuh proses manual dari admin.</li>
+            <li><b>Jasa sosmed</b> (followers/likes/views, dst) diproses oleh provider pihak ketiga -- angka hasil bisa saja berkurang secara alami ("drop") mengikuti kebijakan platform media sosial terkait, di luar kendali kami.</li>
+            <li><b>Nomor OTP virtual</b> tidak menjamin SMS pasti masuk, karena tergantung ketersediaan jalur operator saat itu.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-3">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-tags acc-icon"></i> 3. Harga &amp; Pembayaran</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 8px;">Semua harga yang tertera dapat <b>berubah sewaktu-waktu tanpa pemberitahuan sebelumnya</b>. Pembayaran bisa dilakukan lewat saldo akun (isi ulang via QRIS) atau QRIS langsung per transaksi.</p>
+          <p style="margin:0;" class="helper-text">Untuk pembayaran QRIS, bayar sesuai nominal yang tertera secara persis -- sistem mendeteksi pembayaran otomatis berdasarkan jumlah yang masuk.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-4">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-rotate-left acc-icon"></i> 4. Pembatalan &amp; Pengembalian Dana</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li>Pesanan yang <b>sudah terkirim otomatis oleh sistem tidak dapat dibatalkan atau di-refund</b>, terutama untuk kesalahan input ID Game/Zone ID/nomor tujuan dari sisi pembeli -- selalu periksa ulang data tujuan sebelum menyelesaikan pembayaran.</li>
+            <li>Kalau produk gagal terkirim karena kendala sistem atau provider (bukan kesalahan input pembeli), saldo/dana akan dikembalikan, baik otomatis maupun diproses manual oleh admin.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-5">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-ban acc-icon"></i> 5. Larangan Penggunaan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 8px;">Kamu dilarang:</p>
+          <ul style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.85;">
+            <li>Mengakses sistem secara otomatis (bot/scraping) di luar jalur API resmi yang disediakan.</li>
+            <li>Memanipulasi sistem Leaderboard, promo, atau komisi referral dengan cara yang tidak wajar.</li>
+            <li>Mengajukan chargeback/sengketa pembayaran yang tidak berdasar atas transaksi yang sudah selesai diproses dengan benar.</li>
+            <li>Menyalahgunakan atau membagikan API key ke pihak yang tidak berhak.</li>
+          </ul>
+          <p style="margin:8px 0 0;" class="helper-text">Pelanggaran dapat berakibat penangguhan atau penutupan akun.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-6">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-medal acc-icon"></i> 6. Membership &amp; Referral</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Persentase diskon membership (Gold/Platinum) dan skema komisi program referral mengikuti ketentuan yang berlaku saat transaksi dilakukan, dan dapat disesuaikan oleh pengelola dari waktu ke waktu.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-7">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-scale-balanced acc-icon"></i> 7. Batasan Tanggung Jawab</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Sejauh diizinkan oleh hukum yang berlaku, kami tidak bertanggung jawab atas kerugian tidak langsung yang timbul akibat gangguan pihak ketiga (bank, e-wallet, penyedia game, atau platform media sosial) yang berada di luar kendali kami.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-8">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-arrows-rotate acc-icon"></i> 8. Perubahan Ketentuan</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Syarat &amp; ketentuan ini bisa diperbarui sewaktu-waktu. Penggunaan layanan setelah perubahan berlaku dianggap sebagai persetujuan atas ketentuan versi terbaru.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-9">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-gavel acc-icon"></i> 9. Hukum yang Berlaku</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0;">Syarat &amp; ketentuan ini tunduk pada dan ditafsirkan sesuai hukum yang berlaku di Republik Indonesia.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="acc-section" id="tos-10">
+      <button type="button" class="acc-header" aria-expanded="false">
+        <span class="acc-header-title"><i class="fa-solid fa-headset acc-icon"></i> 10. Kontak</span>
+        <i class="fa-solid fa-chevron-down acc-chevron"></i>
+      </button>
+      <div class="acc-body">
+        <div class="card">
+          <p style="margin:0 0 10px;">Ada pertanyaan soal syarat &amp; ketentuan ini? Hubungi kami:</p>
+          <% if (waLinkTOS) { %><a href="<%= waLinkTOS %>" target="_blank" rel="noopener" class="btn small solid" style="margin-right:8px;"><i class="fa-brands fa-whatsapp"></i> Kontak Bantuan</a><% } %>
+          <% if (communityTOS.groupLink) { %><a href="<%= communityTOS.groupLink %>" target="_blank" rel="noopener" class="btn small ghost"><i class="fa-solid fa-users"></i> Grup Komunitas</a><% } %>
+        </div>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:18px;"><a href="/kebijakan-privasi" style="color:var(--cyan); font-size:13px;">Lihat juga Kebijakan Privasi &rarr;</a></p>
+
+    <%- include('partials/footer') %>
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.acc-section .acc-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var section = header.closest('.acc-section');
+      var open = !section.classList.contains('open');
+      section.classList.toggle('open', open);
+      header.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+})();
+</script>
+</body>
+</html>
