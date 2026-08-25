@@ -606,6 +606,30 @@ router.get('/leaderboard', (req, res) => {
   });
 });
 
+// ---------- HALAMAN LEGAL (Kebijakan Privasi & Syarat Ketentuan) ----------
+// Statis & PUBLIK (gak requireLogin) sama seperti /daftar-harga & /dokumentasi-api -- gak ada
+// data dinamis khusus selain config (nama situs, kontak WA, link grup) yang dipakai buat isi
+// bagian "Kontak" di tiap halaman.
+router.get('/kebijakan-privasi', (req, res) => {
+  const cfg = getConfig();
+  res.render('kebijakan-privasi', {
+    user: req.session.user ? findUserById(req.session.user.id) : null,
+    config: cfg,
+    pageTitle: `Kebijakan Privasi - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Kebijakan privasi: data apa saja yang dikumpulkan, cara dipakai, dan cara dilindungi di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
+router.get('/syarat-ketentuan', (req, res) => {
+  const cfg = getConfig();
+  res.render('syarat-ketentuan', {
+    user: req.session.user ? findUserById(req.session.user.id) : null,
+    config: cfg,
+    pageTitle: `Syarat & Ketentuan - ${cfg.siteName || 'NEXORDER'}`,
+    pageDescription: `Syarat dan ketentuan penggunaan layanan di ${cfg.siteName || 'NEXORDER'}.`
+  });
+});
+
 // ---------- OTP (HeroSMS: nomor virtual terima SMS) ----------
 // Alur order OTP BEDA TOTAL dari produk lain (top up/SMM/manual): bukan "bayar -> langsung dapat
 // hasil", tapi "bayar -> dapat NOMOR -> tunggu SMS masuk (dipantau di halaman /otp/status/:id) ->
