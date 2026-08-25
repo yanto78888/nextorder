@@ -27,6 +27,8 @@
       <div class="footer-links">
         <a href="/produk"><i class="fa-solid fa-house"></i> Beranda</a>
         <a href="/daftar-harga"><i class="fa-solid fa-tags"></i> Daftar Harga Layanan</a>
+        <a href="/live-transaksi"><i class="fa-solid fa-tower-broadcast"></i> Live Transaksi</a>
+        <a href="/dokumentasi-api"><i class="fa-solid fa-code"></i> API Reseller</a>
         <% if (waLink) { %><a href="<%= waLink %>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Kontak Bantuan</a><% } %>
         <% if (community.groupLink) { %><a href="<%= community.groupLink %>" target="_blank" rel="noopener"><i class="fa-solid fa-users"></i> Grup Komunitas</a><% } %>
       </div>
@@ -46,6 +48,11 @@
   </div>
 
   <div class="footer-bottom">
+    <div class="footer-legal-links">
+      <a href="/kebijakan-privasi">Kebijakan Privasi</a>
+      <span class="footer-legal-sep">•</span>
+      <a href="/syarat-ketentuan">Syarat &amp; Ketentuan</a>
+    </div>
     © <%= year %> <b><%= config.siteName || 'TOPUP SHOP' %></b>. Semua hak dilindungi. Semua harga dapat berubah sewaktu-waktu tanpa pemberitahuan.
   </div>
 </footer>
