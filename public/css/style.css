@@ -16,6 +16,10 @@
   --radius: 6px;
   --gold: #a67c00;
   --platinum: #5b6b7c;
+  /* Aksen ungu/pink -- KHUSUS dipakai buat border/glow kartu game di katalog (.nf-card), gantian
+     sama --cyan & --gold biar tiap kartu punya identitas warna sendiri (senada referensi grid
+     game yang tiap kartunya "menyala" beda warna), TANPA nambah warna baru di elemen lain. */
+  --violet: #7c4fd6;
   /* Varian terang dari warna utama -- dipakai buat gradient/aksen (kartu KPI, progress bar, dll)
      supaya SEMUA nuansa biru/hijau di web ini konsisten satu keluarga warna sama var(--cyan)/
      var(--success), bukan biru/hijau generik lain yang gak nyambung sama tema (dulu ada
@@ -856,23 +860,29 @@ input[type="file"]::file-selector-button {
 .nf-row-track {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .nf-card {
   background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-radius: var(--radius);
+  border: 1.5px solid var(--card-glow, var(--border-glow));
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
   animation: nfCardIn .45s cubic-bezier(.16,1,.3,1) both;
 }
+/* Tiap kartu gantian dikasih warna glow (ungu -> cyan -> emas -> ulang), biar grid game keliatan
+   "hidup" & tiap kartu punya identitas sendiri kayak referensi -- bukan cuma dekor acak, custom
+   property --card-glow ini juga dipakai lagi di shadow + hover di bawah biar konsisten satu kartu
+   satu warna, bukan lompat ke cyan doang pas di-hover. */
+.nf-row-track .nf-card:nth-child(3n+1) { --card-glow: var(--violet); }
+.nf-row-track .nf-card:nth-child(3n+2) { --card-glow: var(--cyan); }
+.nf-row-track .nf-card:nth-child(3n)   { --card-glow: var(--gold); }
 .nf-card:hover {
   transform: translateY(-3px) scale(1.02);
-  border-color: var(--cyan);
-  box-shadow: 0 8px 20px rgba(21,101,192,0.18);
+  box-shadow: 0 10px 22px -6px var(--card-glow, rgba(21,101,192,0.4));
 }
 /* Kartu 2 baris pertama (asumsi grid 2 kolom mobile / 4 kolom desktop) masuk bergantian dikit-
    dikit, bukan bareng semua sekaligus -- kesannya lebih hidup tanpa bikin loading kerasa lama
@@ -896,17 +906,32 @@ input[type="file"]::file-selector-button {
 }
 .nf-card-thumb {
   position: relative;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 1 / 1;
   background: linear-gradient(135deg, #f4f5f7, #e9ebee);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
 .nf-card-thumb img {
-  width: 100%; height: 100%; object-fit: contain;
+  width: 100%; height: 100%; object-fit: cover;
   opacity: 0;
   transition: opacity .35s ease;
 }
 .nf-card-thumb img.is-loaded { opacity: 1; }
+/* Garis aksen diagonal (emas) motong bagian bawah gambar -- detail dekoratif ala kartu game
+   referensi. pointer-events:none + z-index rendah biar gak ganggu klik gambar/badge di atasnya. */
+.nf-card-thumb::after {
+  content: '';
+  position: absolute;
+  left: -15%;
+  right: -15%;
+  bottom: 20%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold) 25%, var(--gold) 75%, transparent);
+  transform: rotate(-9deg);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 1;
+}
 .nf-noimg {
   font-family: var(--font-display);
   font-size: 34px;
@@ -926,9 +951,9 @@ input[type="file"]::file-selector-button {
 .nf-stock-tag.ok { background: rgba(30,132,73,0.85); color: #06210f; }
 .nf-stock-tag.warn { background: rgba(184,134,11,0.85); color: #241a00; }
 
-.nf-card-body { padding: 8px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.nf-card-body { padding: 9px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; }
 .nf-card-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
   display: -webkit-box;
@@ -946,17 +971,17 @@ input[type="file"]::file-selector-button {
   -webkit-box-orient: vertical;
   flex: 1;
 }
-.nf-card-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.nf-card-price { display: flex; align-items: baseline; justify-content: center; gap: 6px; flex-wrap: wrap; }
 .nf-price-now { font-family: var(--font-mono); color: var(--cyan); font-size: 12.5px; font-weight: 700; }
 
 /* Kartu sekarang lebar mengikuti kolom grid (2 kolom, isi ke pinggir), jadi gak perlu lagi
    override width tetap buat layar kecil kayak sebelumnya. */
 
-/* ===== GAME CATALOG: badge ikon game + efek neon di card ===== */
+/* ===== GAME CATALOG: badge ikon game + efek neon di card =====
+   Efek hover/glow kartu sekarang SEPENUHNYA diatur lewat .nf-card:hover (pakai custom property
+   --card-glow biar tiap kartu gantian ungu/cyan/emas, lihat definisi nth-child di atas) --
+   .game-card cukup jadi anchor position:relative buat badge ikon game di bawah ini. */
 .game-card { position: relative; }
-.game-card:hover {
-  box-shadow: 0 0 0 1px var(--cyan), 0 12px 10px rgba(21,101,192,0.28);
-}
 .game-icon-badge {
   position: absolute;
   bottom: 6px;
@@ -1013,11 +1038,12 @@ input[type="file"]::file-selector-button {
 .card::before { height: 3px; box-shadow: 0 0 14px rgba(21,101,192,0.23); }
 .nf-card {
   border-width: 1.5px;
-  /* Shadow tipis -- elevasi halus, bukan bayangan tebal/gelap kayak sebelumnya. */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.06);
+  /* Shadow tipis (elevasi halus) DITAMBAH glow lembut warna kartu (--card-glow, gantian ungu/
+     cyan/emas -- lihat definisi nth-child di atas), bukan bayangan tebal/gelap kayak sebelumnya. */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.06), 0 0 13px -7px var(--card-glow, transparent);
 }
 .nf-card:hover {
-  box-shadow: 0 8px 20px rgba(21,101,192,0.16), 0 0 0 1px var(--cyan) inset;
+  box-shadow: 0 10px 22px -6px var(--card-glow, rgba(21,101,192,0.4)), 0 0 0 1px var(--card-glow, var(--cyan)) inset;
 }
 /* Shadow tombol udah didefinisikan per-varian di block .btn utama (lihat atas) --
    gak perlu override di sini lagi. */
@@ -1331,6 +1357,7 @@ input[type="file"]::file-selector-button {
 .nf-rating {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   margin: 4px 0 2px;
   flex-wrap: wrap;
@@ -2593,6 +2620,17 @@ html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(-
   text-align: center;
 }
 .footer-bottom b { color: var(--text-main); }
+.footer-legal-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.footer-legal-links a { font-size: 11.5px; color: var(--text-dim); transition: color .15s ease; }
+.footer-legal-links a:hover { color: var(--cyan); text-decoration: underline; }
+.footer-legal-sep { color: var(--border-glow); font-size: 10px; }
 
 @media (min-width: 620px) {
   .footer-grid { grid-template-columns: 1.3fr 1fr 1fr; }
@@ -3191,6 +3229,7 @@ html[data-theme="dark"] {
   --text-dim: #93a1b0;
   --gold: #e0b341;
   --platinum: #a3b6c8;
+  --violet: #b98bff;
   --brand-gradient: linear-gradient(135deg, #4fa8ff 0%, #7fe6ff 55%, #4fa8ff 100%);
   --cyan-light: #7fe6ff;
   --success-light: #6ee89a;
