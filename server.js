@@ -171,7 +171,9 @@ app.get('/sitemap.xml', (req, res) => {
   const origin = res.locals.siteOrigin;
   const staticUrls = [
     { loc: '/produk', priority: '1.0', changefreq: 'daily' },
-    { loc: '/daftar-harga', priority: '0.8', changefreq: 'daily' }
+    { loc: '/daftar-harga', priority: '0.8', changefreq: 'daily' },
+    { loc: '/kebijakan-privasi', priority: '0.3', changefreq: 'monthly' },
+    { loc: '/syarat-ketentuan', priority: '0.3', changefreq: 'monthly' }
   ];
   const productUrls = getActiveProducts().map(p => ({
     loc: `/produk/${p.id}`,
