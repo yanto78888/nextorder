@@ -441,7 +441,7 @@
 
 <script>
 (function(){
-  var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})) %>;
+  var VARIANTS = <%- JSON.stringify((variants || []).reduce(function(acc, v){ acc[v.id] = v; return acc; }, {})).replace(/</g, '\\u003c') %>;
   var userSaldo = <%= user ? user.saldo : 0 %>;
   var currentProductId = '<%= product.id %>';
   // Dipakai buat render ulang blok "Harga Umum vs Member" pas ganti nominal (lihat listener klik
@@ -586,6 +586,17 @@
   if(promoRemoveBtn) promoRemoveBtn.addEventListener('click', function(){ clearPromoState(); upd(); });
   if(promoInput) promoInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); applyPromo(); } });
 
+  // escapeHtml: dipakai renderTargetFields() di bawah biar konsisten dengan versi server-side
+  // (EJS <%= %> otomatis escape) -- sebelumnya label/key/placeholder produk disuntik APA ADANYA
+  // ke innerHTML pas ganti nominal, beda dari render pertama kali yang sudah aman ter-escape.
+  // Data ini memang diisi admin (bukan user biasa), tapi tetap dijaga konsisten sebagai lapis
+  // pertahanan tambahan, sama pola escapeHtml yang sudah dipakai di live-transaksi-publik.ejs.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   // Ganti varian nominal (mis. pilih 875 Diamonds vs 2010 Diamonds) tanpa reload halaman
   function renderTargetFields(fields){
     var wrap=document.getElementById('targetFieldsWrap');
@@ -594,17 +605,17 @@
     var label = numberSteps ? '1. ' : '';
     var html='<div class="target-fields-box"><div class="detail-method-title">'+label+'Isi Data Tujuan</div>';
     fields.forEach(function(f){
-      html+='<label>'+f.label+(f.required?' <span style="color:var(--cyan);">*</span>':'')+'</label>';
+      html+='<label>'+escapeHtml(f.label)+(f.required?' <span style="color:var(--cyan);">*</span>':'')+'</label>';
       if(f.type==='select'){
-        html+='<select class="target-field-input" data-key="'+f.key+'" '+(f.required?'required':'')+'>';
-        html+='<option value="">Pilih '+f.label+'</option>';
+        html+='<select class="target-field-input" data-key="'+escapeHtml(f.key)+'" '+(f.required?'required':'')+'>';
+        html+='<option value="">Pilih '+escapeHtml(f.label)+'</option>';
         (f.options||[]).forEach(function(opt){
-          html+='<option value="'+opt.value+'">'+opt.label+'</option>';
+          html+='<option value="'+escapeHtml(opt.value)+'">'+escapeHtml(opt.label)+'</option>';
         });
         html+='</select>';
       } else {
         var inputType = (f.type === 'tel' || f.type === 'email') ? f.type : 'text';
-        html+='<input type="'+inputType+'" class="target-field-input" data-key="'+f.key+'" placeholder="'+(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
+        html+='<input type="'+inputType+'" class="target-field-input" data-key="'+escapeHtml(f.key)+'" placeholder="'+escapeHtml(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
       }
     });
     var hasZoneField = fields.some(function(f){ return /zone/i.test(f.key); });
