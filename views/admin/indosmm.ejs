@@ -328,24 +328,41 @@
     });
     if (!items.length) { alert('Judul layanan tidak boleh kosong.'); return; }
 
+    // Dikirim BERTAHAP per-batch kecil + progress bar (runBatchJob, lihat public/js/
+    // admin-batch.js) -- SAMA PERSIS pola yang dipakai "Hapus Terpilih" produk & Import
+    // Digiflazz. Sebelumnya SEMUA layanan tercentang dikirim dalam SATU request raksasa;
+    // kalau admin nyentang ratusan/ribuan layanan sekaligus (search hasil IndoSMM bisa
+    // banyak), itu bisa nabrak limit ukuran body ATAU keburu timeout nunggu 1 request
+    // gede kelar tanpa progress apa pun -- persis alasan yang sama kenapa Hapus Terpilih &
+    // Import Digiflazz sudah lebih dulu dipindah ke pola batch ini (lihat catatan di
+    // server.js soal limit body 2mb yang cuma jaring pengaman, bukan solusi utama).
     addSelectedBtn.disabled = true;
-    addSelectedBtn.textContent = 'Menambahkan...';
-    fetch('/admin/indosmm/import-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: items })
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
-        if (!data.ok) { alert('Gagal: ' + data.error); return; }
-        alert(data.message);
+    runBatchJob({
+      title: 'Menambahkan layanan terpilih...',
+      items: items,
+      chunkSize: 100,
+      delayMs: 200,
+      sendChunk: function (chunkItems) {
+        return fetch('/admin/indosmm/import-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: chunkItems })
+        }).then(function (r) { return r.json(); });
+      },
+      onComplete: function (results) {
+        var totalCreated = 0, totalUpdated = 0, totalErrors = [];
+        results.forEach(function (res) {
+          if (!res) return;
+          if (res.ok === false) { totalErrors.push(res.error || 'Gagal memproses salah satu batch'); return; }
+          totalCreated += res.created || 0;
+          totalUpdated += res.updated || 0;
+          if (Array.isArray(res.errors)) totalErrors = totalErrors.concat(res.errors);
+        });
+        var msg = totalCreated + ' layanan baru ditambahkan' + (totalUpdated > 0 ? ', ' + totalUpdated + ' yang udah ada diperbarui' : '') + '.' + (totalErrors.length > 0 ? ' ' + totalErrors.length + ' baris gagal.' : '');
+        alert(msg);
         location.reload();
-      })
-      .catch(function (err) {
-        addSelectedBtn.textContent = 'Tambah Layanan Terpilih';
-        alert('Gagal: ' + err.message);
-      });
+      }
+    });
   });
 })();
 
@@ -392,5 +409,6 @@
   refresh();
 })();
 </script>
+<script src="/js/admin-batch.js"></script>
 </body>
 </html>
