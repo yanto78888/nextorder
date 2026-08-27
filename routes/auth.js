@@ -5,8 +5,25 @@ import { createUser, findUserByUsername, findUserByEmail, findUserByReferralCode
 import { getConfig } from '../lib/config.js';
 import { notifyRegister } from '../lib/telegram.js';
 import { sendResetOtpEmail, isSmtpConfigured } from '../lib/mailer.js';
+import { checkRateLimit } from '../lib/rateLimiter.js';
+import { getRequestIp } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Rate limit LOGIN & REGISTER per-IP (bukan per-akun kayak checkout -- di titik ini user belum
+// login/belum punya akun, jadi belum ada user.id). Sebelumnya KEDUA endpoint ini sama sekali gak
+// dibatasi -- README project sendiri sudah mencatat ini sebagai to-do sebelum production, soalnya
+// POST /login yang gak dibatasi = celah brute-force password, dan POST /register yang gak
+// dibatasi = celah spam akun massal.
+//
+// Login dibatasi lebih longgar (10/menit) dari register (6/menit) karena typo password itu wajar
+// & sering (apalagi kalau baru pertama pindah dari login username ke email), sedangkan orang
+// normal gak bakal daftar akun baru berkali-kali dalam semenit.
+const LOGIN_RATE_LIMIT_MAX = 10;
+const REGISTER_RATE_LIMIT_MAX = 6;
+function authRateLimited(prefix, req, max) {
+  return !checkRateLimit(`${prefix}:${getRequestIp(req)}`, max).allowed;
+}
 
 // ---------- LOGIN VIA GOOGLE ----------
 // Kredensial (Client ID & Client Secret) diatur admin di Admin > Pengaturan > "Login dengan
@@ -162,6 +179,11 @@ router.get('/login', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
+  const cfg = getConfig();
+  const pageTitle = `Login - ${cfg.siteName || 'NEXORDER'}`;
+  if (authRateLimited('login', req, LOGIN_RATE_LIMIT_MAX)) {
+    return res.render('login', { error: 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.', config: cfg, pageTitle, noindex: true });
+  }
   // Login sekarang pakai EMAIL (field di form namanya "email"), TAPI username tetap ada &
   // masih dipakai di tempat lain (ditampilkan di sidebar, dipakai buat cari akun via API key,
   // dll). Supaya user LAMA yang akunnya dibuat SEBELUM email jadi wajib (emailnya kosong di
@@ -171,8 +193,6 @@ router.post('/login', (req, res) => {
   // jadi fallback ini gak bikin ambigu buat akun baru.
   const { email, password } = req.body;
   const user = findUserByEmail(email) || findUserByUsername(email);
-  const cfg = getConfig();
-  const pageTitle = `Login - ${cfg.siteName || 'NEXORDER'}`;
   // Akun yang daftar/login pertama kali lewat Google gak punya password lokal (password: '') --
   // dikasih pesan yang jelas di sini, BUKAN "Email atau password salah" yang bikin bingung
   // karena emailnya sendiri sebenarnya benar.
@@ -202,6 +222,10 @@ router.post('/register', async (req, res) => {
   const cfg = getConfig();
   const pageTitle = `Daftar Akun - ${cfg.siteName || 'NEXORDER'}`;
   const refCode = String(referralCode || '').trim().toUpperCase();
+
+  if (authRateLimited('register', req, REGISTER_RATE_LIMIT_MAX)) {
+    return res.render('register', { error: 'Terlalu banyak percobaan daftar akun. Coba lagi dalam 1 menit.', refCode, config: cfg, pageTitle, noindex: true });
+  }
 
   // Email sekarang WAJIB diisi di sini (bukan opsional lagi) -- dipakai buat login (lihat
   // POST /login) & buat kirim kode OTP di fitur Lupa Password. Validasi format/keunikan yang

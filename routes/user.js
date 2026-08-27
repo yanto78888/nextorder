@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { requireLogin } from '../middleware/auth.js';
+import { checkRateLimit } from '../lib/rateLimiter.js';
 import {
   findUserById, updateUser, setPassword, verifyPassword, deductSaldo, addSaldo,
   getMembershipDiscount, upgradeMembership, generateApiKey, revokeApiKey, findUserByEmail,
@@ -73,6 +74,20 @@ function extractTargetData(product, body) {
   return { data, missing };
 }
 
+// Rate limit checkout PER AKUN (bukan per IP -- request checkout wajib login, jadi user.id
+// sudah identifier yang stabil & gak kena masalah shared-IP/proxy). Sebelumnya endpoint checkout
+// (POST /order & /order/qris-init) sama sekali gak dibatasi -- beda dari API reseller yang sudah
+// dibatasi 60 req/menit per API key lewat requireApiKey() (lib/rateLimiter.js), padahal README
+// sendiri sudah mencatat ini sebagai to-do sebelum production. Prefix "checkout:" di key biar
+// bucket-nya gak numpuk/ketimpa sama bucket API key reseller yang pakai fungsi checkRateLimit
+// yang sama persis (in-memory Map yang sama, kunci beda namespace). Batas 20/menit sengaja
+// longgar buat pemakaian manusia wajar (checkout banyak varian berturut-turut, ganti metode
+// bayar dll), tapi cukup ketat buat nahan bot/script yang nembak checkout berkali-kali.
+const CHECKOUT_RATE_LIMIT_MAX = 20;
+function checkoutRateLimited(userId) {
+  return !checkRateLimit(`checkout:${userId}`, CHECKOUT_RATE_LIMIT_MAX).allowed;
+}
+
 // ---------- UPLOAD FOTO PROFIL ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const avatarDir = path.join(__dirname, '..', 'public', 'uploads', 'avatars');
@@ -90,6 +105,11 @@ const uploadAvatar = multer({
   storage: avatarStorage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   fileFilter: (req, file, cb) => {
+    // Cek EXTENSION & MIMETYPE dulu di sini (cepat, nolak lebih awal sebelum file kepakai kuota
+    // upload) -- TAPI dua-duanya cuma metadata yang dikirim BROWSER, gampang dipalsuin (rename
+    // file .html jadi .jpg + set header Content-Type: image/jpeg manual). Makanya ini BUKAN
+    // validasi satu-satunya -- isi file beneran (magic bytes) dicek ULANG sesudah tersimpan,
+    // lihat isValidImageSignature() & pemakaiannya di POST /profile/avatar di bawah.
     const allowedExt = /\.(jpe?g|png|webp|gif)$/i;
     const allowedMime = /^image\/(jpeg|png|webp|gif)$/i;
     if (!allowedExt.test(file.originalname) || !allowedMime.test(file.mimetype || '')) {
@@ -98,6 +118,43 @@ const uploadAvatar = multer({
     cb(null, true);
   }
 });
+
+// Cek MAGIC BYTES (signature beberapa byte pertama tiap file) buat mastiin isi file BENERAN
+// gambar yang diklaim -- bukan cuma percaya nama file/mimetype dari browser (lihat catatan di
+// fileFilter di atas). Cuma perlu baca 12 byte pertama, jadi murah walau dipanggil tiap upload.
+function isValidImageSignature(filePath) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(12);
+    const bytesRead = fs.readSync(fd, buf, 0, 12, 0);
+    if (bytesRead < 4) return false;
+    if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true; // JPEG
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true; // PNG
+    if (buf.toString('ascii', 0, 3) === 'GIF') return true; // GIF87a / GIF89a
+    if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return true; // WEBP
+    return false;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch {} }
+  }
+}
+
+// Hapus avatar LAMA dari disk pas ganti ke yang baru -- sebelumnya file lama gak PERNAH dihapus
+// sama sekali, jadi tiap kali user ganti foto profil, file lama numpuk di disk selamanya (lama-
+// lama bisa habisin storage server, apalagi kalau digabung sama upload yang sering/berulang).
+// Cuma hapus kalau avatar lama itu file yang KITA kelola sendiri (path-nya diawali
+// "/uploads/avatars/") -- avatar dari Google OAuth itu URL eksternal (https://...), jangan
+// pernah disentuh/dihapus.
+function deleteOldAvatarIfLocal(avatarPath) {
+  if (!avatarPath || !avatarPath.startsWith('/uploads/avatars/')) return;
+  const filename = path.basename(avatarPath);
+  const fullPath = path.join(avatarDir, filename);
+  fs.unlink(fullPath, (err) => {
+    if (err && err.code !== 'ENOENT') console.error('[profile/avatar] Gagal hapus avatar lama:', err.message);
+  });
+}
 
 // /dashboard lama dipindah ke /produk (home) dan statistiknya digabung ke /profile
 router.get('/dashboard', requireLogin, (req, res) => res.redirect('/produk'));
@@ -207,7 +264,11 @@ router.post('/profile/username', requireLogin, (req, res) => {
 });
 
 // Ganti foto profil (avatar bulat di pojok kanan atas)
+const AVATAR_UPLOAD_RATE_LIMIT_MAX = 10; // per menit per akun -- ganti foto profil itu jarang, gak ada alasan wajar upload berkali-kali dalam semenit
 router.post('/profile/avatar', requireLogin, (req, res) => {
+  if (!checkRateLimit(`avatar-upload:${req.session.user.id}`, AVATAR_UPLOAD_RATE_LIMIT_MAX).allowed) {
+    return res.redirect('/profile?error=' + encodeURIComponent('Terlalu banyak upload beruntun, coba lagi sebentar lagi.'));
+  }
   uploadAvatar.single('avatarFile')(req, res, (err) => {
     if (err) {
       return res.redirect('/profile?error=' + encodeURIComponent(err.message));
@@ -215,8 +276,17 @@ router.post('/profile/avatar', requireLogin, (req, res) => {
     if (!req.file) {
       return res.redirect('/profile?error=' + encodeURIComponent('Pilih foto terlebih dahulu'));
     }
+    // Validasi ISI file (bukan cuma nama/mimetype yang dikirim browser, lihat catatan di
+    // fileFilter/isValidImageSignature di atas) -- kalau gak lolos, file yang kadung tersimpan
+    // langsung dihapus lagi & user dikasih tau, gak dibiarkan nyangkut di disk.
+    if (!isValidImageSignature(req.file.path)) {
+      fs.unlink(req.file.path, () => {});
+      return res.redirect('/profile?error=' + encodeURIComponent('File yang diupload bukan gambar yang valid (isi file tidak cocok dengan format yang diklaim).'));
+    }
     const user = findUserById(req.session.user.id);
+    const oldAvatar = user.avatar;
     updateUser(user.id, { avatar: '/uploads/avatars/' + req.file.filename });
+    deleteOldAvatarIfLocal(oldAvatar);
     res.redirect('/profile?success=' + encodeURIComponent('Foto profil berhasil diperbarui'));
   });
 });
@@ -447,8 +517,21 @@ router.get('/produk', (req, res) => {
       };
     });
 
+  // FITUR: urutkan produk A-Z dalam tiap kategori (nama grup varian buat kartu yang digabung,
+  // atau nama produk aslinya buat yang berdiri sendiri -- collapseVariantGroups() di atas SUDAH
+  // nge-set field "name" ke nama yang BENERAN tampil di kartu, jadi sort di SINI, SETELAH
+  // collapseVariantGroups, otomatis ngurutin berdasarkan nama yang keliatan di layar). Sebelumnya
+  // urutannya ikut urutan produk di database (biasanya urutan input/import admin) -- gak ada
+  // pola yang jelas buat pengunjung. { numeric: true } biar "Produk 2" ketuker di depan
+  // "Produk 10" (bukan "10" duluan gara-gara karakter '1' < '2' kalau dibandingin sebagai teks).
+  // SENGAJA cuma di sini (katalog kategori) -- "bestsellers" (baris "Populer" di atas GAMES/
+  // DIGITAL) TETAP diurut berdasar Terjual, bukan abjad, soalnya emang itu tujuannya.
   const rows = groupProductsByCategory(products, cfg)
-    .map(g => ({ category: g.category, products: collapseVariantGroups(g.items, thumbByGroup) }));
+    .map(g => ({
+      category: g.category,
+      products: collapseVariantGroups(g.items, thumbByGroup)
+        .sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base', numeric: true }))
+    }));
   const categoryOrder = rows.map(r => r.category);
 
   // 6 KATEGORI BESTSELLER: produk/grup dengan Terjual TERTINGGI, digabung dulu per Grup Varian
@@ -857,6 +940,9 @@ router.post('/promo/validate', requireLogin, (req, res) => {
 
 router.post('/order', requireLogin, async (req, res) => {
   try {
+    if (checkoutRateLimited(req.session.user.id)) {
+      return res.redirect('/produk?error=' + encodeURIComponent('Terlalu banyak percobaan checkout beruntun, coba lagi sebentar lagi.'));
+    }
     const user = findUserById(req.session.user.id);
     if (!user) {
       return res.redirect('/login?error=' + encodeURIComponent('Sesi kamu tidak valid, silakan login ulang'));
@@ -1538,6 +1624,9 @@ router.post('/produk/:id/review', requireLogin, (req, res) => {
 // QRIS order init: buat deposit untuk total produk, lalu redirect ke halaman topup-like dengan QR
 router.post('/order/qris-init', requireLogin, async (req, res) => {
   try {
+    if (checkoutRateLimited(req.session.user.id)) {
+      return res.redirect('/produk?error=' + encodeURIComponent('Terlalu banyak percobaan checkout beruntun, coba lagi sebentar lagi.'));
+    }
     const user = findUserById(req.session.user.id);
     const product = findProductById(req.body.productId);
     const qty = Math.max(1, parseInt(req.body.qty) || 1);

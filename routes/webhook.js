@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { getConfig } from '../lib/config.js';
 import { processQiospayCallback } from '../lib/deposit.js';
 import { processQiospayCallbackForOrder } from '../lib/orderQris.js';
@@ -9,6 +10,21 @@ import { findUserById } from '../lib/users.js';
 import { creditReferralCommission } from '../lib/referrals.js';
 
 const router = express.Router();
+
+// Bandingin 2 string SECRET pakai timingSafeEqual -- SAMA alasan & pola yang sudah dipakai
+// verifyDigiflazzSignature() di lib/digiflazz.js buat HMAC (lihat di sana, sudah pakai
+// crypto.timingSafeEqual dari awal). String `!==` biasa "pulang" (return) secepat nemu
+// karakter PERTAMA yang beda -- secara teori itu bikin waktu respons dikit lebih cepat buat
+// tebakan yang MELESET LEBIH AWAL, yang teorinya bisa dipakai nebak secret 1 karakter demi 1
+// karakter lewat pola waktu respons (timing attack). Proteksi ini sudah ada buat Digiflazz;
+// QIOSPAY & HeroSMS (yang proteksinya "secret di URL" doang, bukan HMAC signature) ternyata
+// masih pakai `!==` polos -- disamain di sini biar konsisten.
+function timingSafeStringEqual(a, b) {
+  const bufA = Buffer.from(String(a ?? ''));
+  const bufB = Buffer.from(String(b ?? ''));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 // Webhook callback dari QIOSPAY -- URL PERSIS ini yang harus didaftarkan di dashboard merchant
 // QIOSPAY: https://domain-kamu.com/api/callback/accept/{secret_key} (lihat dokumentasi API
@@ -30,7 +46,7 @@ router.post('/callback/accept/:secretKey', async (req, res) => {
       console.error('[qiospay-webhook] Callback ditolak: Secret Key belum diisi di Admin > Pengaturan');
       return res.status(403).json({ status: 'reject', message: 'Secret key belum dikonfigurasi di server', data: null });
     }
-    if (req.params.secretKey !== configuredKey) {
+    if (!timingSafeStringEqual(req.params.secretKey, configuredKey)) {
       console.error('[qiospay-webhook] Callback ditolak: secret key di URL tidak cocok');
       return res.status(403).json({ status: 'reject', message: 'Invalid secret key', data: null });
     }
@@ -148,7 +164,7 @@ router.post('/webhooks/herosms/:secret', async (req, res) => {
       console.error('[herosms-webhook] Callback ditolak: Webhook Secret belum diisi di Admin > Pengaturan > HeroSMS');
       return res.status(403).json({ status: 'reject', message: 'Webhook secret belum dikonfigurasi' });
     }
-    if (req.params.secret !== configuredSecret) {
+    if (!timingSafeStringEqual(req.params.secret, configuredSecret)) {
       console.error('[herosms-webhook] Callback ditolak: secret di URL tidak cocok');
       return res.status(403).json({ status: 'reject', message: 'Invalid secret' });
     }

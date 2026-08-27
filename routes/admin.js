@@ -8,7 +8,8 @@ import { getConfig, updateConfig } from '../lib/config.js';
 import { getAllUsers, findUserById, updateUser, addSaldo, setPassword, verifyPassword } from '../lib/users.js';
 import { getMembershipList } from '../lib/membership.js';
 import {
-  getAllProducts, createProduct, updateProduct, deleteProduct, deleteProductsByIds, deleteAllManualProducts, findProductById, addProductStock, deleteProductStock, deleteProductsByGroup, renameProductGroup,
+  getAllProducts, createProduct, updateProduct, deleteProduct, deleteProductsByIds, updateProductsByIds, deleteAllManualProducts, findProductById, addProductStock, deleteProductStock, deleteProductsByGroup, renameProductGroup,
+  bulkUpsertIndosmmProducts, bulkUpsertOtpProducts,
   getAllGroupNames, createGroupName, renameGroupName, deleteGroupName,
   getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
@@ -921,7 +922,7 @@ router.post('/digiflazz/:id/unlink', (req, res) => {
 // tetap kosong (sama kayak lepas 1x1), admin isi stoknya sendiri lewat halaman Kelola Produk kalau perlu.
 router.post('/digiflazz/unlink-all', (req, res) => {
   const products = getAllProducts().filter(p => p.provider === 'digiflazz');
-  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  updateProductsByIds(products.map(p => p.id), { provider: 'manual' });
   renderDigiflazzPage(req, res, {
     success: products.length > 0
       ? `${products.length} produk berhasil dilepas dari Digiflazz, sekarang jadi produk stok manual.`
@@ -937,7 +938,7 @@ router.post('/digiflazz/unlink-selected', (req, res) => {
   // Jaga-jaga: cuma proses id yang beneran produk Digiflazz, biar gak bisa disalahgunakan
   // buat "lepas" produk manual/indosmm lewat endpoint ini.
   const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'digiflazz');
-  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  updateProductsByIds(products.map(p => p.id), { provider: 'manual' });
   renderDigiflazzPage(req, res, {
     success: products.length > 0
       ? `${products.length} produk terpilih berhasil dilepas dari Digiflazz, sekarang jadi produk stok manual.`
@@ -986,7 +987,7 @@ router.post('/digiflazz/group/:group/set-type', (req, res) => {
   const variantType = String(req.body.variantType || '').trim();
   try {
     const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'digiflazz' && p.variantGroup === groupName);
-    products.forEach(p => updateProduct(p.id, { variantType }));
+    updateProductsByIds(products.map(p => p.id), { variantType });
     renderDigiflazzPage(req, res, {
       success: products.length > 0
         ? `${products.length} produk di grup "${groupName}" dimasukkan ke tab "${variantType || 'Tanpa Tab'}".`
@@ -1136,25 +1137,24 @@ router.post('/indosmm/import-batch', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Tidak ada layanan yang dipilih.' });
     }
 
-    let created = 0;
-    let updated = 0;
-    const errors = [];
-    items.forEach(item => {
-      try {
-        const result = importOrUpdateIndosmmProduct({
-          serviceId: item.serviceId,
-          productName: (item.productName || '').trim(),
-          category: item.category,
-          ratePer1000: item.ratePer1000,
-          min: item.min,
-          max: item.max,
-          description: item.description
-        });
-        if (result.created) created++; else updated++;
-      } catch (err) {
-        errors.push(`${item.serviceId || '?'}: ${err.message}`);
-      }
-    });
+    // Harga dihitung PER ITEM di sini (pure function, gak ada I/O) -- baca+tulis file produknya
+    // sendiri sekarang ditangani SATU KALI oleh bulkUpsertIndosmmProducts() (lib/products.js),
+    // bukan per-item lagi kayak sebelumnya. Lihat catatan lengkap di lib/products.js kenapa ini
+    // penting buat batch yang isinya banyak (ratusan+ layanan dicentang sekaligus).
+    const specs = items.map(item => ({
+      serviceId: item.serviceId,
+      productName: (item.productName || '').trim(),
+      category: item.category,
+      indosmmRatePer1000: item.ratePer1000,
+      indosmmMin: item.min,
+      indosmmMax: item.max,
+      description: item.description,
+      marginType: item.marginType || '',
+      marginValue: item.marginValue,
+      price: computeIndosmmSellPrice(item.ratePer1000, item.marginType || null, item.marginValue !== '' && item.marginValue != null ? item.marginValue : null)
+    }));
+
+    const { created, updated, errors } = bulkUpsertIndosmmProducts(specs);
 
     res.json({
       ok: true,
@@ -1208,7 +1208,7 @@ router.post('/indosmm/:id/unlink', (req, res) => {
 // per layanan kalau mau berhenti total dari auto-order Jasa Sosmed.
 router.post('/indosmm/unlink-all', (req, res) => {
   const products = getAllProducts().filter(p => p.provider === 'indosmm');
-  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  updateProductsByIds(products.map(p => p.id), { provider: 'manual' });
   renderIndosmmPage(req, res, {
     success: products.length > 0
       ? `${products.length} layanan berhasil dilepas dari IndoSMM, sekarang jadi produk manual.`
@@ -1221,7 +1221,7 @@ router.post('/indosmm/unlink-selected', (req, res) => {
   const rawIds = req.body.ids;
   const ids = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
   const products = getAllProducts().filter(p => ids.includes(p.id) && p.provider === 'indosmm');
-  products.forEach(p => updateProduct(p.id, { provider: 'manual' }));
+  updateProductsByIds(products.map(p => p.id), { provider: 'manual' });
   renderIndosmmPage(req, res, {
     success: products.length > 0
       ? `${products.length} layanan terpilih berhasil dilepas dari IndoSMM, sekarang jadi produk manual.`
@@ -1345,40 +1345,42 @@ router.post('/otp/import-bulk', async (req, res) => {
     const svcMap = Object.fromEntries(services.map(s => [s.code, s.name]));
     const ctyMap = Object.fromEntries(countries.map(c => [String(c.id), c.eng || c.name]));
 
-    let created = 0, updated = 0, skipped = 0;
-    const errors = [];
-
+    // Tahap 1 (murni di memori, TANPA sentuh file products.json sama sekali): cocokin harga per
+    // kombinasi & susun jadi "specs". Kombinasi yang harganya gak ketemu/stok 0 dilewati di sini
+    // (masuk hitungan "skipped"), JADI GAK IKUT masuk ke specs / gak kena baca-tulis file sama
+    // sekali.
+    let skipped = 0;
+    const specs = [];
     for (const svc of svcList) {
       for (const cty of ctyList) {
-        try {
-          const match = allPrices.find(p =>
-            String(p.serviceCode) === String(svc) && String(p.countryId) === String(cty)
-          );
-          // Lewati kalau harga tidak ditemukan atau stok 0
-          if (!match || Number(match.count) === 0) { skipped++; continue; }
+        const match = allPrices.find(p =>
+          String(p.serviceCode) === String(svc) && String(p.countryId) === String(cty)
+        );
+        if (!match || Number(match.count) === 0) { skipped++; continue; }
 
-          const cost = Number(match.cost) || 0;
-          const sellPrice = computeHerosmsSellPrice(cost, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null);
-          const svcName = svcMap[svc] || svc;
-          const ctyName = ctyMap[String(cty)] || cty;
-          const productName = `OTP ${svcName} - ${ctyName}`;
-
-          const existing = getAllProducts().find(
-            p => p.provider === 'otp' && p.otpServiceCode === svc && p.otpCountryId === String(cty)
-          );
-
-          if (existing) {
-            updateProduct(existing.id, { name: productName, price: sellPrice, otpBaseCostRub: cost, marginType: marginType || '', marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null });
-            updated++;
-          } else {
-            createProduct({ name: productName, category: category || 'OTP', price: sellPrice, provider: 'otp', otpServiceCode: svc, otpServiceName: svcName, otpCountryId: String(cty), otpCountryName: ctyName, otpBaseCostRub: cost, marginType: marginType || '', marginValue: marginValue !== '' && marginValue != null ? Number(marginValue) : null });
-            created++;
-          }
-        } catch (err) {
-          errors.push(`${svc}×${cty}: ${err.message}`);
-        }
+        const cost = Number(match.cost) || 0;
+        const svcName = svcMap[svc] || svc;
+        const ctyName = ctyMap[String(cty)] || cty;
+        specs.push({
+          serviceCode: svc,
+          otpServiceName: svcName,
+          countryId: cty,
+          otpCountryName: ctyName,
+          productName: `OTP ${svcName} - ${ctyName}`,
+          category: category || 'OTP',
+          otpBaseCostRub: cost,
+          price: computeHerosmsSellPrice(cost, marginType || null, marginValue !== '' && marginValue != null ? marginValue : null),
+          marginType: marginType || '',
+          marginValue
+        });
       }
     }
+
+    // Tahap 2: SATU kali baca+tulis file products.json buat SEMUA kombinasi sekaligus (lihat
+    // catatan lengkap di bulkUpsertOtpProducts, lib/products.js) -- bukan baca+tulis ULANG per
+    // kombinasi kayak sebelumnya. Kombinasi service x negara itu perkalian, jadi ini yang paling
+    // gampang numpuk jadi ratusan+ kalau admin pilih "Semua" service & "Semua" negara sekaligus.
+    const { created, updated, errors } = bulkUpsertOtpProducts(specs);
 
     res.json({ ok: true, created, updated, skipped, errors, message: `Selesai: ${created} ditambah, ${updated} diperbarui, ${skipped} dilewati (stok 0/harga tidak ada)` });
   } catch (err) {
