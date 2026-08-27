@@ -81,7 +81,10 @@ export function requireApiKey(scope) {
   };
 }
 
-function getRequestIp(req) {
+// Dipakai juga di routes/auth.js buat rate limit login & register per-IP (sebelum user itu
+// PUNYA akun/session, jadi belum ada user.id yang bisa dipakai sebagai key -- IP address satu-
+// satunya identifier yang masuk akal di titik ini).
+export function getRequestIp(req) {
   let ip = req.ip || (req.connection && req.connection.remoteAddress) || '';
   if (ip.startsWith('::ffff:')) ip = ip.slice(7); // notasi IPv4-mapped-IPv6, disederhanakan
   return ip;
