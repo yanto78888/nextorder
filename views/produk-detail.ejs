@@ -752,7 +752,28 @@
       }
       upd();
 
+      // FIX BUG: ganti nominal (mis. 5 Diamond -> 10 Diamond) manggil renderTargetFields() lagi
+      // tiap kali ganti varian, dan renderTargetFields() bikin ULANG semua <input> dari nol
+      // (wrap.innerHTML = html) -- akibatnya data yang UDAH DIISI user (User ID/Zone ID/dst)
+      // ke-reset ke kosong, PADAHAL variannya SAMA-SAMA butuh field yang SAMA PERSIS (kasus
+      // paling umum: semua nominal 1 produk biasanya emang butuh field target yang sama, cuma
+      // harganya yang beda). User jadi harus ngetik ulang ID-nya tiap kali coba-coba ganti
+      // nominal, padahal harusnya gak perlu.
+      //
+      // Fix: nilai yang udah diisi ditangkep dulu SEBELUM render ulang (per data-key), terus
+      // dikembalikan lagi ke input baru yang key-nya cocok. Kalau field-nya sama, user gak perlu
+      // isi ulang; kalau field-nya beda (jarang, produk yang emang beda struktur target field per
+      // varian), yang gak ketemu pasangannya ya tetap kosong -- itu memang harus, itu field baru.
+      var prevTargetValues = {};
+      document.querySelectorAll('.target-field-input').forEach(function(inp){
+        if(inp.dataset.key) prevTargetValues[inp.dataset.key] = inp.value;
+      });
       renderTargetFields(v.targetFields);
+      Object.keys(prevTargetValues).forEach(function(key){
+        if(!prevTargetValues[key]) return;
+        var newInp = document.querySelector('.target-field-input[data-key="'+CSS.escape(key)+'"]');
+        if(newInp) newInp.value = prevTargetValues[key];
+      });
     });
   }
 
