@@ -71,15 +71,46 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true, app: 'nextorder' });
 });
 
+// SESSION_SECRET dipakai buat nanda-tangani cookie sesi -- siapa pun yang PUNYA secret ini bisa
+// PALSUIN cookie sesi user mana pun (termasuk admin) tanpa perlu password sama sekali. Dulu ada
+// fallback hardcoded ('nexorder-secret-key-ganti-jika-perlu') kalau env var-nya lupa diisi --
+// persis kelas masalah yang sama kayak kredensial admin default yang dulu fixed 'skirk'/'binigw'
+// (lihat komentar generateRandomPassword di bawah): karena ini TEMPLATE yang dipakai ulang di
+// banyak deployment, siapa pun yang pernah baca source code ini otomatis tahu secret itu, dan
+// bisa forge cookie admin di SITUS SIAPA PUN yang lupa set SESSION_SECRET di .env-nya -- padahal
+// README_VERCEL.md sendiri sudah bilang wajib diisi acak.
+//
+// Sekarang: kalau env var-nya kosong, fallback ke secret ACAK (beda tiap kali proses restart)
+// bukan hardcoded. Konsekuensinya semua orang ke-logout tiap restart/deploy selama env var belum
+// diisi -- itu jauh lebih baik daripada diam-diam tetap "aman" padahal secret-nya predictable &
+// sama persis di semua situs yang pakai template ini.
+const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+  console.warn('[session] PERINGATAN: SESSION_SECRET belum diisi di .env. Sesi login SEMUA user (termasuk admin) akan ke-reset tiap kali server ini restart/deploy ulang. Isi SESSION_SECRET di .env dengan string acak yang panjang (lihat README_VERCEL.md) supaya sesi gak keputus & supaya situs ini gak numpang secret yang sama dengan deployment template ini yang lain.');
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'nexorder-secret-key-ganti-jika-perlu',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   // `store` WAJIB diisi -- tanpa ini express-session diam-diam pakai MemoryStore bawaan yang
   // nyimpen sesi cuma di RAM, jadi semua orang ke-logout tiap proses Node-nya restart (deploy
   // ulang, `pm2 reload`, crash, dst). Lihat catatan lengkap di lib/sessionStore.js.
   store: new FileSessionStore(),
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } // 7 hari
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 hari
+    // secure: 'auto' -- otomatis nandain cookie "Secure" (cuma dikirim lewat HTTPS) kalau
+    // koneksinya beneran HTTPS ATAU lewat reverse proxy yang lapor HTTPS via X-Forwarded-Proto
+    // (lihat `app.set('trust proxy', 1)` di atas -- Caddy di depan Node persis skenario ini).
+    // Tetap jalan normal di localhost/HTTP polos pas development (gak dipaksa 'true' yang bakal
+    // bikin cookie gak pernah kekirim & login gagal terus kalau diakses tanpa HTTPS).
+    secure: 'auto',
+    // sameSite: 'lax' -- cookie sesi gak ikut kekirim kalau ada situs LAIN yang bikin browser
+    // korban ngirim POST ke sini (klasik CSRF: <form> tersembunyi auto-submit dari situs jahat).
+    // Tetap kekirim buat navigasi top-level biasa (klik link, redirect balik dari Google OAuth),
+    // jadi gak ganggu alur login Google yang sudah ada.
+    sameSite: 'lax'
+  }
 }));
 
 app.use(attachUser);
