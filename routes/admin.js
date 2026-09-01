@@ -13,7 +13,7 @@ import {
   getAllGroupNames, createGroupName, renameGroupName, deleteGroupName,
   getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
-import { getAllOrders, findOrderById, updateOrderStatus, getStats, getMonthlyRevenueStats } from '../lib/orders.js';
+import { getAllOrders, findOrderById, updateOrderStatus, getStats, getMonthlyRevenueStats, getTopSellingProducts } from '../lib/orders.js';
 import { creditReferralCommission } from '../lib/referrals.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { notifyWithdrawal } from '../lib/telegram.js';
@@ -23,7 +23,7 @@ import {
 import { runBackupNow, exportAllData, importAllData } from '../lib/backup.js';
 import { getGamePresetList } from '../lib/gamePresets.js';
 import { deleteReview, getRecentReviews } from '../lib/reviews.js';
-import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice } from '../lib/digiflazz.js';
+import { checkBalance as checkDigiflazzBalance, searchPriceList as searchDigiflazzPriceList, getPriceList as getDigiflazzPriceList, getPriceListCategories as getDigiflazzCategories, getPriceListBrands as getDigiflazzBrands, getPriceListTypes as getDigiflazzTypes, computeSellPrice, syncAllDigiflazzPrices, getLastAutoSyncInfo } from '../lib/digiflazz.js';
 import { getGroupThumbnails, getGroupThumbnail, setGroupThumbnail, deleteGroupThumbnail } from '../lib/digiflazzGroups.js';
 import { getBalance as getIndosmmBalance, getServiceCategories as getIndosmmCategories, searchServices as searchIndosmmServices, computeSellPrice as computeIndosmmSellPrice, isIndosmmEnabled } from '../lib/indosmm.js';
 import {
@@ -293,11 +293,20 @@ router.get('/', (req, res) => {
   // halaman tinggal slice(-6) di sisi client, gak perlu request ulang ke server.
   const monthly = getMonthlyRevenueStats(12);
 
+  // Top 10 Produk Populer: ranking by qty terjual (getTopSellingProducts di lib/orders.js),
+  // dilengkapi data produknya (nama/thumbnail/provider) buat ditampilkan di widget dashboard.
+  // Produk yang sudah DIHAPUS (findProductById balik null, mis. produk lama yang pernah laku
+  // tapi sekarang sudah dibuang dari Kelola Produk) sengaja di-skip, bukan ditampilkan kosong.
+  const topProducts = getTopSellingProducts(10)
+    .map(t => ({ ...t, product: findProductById(t.productId) }))
+    .filter(t => t.product);
+
   res.render('admin/dashboard', {
     stats,
     totalUsers: users.length,
     recentOrders: orders.slice(0, 6),
     recentReviews: getRecentReviews(5),
+    topProducts,
     manualOrders,
     emptyStockProducts,
     config: getConfig(),
@@ -553,6 +562,7 @@ function renderDigiflazzPage(req, res, extra = {}) {
     searchQuery: '',
     error: null,
     success: null,
+    lastAutoSync: getLastAutoSyncInfo(),
     ...extra
   });
 }
@@ -861,21 +871,12 @@ router.post('/digiflazz/:id/resync', async (req, res) => {
   }
 });
 
-// Sinkron ulang SEMUA produk digiflazz sekaligus (1x fetch price list, dicocokkan per SKU)
+// Sinkron ulang SEMUA produk digiflazz sekaligus (1x fetch price list, dicocokkan per SKU).
+// Pakai syncAllDigiflazzPrices() -- logic yang SAMA persis dipakai job otomatis tiap 30 menit
+// (lihat lib/digiflazz.js), biar sinkron manual (tombol ini) & otomatis selalu konsisten hasilnya.
 router.post('/digiflazz/sync-all', async (req, res) => {
   try {
-    const list = await getDigiflazzPriceList('prepaid');
-    const priceMap = new Map(list.map(item => [item.buyer_sku_code, item.price]));
-    const products = getAllProducts().filter(p => p.provider === 'digiflazz');
-    let updated = 0;
-    let notFound = 0;
-    products.forEach(p => {
-      const basePrice = priceMap.get(p.digiflazzSku);
-      if (basePrice === undefined) { notFound++; return; }
-      const sellPrice = computeSellPrice(basePrice, p.marginType || null, p.marginValue);
-      updateProduct(p.id, { digiflazzBasePrice: basePrice, price: sellPrice });
-      updated++;
-    });
+    const { updated, notFound } = await syncAllDigiflazzPrices();
     renderDigiflazzPage(req, res, { success: `${updated} produk berhasil disinkron.${notFound > 0 ? ` ${notFound} SKU tidak ditemukan di price list (mungkin sudah tidak aktif).` : ''}` });
   } catch (err) {
     renderDigiflazzPage(req, res, { error: err.message });
