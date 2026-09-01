@@ -50,7 +50,19 @@
           </div>
         </div>
         <button type="button" class="btn ghost mt-16" id="dfSyncAllBtn" style="width:100%;"><i class="fa-solid fa-rotate"></i> Sinkron Semua Harga dari Digiflazz</button>
-        <div class="helper-text mt-16">Sinkron akan ambil harga modal terbaru dari Digiflazz untuk semua produk yang sudah diimport, lalu hitung ulang harga jual pakai margin masing-masing (atau margin default kalau tidak ada override).</div>
+        <div class="helper-text mt-16">Sinkron akan ambil harga modal terbaru dari Digiflazz untuk semua produk yang sudah diimport, lalu hitung ulang harga jual pakai margin masing-masing (atau margin default kalau tidak ada override). Sistem juga otomatis sinkron sendiri tiap 30 menit, jadi harga tetap ngikutin walau tombol ini tidak diklik manual.</div>
+        <% if (lastAutoSync) { %>
+          <div class="helper-text mt-16" style="display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid <%= lastAutoSync.error ? 'fa-triangle-exclamation' : 'fa-circle-check' %>" style="color:<%= lastAutoSync.error ? 'var(--danger)' : 'var(--success)' %>;"></i>
+            <% if (lastAutoSync.error) { %>
+              Auto-sync terakhir (<%= new Date(lastAutoSync.at).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %>) gagal: <%= lastAutoSync.error %>
+            <% } else { %>
+              Auto-sync terakhir: <%= new Date(lastAutoSync.at).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %> — <%= lastAutoSync.updated %>/<%= lastAutoSync.total %> produk disinkron<%= lastAutoSync.notFound > 0 ? `, ${lastAutoSync.notFound} SKU tidak ditemukan` : '' %>
+            <% } %>
+          </div>
+        <% } else { %>
+          <div class="helper-text mt-16">Auto-sync belum pernah jalan sejak server terakhir restart (jalan otomatis tiap 30 menit).</div>
+        <% } %>
         <% if (digiflazzProducts.length > 0) { %>
         <form method="POST" action="/admin/digiflazz/unlink-all" class="mt-16" onsubmit="return confirm('Lepas SEMUA (<%= digiflazzProducts.length %>) produk dari Digiflazz? Semua akan jadi produk stok manual biasa, checkout otomatis Digiflazz berhenti untuk produk-produk ini.')">
           <button class="btn small danger" type="submit" style="width:100%;"><i class="fa-solid fa-link-slash"></i> Lepas Semua dari Digiflazz</button>

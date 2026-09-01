@@ -163,6 +163,37 @@
       </div>
     <% } %>
 
+    <!-- Top 10 Produk Populer -->
+    <div class="adm-section-header" style="margin-top:24px;">
+      <div class="adm-section-title">Top 10 Produk Populer</div>
+      <a href="/admin/produk" class="adm-see-all">Kelola Produk →</a>
+    </div>
+
+    <% if (!topProducts || topProducts.length === 0) { %>
+      <div class="adm-empty">Belum ada produk terjual.</div>
+    <% } else { %>
+      <div class="adm-top-list">
+        <% topProducts.forEach((t, idx) => { %>
+        <% const p = t.product; %>
+        <% const provLabel = p.provider === 'digiflazz' ? ['Digiflazz','cyan'] : p.provider === 'indosmm' ? ['Jasa Sosmed','amber'] : p.provider === 'otp' ? ['OTP','red'] : ['Stok Manual','green']; %>
+        <div class="adm-top-row">
+          <div class="adm-top-rank adm-top-rank-<%= idx + 1 <= 3 ? idx + 1 : 'x' %>">#<%= idx + 1 %></div>
+          <div class="adm-top-thumb">
+            <% if (p.thumbnail) { %><img src="<%= p.thumbnail %>" alt="<%= p.name %>"><% } else { %><span><%= p.name.slice(0,1) %></span><% } %>
+          </div>
+          <div class="adm-top-info">
+            <div class="adm-top-name"><%= p.name %></div>
+            <div class="adm-top-meta"><span class="pill-badge <%= provLabel[1] %>"><%= provLabel[0] %></span> · Rp <%= (p.price || 0).toLocaleString('id-ID') %></div>
+          </div>
+          <div class="adm-top-right">
+            <div class="adm-top-qty"><%= t.qty %> terjual</div>
+            <div class="adm-top-revenue">Rp <%= t.revenue.toLocaleString('id-ID') %></div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+
     <!-- Ulasan Terbaru -->
     <div class="adm-section-header" style="margin-top:24px;">
       <div class="adm-section-title">Ulasan Terbaru</div>
