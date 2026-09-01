@@ -2339,6 +2339,40 @@ html[data-theme="dark"] .dbs-buy-btn { background: linear-gradient(135deg, var(-
 .adm-order-date { font-size:10px; color:var(--text-dim); margin-top:1px; }
 .adm-order-arrow { font-size:20px; color:var(--text-dim); padding:0 4px; flex-shrink:0; line-height:1; }
 
+/* ---- Top Produk Populer (widget dashboard admin) -- struktur mirip .adm-order-row di atas,
+   bedanya rank badge bulat (bukan dot status) + thumbnail produk, dan angka terjual/omzet di
+   kanan (bukan status/tanggal order). Podium 1-2-3 dikasih warna medali sama kayak .bs-rank-1/2/3
+   di bestseller carousel publik, biar konsisten. ---- */
+.adm-top-list { display:flex; flex-direction:column; gap:8px; }
+.adm-top-row {
+  display:flex; align-items:center; gap:10px;
+  background:var(--bg-panel); border:1px solid var(--border-glow); border-radius:10px; padding:12px;
+  transition:border-color .15s;
+}
+.adm-top-row:hover { border-color:rgba(21,101,192,0.3); }
+.adm-top-rank {
+  flex-shrink:0; width:26px; height:26px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:11px; font-weight:800;
+  background:rgba(255,255,255,0.06); color:var(--text-dim);
+}
+.adm-top-rank-1 { background:linear-gradient(135deg, #f5c518, #e0a800); color:#241a00; }
+.adm-top-rank-2 { background:linear-gradient(135deg, #d7dce1, #a9b2bb); color:#1a1e22; }
+.adm-top-rank-3 { background:linear-gradient(135deg, #d99a5b, #b9713a); color:#2b1400; }
+.adm-top-thumb {
+  width:38px; height:38px; border-radius:8px; overflow:hidden; flex-shrink:0;
+  background:linear-gradient(135deg, #f4f5f7, #e9ebee);
+  display:flex; align-items:center; justify-content:center;
+}
+.adm-top-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.adm-top-thumb span { font-family:var(--font-display); font-size:15px; font-weight:800; color:#a9b2bb; }
+.adm-top-info { flex:1; min-width:0; }
+.adm-top-name { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.adm-top-meta { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.adm-top-right { text-align:right; flex-shrink:0; }
+.adm-top-qty { font-size:13px; font-weight:700; color:var(--cyan); }
+.adm-top-revenue { font-size:10px; color:var(--text-dim); margin-top:1px; }
+
 /* ---- List ringkas + expand detail ke bawah (dipakai admin/order.ejs & admin/users.ejs, ganti
    tabel lebar yang bikin baris jadi tinggi & berantakan di layar sempit -- baris cuma nampilin
    info intinya (ID/username + status/role), detail lengkap + form aksi baru muncul KE BAWAH pas
