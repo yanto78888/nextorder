@@ -9,7 +9,7 @@ import { getAllUsers, createUser } from './lib/users.js';
 import { getConfig } from './lib/config.js';
 import { checkPendingDeposits } from './lib/deposit.js';
 import { checkPendingOrderQrisPayments } from './lib/orderQris.js';
-import { checkPendingDigiflazzOrders } from './lib/digiflazz.js';
+import { checkPendingDigiflazzOrders, autoSyncDigiflazzPrices } from './lib/digiflazz.js';
 import { checkPendingIndosmmOrders, checkPendingIndosmmRefills } from './lib/indosmm.js';
 import { scheduleAutoBackup } from './lib/backup.js';
 import { getActiveProducts } from './lib/products.js';
@@ -253,6 +253,14 @@ if (process.env.VERCEL !== '1') {
   setInterval(() => {
     checkPendingDigiflazzOrders().catch(err => console.error('[job] checkPendingDigiflazzOrders error:', err.message));
   }, 20000);
+
+  // Auto-sinkron ulang HARGA semua produk Digiflazz dari price list terbaru tiap 30 menit -- beda
+  // dari checkPendingDigiflazzOrders di atas (itu ngecek STATUS order yang masih pending, bukan
+  // harga produk). autoSyncDigiflazzPrices() sendiri yang skip kalau Digiflazz belum aktif/lengkap
+  // dikonfigurasi (lihat isDigiflazzEnabled() di dalamnya), jadi gak perlu dicek lagi di sini.
+  setInterval(() => {
+    autoSyncDigiflazzPrices().catch(err => console.error('[job] autoSyncDigiflazzPrices error:', err.message));
+  }, 30 * 60 * 1000);
 
   // Cek ulang status order IndoSMM yang masih "processing" tiap 60 detik -- lebih jarang dari
   // Digiflazz karena order SMM (followers/likes/dst) wajarnya butuh waktu lebih lama buat selesai
