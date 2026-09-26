@@ -343,6 +343,28 @@ X-RateLimit-Remaining: 47</pre>
     </div>
 
     <div class="card doc-endpoint">
+      <div class="doc-endpoint-head"><span class="doc-method post">POST</span> <code>/api/v1/deposit/:trxid/cancel</code></div>
+      <p class="helper-text" style="margin:6px 0 10px;">Batalkan deposit yang statusnya masih <code>pending</code> (mis. salah input nominal, atau mau bikin QR baru). Deposit yang sudah <code>paid</code>/<code>expired</code>/<code>cancelled</code> tidak bisa dibatalkan lagi lewat endpoint ini.</p>
+      <pre class="doc-code">curl -X POST <%= apiBaseUrl %>/deposit/DEP-789/cancel \
+  -H "X-API-Key: API_KEY_KAMU"</pre>
+      <pre class="doc-code">{
+  "success": true,
+  "message": "Transaksi deposit berhasil dibatalkan",
+  "data": {
+    "trxid": "DEP-789",
+    "amount": 50000,
+    "fee": 350,
+    "kode_unik": 27,
+    "total": 50377,
+    "status": "cancelled",
+    "created_at": "2026-07-25T08:00:00.000Z",
+    "expired_at": "2026-07-25T08:10:00.000Z",
+    "paid_at": null
+  }
+}</pre>
+    </div>
+
+    <div class="card doc-endpoint">
       <div class="doc-endpoint-head"><span class="doc-method get">GET</span> <code>/api/v1/deposit?limit=20</code></div>
       <p class="helper-text" style="margin:6px 0 10px;">Riwayat deposit milik akun kamu, terbaru duluan.</p>
       <pre class="doc-code">curl "<%= apiBaseUrl %>/deposit?limit=10" \
