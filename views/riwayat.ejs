@@ -11,95 +11,122 @@
     <% if (success) { %><div class="alert success"><%= success %></div><% } %>
     <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
+    <%
+    // ---- Helper tampilan kartu riwayat (ikon + judul + status/waktu), gaya sama kayak
+    // views/admin/order.ejs biar riwayat yang dilihat USER juga rapi & konsisten, bukan cuma di admin.
+    function ocCategoryIcon(text) {
+      const t = String(text || '').toLowerCase();
+      if (t.indexOf('otp') !== -1) return 'fa-shield-halved';
+      if (t.indexOf('sosmed') !== -1 || t.indexOf('smm') !== -1 || t.indexOf('follow') !== -1 || t.indexOf('like') !== -1) return 'fa-share-nodes';
+      if (t.indexOf('pulsa') !== -1 || t.indexOf('data') !== -1) return 'fa-signal';
+      return 'fa-gamepad';
+    }
+    function ocDuration(startIso, endIso) {
+      const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+      if (!isFinite(ms) || ms < 0) return null;
+      const totalSec = Math.round(ms / 1000);
+      if (totalSec < 60) return totalSec + ' detik';
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return min + ' menit' + (sec > 0 ? ' ' + sec + ' detik' : '');
+    }
+    function ocOrderStatus(o) {
+      if (o.status === 'completed') {
+        const dur = ocDuration(o.createdAt, o.updatedAt);
+        return { cls: 'oc-status-done', icon: 'fa-bolt', label: dur ? `Selesai dalam ${dur}` : 'Selesai' };
+      }
+      if (o.status === 'cancelled') return { cls: 'oc-status-cancel', icon: 'fa-ban', label: 'Dibatalkan' };
+      return { cls: 'oc-status-progress', icon: 'fa-clock', label: 'Diproses' };
+    }
+    %>
+
     <div class="section-title"><h3>Riwayat Jasa Sosmed</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (sosmedOrders.length === 0) { %>
-        <div class="empty-state">Belum ada riwayat order Jasa Sosmed.</div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>Layanan</th><th>Target</th><th>Qty</th><th>Total</th><th>Status</th><th>Refill</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% sosmedOrders.forEach(o => { %>
-          <tr>
-            <td class="mono"><%= o.id %></td>
-            <td><%= o.productName %></td>
-            <td style="max-width:180px; font-size:12px; color:var(--text-dim); word-break:break-all;"><%= o.targetText || o.providerCustomerNo || '-' %></td>
-            <td><%= o.qty %></td>
-            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
-            <td>
-              <span class="badge <%= o.status %>"><%= o.status %></span>
-              <% if (o.cancelRequestedAt && o.status === 'processing') { %>
-                <br><span class="badge pending" style="margin-top:4px; display:inline-block;">menunggu konfirmasi batal</span>
+    <% if (sosmedOrders.length === 0) { %>
+      <div class="card empty-state">Belum ada riwayat order Jasa Sosmed.</div>
+    <% } else { %>
+    <div class="oc-list">
+      <% sosmedOrders.forEach(o => { const st = ocOrderStatus(o); %>
+      <div class="oc-row">
+        <div class="oc-row-main">
+          <div class="oc-icon <%= o.status === 'completed' ? 'oc-icon-success' : (o.status === 'cancelled' ? 'oc-icon-danger' : '') %>"><i class="fa-solid fa-share-nodes"></i></div>
+          <div class="oc-body">
+            <div class="oc-id"><%= o.id %></div>
+            <div class="oc-title"><i class="fa-solid fa-share-nodes"></i> <%= o.productName %></div>
+            <div class="oc-sub"><i class="fa-solid fa-box"></i> Qty <%= o.qty %> &middot; Rp <%= o.total.toLocaleString('id-ID') %></div>
+            <% if (o.targetText || o.providerCustomerNo) { %>
+            <div class="oc-sub"><i class="fa-solid fa-bullseye"></i> <%= o.targetText || o.providerCustomerNo %></div>
+            <% } %>
+            <div class="oc-status <%= st.cls %>"><i class="fa-solid <%= st.icon %>"></i> <%= st.label %></div>
+            <% if (o.cancelRequestedAt && o.status === 'processing') { %>
+            <div class="oc-status oc-status-pending"><i class="fa-solid fa-hourglass-half"></i> Menunggu konfirmasi batal</div>
+            <% } %>
+            <% if (o.refillStatus === 'processing') { %>
+            <div class="oc-status oc-status-progress"><i class="fa-solid fa-rotate"></i> Refill diproses</div>
+            <% } else if (o.refillStatus === 'completed') { %>
+            <div class="oc-status oc-status-done"><i class="fa-solid fa-rotate"></i> Refill selesai</div>
+            <% } else if (o.refillStatus === 'rejected') { %>
+            <div class="oc-status oc-status-cancel"><i class="fa-solid fa-rotate"></i> Refill ditolak</div>
+            <% } else if (o.refillStatus === 'cancelled') { %>
+            <div class="oc-status oc-status-cancel"><i class="fa-solid fa-rotate"></i> Refill batal</div>
+            <% } %>
+            <div class="helper-text" style="margin-top:4px;"><%= new Date(o.createdAt).toLocaleString('id-ID') %></div>
+            <div class="oc-actions">
+              <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
+              <% if (o.canCancel) { %>
+              <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Pembatalan" data-confirm-msg="Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga)." data-confirm-danger="true">
+                <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
+              </form>
               <% } %>
-            </td>
-            <td>
-              <% if (o.refillStatus === 'processing') { %>
-                <span class="badge processing">diproses</span>
-              <% } else if (o.refillStatus === 'completed') { %>
-                <span class="badge completed">selesai</span>
-              <% } else if (o.refillStatus === 'rejected') { %>
-                <span class="badge cancelled">ditolak</span>
-              <% } else if (o.refillStatus === 'cancelled') { %>
-                <span class="badge cancelled">batal</span>
-              <% } else { %>
-                <span class="helper-text">-</span>
+              <% if (o.canRefill) { %>
+              <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Refill" data-confirm-msg="Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.">
+                <button class="btn small magenta" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
+              </form>
               <% } %>
-            </td>
-            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-            <td>
-              <div class="flex" style="flex-wrap:wrap; gap:6px;">
-                <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
-                <% if (o.canCancel) { %>
-                <form method="POST" action="/riwayat/<%= o.id %>/batal-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Pembatalan" data-confirm-msg="Kirim permintaan pembatalan untuk pesanan ini? Saldo dikembalikan otomatis setelah sistem menerima konfirmasi batal dari provider (bukan langsung saat ini juga)." data-confirm-danger="true">
-                  <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
-                </form>
-                <% } %>
-                <% if (o.canRefill) { %>
-                <form method="POST" action="/riwayat/<%= o.id %>/refill-sosmed" class="js-confirm-submit" data-confirm-title="Ajukan Refill" data-confirm-msg="Ajukan refill untuk pesanan ini? Biasanya dipakai kalau jumlah followers/likes/dst berkurang.">
-                  <button class="btn small magenta" type="submit"><i class="fa-solid fa-rotate"></i> Refill</button>
-                </form>
-                <% } %>
-              </div>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% }) %>
     </div>
+    <% } %>
 
     <div class="section-title"><h3>Riwayat Produk &amp; Top Up</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (otherOrders.length === 0) { %>
-        <div class="empty-state">Belum ada riwayat order produk/top up.</div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>Produk</th><th>Tujuan</th><th>Qty</th><th>Total</th><th>Mode</th><th>Status</th><th>Detail</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% otherOrders.forEach(o => { %>
-          <tr>
-            <td class="mono"><%= o.id %></td>
-            <td><%= o.productName %></td>
-            <td style="font-size:12px; color:var(--text-dim);"><%= o.targetText || '-' %></td>
-            <td><%= o.qty %></td>
-            <td class="mono">Rp <%= o.total.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= o.deliveryMode === 'auto' ? 'completed' : 'admin' %>"><%= o.deliveryMode || o.source %></span></td>
-            <td><span class="badge <%= o.status %>"><%= o.status %></span></td>
-            <td style="max-width:260px; font-size:12px; color:var(--text-dim);">
+    <% if (otherOrders.length === 0) { %>
+      <div class="card empty-state">Belum ada riwayat order produk/top up.</div>
+    <% } else { %>
+    <div class="oc-list">
+      <% otherOrders.forEach(o => { const st = ocOrderStatus(o); %>
+      <div class="oc-row">
+        <div class="oc-row-main">
+          <div class="oc-icon <%= o.status === 'completed' ? 'oc-icon-success' : (o.status === 'cancelled' ? 'oc-icon-danger' : '') %>"><i class="fa-solid <%= ocCategoryIcon(o.productName) %>"></i></div>
+          <div class="oc-body">
+            <div class="oc-id"><%= o.id %></div>
+            <div class="oc-title"><i class="fa-solid <%= ocCategoryIcon(o.productName) %>"></i> <%= o.productName %></div>
+            <div class="oc-sub"><i class="fa-solid fa-box"></i> Qty <%= o.qty %> &middot; Rp <%= o.total.toLocaleString('id-ID') %> &middot; <%= o.deliveryMode === 'auto' ? 'Otomatis' : 'Manual admin' %></div>
+            <% if (o.targetText) { %>
+            <div class="oc-sub"><i class="fa-solid fa-bullseye"></i> <%= o.targetText %></div>
+            <% } %>
+            <div class="oc-status <%= st.cls %>"><i class="fa-solid <%= st.icon %>"></i> <%= st.label %></div>
+            <div class="helper-text" style="margin-top:4px;"><%= new Date(o.createdAt).toLocaleString('id-ID') %></div>
+            <% if (o.qty > 3 && o.detail) { %>
+            <div class="helper-text" style="margin-top:2px;">Isi produk tersedia di file download (dibawah)</div>
+            <% } else if (o.detail) { %>
+            <div class="oc-sub" style="white-space:pre-wrap; margin-top:4px;"><%= o.detail %></div>
+            <% } else if (o.manualRequired) { %>
+            <div class="helper-text" style="margin-top:2px; color:var(--danger);">Menunggu admin kirim manual</div>
+            <% } %>
+            <div class="oc-actions">
+              <a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a>
               <% if (o.qty > 3 && o.detail) { %>
-                <a href="/riwayat/<%= o.id %>/download" class="btn small solid"><i class="fa-solid fa-download"></i> Download .txt</a>
-              <% } else { %>
-                <span style="white-space:pre-wrap;"><%= o.detail || (o.manualRequired ? 'Menunggu admin kirim manual' : '-') %></span>
+              <a href="/riwayat/<%= o.id %>/download" class="btn small solid"><i class="fa-solid fa-download"></i> Download .txt</a>
               <% } %>
-            </td>
-            <td><%= new Date(o.createdAt).toLocaleString('id-ID') %></td>
-            <td><a href="/riwayat/<%= o.id %>" class="btn small ghost"><i class="fa-solid fa-receipt"></i> Invoice</a></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% }) %>
     </div>
+    <% } %>
 
     <%- include('partials/footer') %>
   </div>

@@ -41,36 +41,56 @@
       </div>
     </div>
 
+    <%
+    // Kartu ringkas (ikon + nominal + status/waktu), gaya sama kayak riwayat.ejs & admin/order.ejs
+    // biar tampilan riwayat top up ini juga rapi & konsisten -- bukan tabel lebar kayak sebelumnya.
+    function tuDuration(startIso, endIso) {
+      const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+      if (!isFinite(ms) || ms < 0) return null;
+      const totalSec = Math.round(ms / 1000);
+      if (totalSec < 60) return totalSec + ' detik';
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return min + ' menit' + (sec > 0 ? ' ' + sec + ' detik' : '');
+    }
+    function tuStatus(d) {
+      if (d.status === 'paid') {
+        const dur = tuDuration(d.createdAt, d.paidAt);
+        return { cls: 'oc-status-done', icon: 'fa-bolt', label: dur ? `Berhasil dalam ${dur}` : 'Berhasil' };
+      }
+      if (d.status === 'cancelled') return { cls: 'oc-status-cancel', icon: 'fa-ban', label: 'Dibatalkan' };
+      if (d.status === 'expired') return { cls: 'oc-status-cancel', icon: 'fa-hourglass-end', label: 'Kadaluarsa' };
+      return { cls: 'oc-status-pending', icon: 'fa-clock', label: 'Menunggu pembayaran' };
+    }
+    %>
     <div class="section-title"><h3>Riwayat Top Up</h3><div class="line"></div></div>
-    <div class="card">
-      <% if (deposits.length === 0) { %>
-        <div class="empty-state">Belum ada riwayat top up.</div>
-      <% } else { %>
-      <table>
-        <thead><tr><th>ID</th><th>Nominal</th><th>Total Bayar</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <% deposits.forEach(d => { %>
-          <tr>
-            <td class="mono"><%= d.trxid %></td>
-            <td class="mono">Rp <%= d.amount.toLocaleString('id-ID') %></td>
-            <td class="mono">Rp <%= d.total.toLocaleString('id-ID') %></td>
-            <td><span class="badge <%= d.status %>"><%= d.status %></span></td>
-            <td><%= new Date(d.createdAt).toLocaleString('id-ID') %></td>
-            <td>
-              <% if (d.status === 'pending') { %>
+    <% if (deposits.length === 0) { %>
+      <div class="card empty-state">Belum ada riwayat top up.</div>
+    <% } else { %>
+    <div class="oc-list">
+      <% deposits.forEach(d => { const st = tuStatus(d); %>
+      <div class="oc-row">
+        <div class="oc-row-main">
+          <div class="oc-icon <%= d.status === 'paid' ? 'oc-icon-success' : (d.status === 'pending' ? '' : 'oc-icon-danger') %>"><i class="fa-solid fa-qrcode"></i></div>
+          <div class="oc-body">
+            <div class="oc-id"><%= d.trxid %></div>
+            <div class="oc-title"><i class="fa-solid fa-wallet"></i> Top Up Saldo QRIS</div>
+            <div class="oc-sub"><i class="fa-solid fa-box"></i> Nominal Rp <%= d.amount.toLocaleString('id-ID') %> &middot; bayar Rp <%= d.total.toLocaleString('id-ID') %></div>
+            <div class="oc-status <%= st.cls %>"><i class="fa-solid <%= st.icon %>"></i> <%= st.label %></div>
+            <div class="helper-text" style="margin-top:4px;"><%= new Date(d.createdAt).toLocaleString('id-ID') %></div>
+            <% if (d.status === 'pending') { %>
+            <div class="oc-actions">
               <form method="POST" action="/topup/<%= d.trxid %>/batal" class="js-confirm-submit" data-confirm-title="Batalkan Top Up" data-confirm-msg="Batalkan transaksi top up ini?" data-confirm-danger="true">
-                <button class="btn small danger" type="submit">Batal</button>
+                <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batal</button>
               </form>
-              <% } else { %>
-              <span class="helper-text">-</span>
-              <% } %>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <% } %>
+            </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+      <% }) %>
     </div>
+    <% } %>
 
     <%- include('partials/footer') %>
   </div>
