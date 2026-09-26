@@ -14,6 +14,7 @@ import {
   getAllTypeNames, createTypeName, renameTypeName, deleteTypeName
 } from '../lib/products.js';
 import { getAllOrders, findOrderById, updateOrderStatus, getStats, getMonthlyRevenueStats, getTopSellingProducts } from '../lib/orders.js';
+import { getAllDeposits, adminCancelDeposit } from '../lib/deposit.js';
 import { creditReferralCommission } from '../lib/referrals.js';
 import { getWeeklyLeaderboard, getMonthlyLeaderboard } from '../lib/leaderboard.js';
 import { notifyWithdrawal } from '../lib/telegram.js';
@@ -1439,11 +1440,25 @@ router.post('/otp/:id/unlink', (req, res) => {
 // ---------- ORDER ----------
 router.get('/order', (req, res) => {
   const orders = getAllOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const deposits = getAllDeposits();
   res.render('admin/order', {
-    orders, config: getConfig(),
+    orders, deposits, config: getConfig(),
     success: req.query.success || null,
     error: req.query.error || null
   });
+});
+
+// Batalkan deposit/top up milik user manapun (mis. user salah input nominal, atau QR sudah gak
+// relevan lagi) -- beda dari POST /topup/:trxid/batal di routes/user.js yang cuma bisa batalin
+// deposit MILIK SENDIRI, di sini gak dicek userId sama sekali (lihat adminCancelDeposit di
+// lib/deposit.js), cukup lewat middleware requireAdmin di bawah router ini.
+router.post('/order/deposit/:trxid/cancel', async (req, res) => {
+  try {
+    await adminCancelDeposit(req.params.trxid);
+    res.redirect('/admin/order?success=' + encodeURIComponent('Deposit berhasil dibatalkan'));
+  } catch (err) {
+    res.redirect('/admin/order?error=' + encodeURIComponent(err.message));
+  }
 });
 
 // BUG: handler ini async tapi TIDAK ada try/catch -- updateOrderStatus() throw Error('Order tidak
