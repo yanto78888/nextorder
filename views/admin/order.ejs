@@ -16,6 +16,48 @@
       <div class="alert error"><i class="fa-solid fa-triangle-exclamation"></i> <b><%= waitingManual.length %></b> order menunggu admin kirim manual karena stok otomatis habis.</div>
     <% } %>
 
+    <%
+    // ---- Helper tampilan (dipakai kartu Order & kartu Deposit di bawah) ----
+    // Ikon kategori ditebak dari nama produk, MIRIP logic di views/daftar-harga.ejs, biar konsisten
+    // -- bukan data baru yang perlu disimpan di order, cuma cara nampilinnya aja.
+    function ocCategoryIcon(text) {
+      const t = String(text || '').toLowerCase();
+      if (t.indexOf('otp') !== -1) return 'fa-shield-halved';
+      if (t.indexOf('sosmed') !== -1 || t.indexOf('smm') !== -1 || t.indexOf('follow') !== -1 || t.indexOf('like') !== -1) return 'fa-share-nodes';
+      if (t.indexOf('pulsa') !== -1 || t.indexOf('data') !== -1) return 'fa-signal';
+      return 'fa-gamepad';
+    }
+    // "19 detik" / "1 menit 5 detik" dari selisih 2 timestamp -- gaya sama kayak "Selesai dalam 19
+    // detik" di riwayat kompetitor yang jadi acuan tampilan rapi ini.
+    function ocDuration(startIso, endIso) {
+      const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+      if (!isFinite(ms) || ms < 0) return null;
+      const totalSec = Math.round(ms / 1000);
+      if (totalSec < 60) return totalSec + ' detik';
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return min + ' menit' + (sec > 0 ? ' ' + sec + ' detik' : '');
+    }
+    function ocOrderStatus(o) {
+      if (o.status === 'completed') {
+        const dur = ocDuration(o.createdAt, o.updatedAt);
+        return { cls: 'oc-status-done', icon: 'fa-bolt', label: dur ? `Selesai dalam ${dur}` : 'Selesai' };
+      }
+      if (o.status === 'cancelled') return { cls: 'oc-status-cancel', icon: 'fa-ban', label: 'Dibatalkan' };
+      if (o.manualRequired) return { cls: 'oc-status-cancel', icon: 'fa-triangle-exclamation', label: 'Menunggu kirim manual' };
+      return { cls: 'oc-status-progress', icon: 'fa-clock', label: 'Diproses' };
+    }
+    function ocDepositStatus(d) {
+      if (d.status === 'paid') {
+        const dur = ocDuration(d.createdAt, d.paidAt);
+        return { cls: 'oc-status-done', icon: 'fa-bolt', label: dur ? `Berhasil dalam ${dur}` : 'Berhasil' };
+      }
+      if (d.status === 'cancelled') return { cls: 'oc-status-cancel', icon: 'fa-ban', label: 'Dibatalkan' };
+      if (d.status === 'expired') return { cls: 'oc-status-cancel', icon: 'fa-hourglass-end', label: 'Kadaluarsa' };
+      return { cls: 'oc-status-pending', icon: 'fa-clock', label: 'Menunggu pembayaran' };
+    }
+    %>
+
     <div class="card" style="margin-bottom:14px;">
       <input type="text" id="orderSearchInput" placeholder="Cari ID pesanan..." style="width:100%;">
     </div>
@@ -29,17 +71,23 @@
          (kadang panjang/multi-baris, mis. detail login yang dikirim ke user) yang bikin baris jadi
          SANGAT TINGGI, dan karena kolom kanan ke-scroll keluar layar di HP, baris kelihatan cuma ID
          doang tapi dengan jarak kosong raksasa di bawahnya -- itu penyebab tampilan "berantakan" di
-         mobile. Sekarang tiap order cuma baris ringkas ID + status, detail lengkapnya (termasuk
-         Waktu Penyelesaian & form update status) baru muncul KE BAWAH pas diklik, bukan ke samping. -->
-    <div class="adm-collapsible-list">
-      <% orders.forEach(o => { %>
-      <div class="adm-collapsible-row" data-order-row data-order-id="<%= o.id.toLowerCase() %>">
-        <div class="adm-collapsible-main" data-order-toggle>
-          <span class="adm-collapsible-id"><%= o.id %></span>
-          <span class="badge <%= o.status %>"><%= o.status %></span>
-          <i class="fa-solid fa-chevron-down adm-collapsible-caret"></i>
+         mobile. Sekarang tiap order jadi kartu ringkas (ikon + produk + status/waktu), detail
+         lengkapnya (termasuk Waktu Penyelesaian & form update status) baru muncul KE BAWAH pas
+         diklik, bukan ke samping. -->
+    <div class="oc-list adm-collapsible-list">
+      <% orders.forEach(o => { const st = ocOrderStatus(o); %>
+      <div class="oc-row adm-collapsible-row" data-order-row data-order-id="<%= o.id.toLowerCase() %>">
+        <div class="oc-row-main oc-clickable" data-order-toggle>
+          <div class="oc-icon <%= o.status === 'completed' ? 'oc-icon-success' : (o.status === 'cancelled' ? 'oc-icon-danger' : '') %>"><i class="fa-solid <%= ocCategoryIcon(o.productName) %>"></i></div>
+          <div class="oc-body">
+            <div class="oc-id"><%= o.id %> &middot; <%= o.username %></div>
+            <div class="oc-title"><i class="fa-solid fa-gamepad"></i> <%= o.productName %></div>
+            <div class="oc-sub"><i class="fa-solid fa-box"></i> Rp <%= o.total.toLocaleString('id-ID') %><% if (o.targetText) { %> &middot; <%= o.targetText %><% } %></div>
+            <div class="oc-status <%= st.cls %>"><i class="fa-solid <%= st.icon %>"></i> <%= st.label %></div>
+          </div>
+          <i class="fa-solid fa-chevron-down oc-caret adm-collapsible-caret"></i>
         </div>
-        <div class="adm-collapsible-detail">
+        <div class="oc-detail adm-collapsible-detail">
           <div class="adm-detail-grid">
             <div>
               <div class="adm-detail-label">User</div>
@@ -87,6 +135,46 @@
       <% }) %>
     </div>
     <% } %>
+
+    <!-- ---- Top Up / Deposit ----
+         Sebelumnya deposit saldo user gak muncul sama sekali di admin (cuma order produk), padahal
+         deposit yang salah nominal/gak jadi bayar juga perlu bisa dibatalin admin, bukan cuma nunggu
+         expired otomatis atau user batalin sendiri lewat /topup. Kartu di bawah pakai gaya yang sama
+         kayak "Semua Order" di atas biar konsisten & rapi, dan cuma deposit 'pending' yang dikasih
+         tombol Batalkan (yang sudah paid/cancelled/expired gak relevan dibatalin lagi). -->
+    <div class="section-title"><h3>Top Up / Deposit</h3><div class="line"></div></div>
+    <div class="card" style="margin-bottom:14px;">
+      <input type="text" id="depositSearchInput" placeholder="Cari ID transaksi / username..." style="width:100%;">
+    </div>
+    <div id="depositSearchEmpty" class="card empty-state" style="display:none;">Deposit "<span id="depositSearchEmptyTerm"></span>" tidak ditemukan.</div>
+
+    <% if (typeof deposits === 'undefined' || deposits.length === 0) { %>
+      <div class="card empty-state">Belum ada riwayat top up.</div>
+    <% } else { %>
+    <div class="oc-list">
+      <% deposits.forEach(d => { const st = ocDepositStatus(d); %>
+      <div class="oc-row" data-deposit-row data-deposit-id="<%= (d.trxid + ' ' + d.username).toLowerCase() %>">
+        <div class="oc-row-main">
+          <div class="oc-icon <%= d.status === 'paid' ? 'oc-icon-success' : (d.status === 'pending' ? '' : 'oc-icon-danger') %>"><i class="fa-solid fa-qrcode"></i></div>
+          <div class="oc-body">
+            <div class="oc-id"><%= d.trxid %> &middot; <%= d.username %></div>
+            <div class="oc-title"><i class="fa-solid fa-wallet"></i> Top Up Saldo QRIS</div>
+            <div class="oc-sub"><i class="fa-solid fa-box"></i> Nominal Rp <%= d.amount.toLocaleString('id-ID') %> &middot; bayar Rp <%= d.total.toLocaleString('id-ID') %></div>
+            <div class="oc-status <%= st.cls %>"><i class="fa-solid <%= st.icon %>"></i> <%= st.label %></div>
+          </div>
+          <div class="oc-right">
+            <span class="helper-text" style="white-space:nowrap;"><%= new Date(d.createdAt).toLocaleString('id-ID') %></span>
+            <% if (d.status === 'pending') { %>
+            <form method="POST" action="/admin/order/deposit/<%= d.trxid %>/cancel" class="js-confirm-submit" data-confirm-title="Batalkan Deposit" data-confirm-msg="Batalkan transaksi top up milik <%= d.username %> ini? User perlu bikin transaksi top up baru kalau masih mau isi saldo." data-confirm-danger="true">
+              <button class="btn small danger" type="submit"><i class="fa-solid fa-ban"></i> Batalkan</button>
+            </form>
+            <% } %>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
   </div>
 </div>
 
@@ -114,6 +202,29 @@
     var visible = 0;
     rows.forEach(function (row) {
       var match = !q || row.dataset.orderId.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (emptyBox) {
+      emptyBox.style.display = (q && visible === 0) ? '' : 'none';
+      if (emptyTerm) emptyTerm.textContent = input.value.trim();
+    }
+  });
+})();
+
+// ===== Search ID/username deposit (client-side) =====
+(function () {
+  var input = document.getElementById('depositSearchInput');
+  if (!input) return;
+  var rows = document.querySelectorAll('[data-deposit-row]');
+  var emptyBox = document.getElementById('depositSearchEmpty');
+  var emptyTerm = document.getElementById('depositSearchEmptyTerm');
+
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var match = !q || row.dataset.depositId.includes(q);
       row.style.display = match ? '' : 'none';
       if (match) visible++;
     });
