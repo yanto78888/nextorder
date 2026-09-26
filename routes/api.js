@@ -3,7 +3,7 @@ import { requireApiKey } from '../middleware/auth.js';
 import { findUserById, deductSaldo, addSaldo } from '../lib/users.js';
 import { getActiveProducts, findProductById, countStock } from '../lib/products.js';
 import { getOrdersByUser, findOrderById, findOrdersByApiRefId, createOrder, patchOrder } from '../lib/orders.js';
-import { createDeposit, getDeposit, getDepositsByUser } from '../lib/deposit.js';
+import { createDeposit, getDeposit, getDepositsByUser, cancelDeposit } from '../lib/deposit.js';
 import { creditReferralCommission } from '../lib/referrals.js';
 import {
   isHerosmsEnabled, getNumber as getHerosmsNumber, getActivationStatus, finishActivation, cancelActivation
@@ -121,6 +121,7 @@ router.get('/', (req, res) => {
         'GET  /api/v1/order?limit=20',
         'POST /api/v1/deposit      { amount }',
         'GET  /api/v1/deposit/:trxid',
+        'POST /api/v1/deposit/:trxid/cancel                                -- batalkan deposit yang masih pending',
         'GET  /api/v1/deposit?limit=20'
       ]
     }
@@ -441,6 +442,20 @@ router.get('/deposit/:trxid', requireApiKey('deposit'), (req, res) => {
     return res.status(404).json({ success: false, message: 'Transaksi deposit tidak ditemukan' });
   }
   res.json({ success: true, data: formatDepositForApi(dep) });
+});
+
+// ---------- Batalkan deposit yang masih pending ----------
+// Berguna kalau reseller salah input nominal, atau QR-nya udah gak relevan lagi (mis. mau bikin
+// ulang dengan nominal baru) -- ownership & pengecekan status 'pending' udah ditangani cancelDeposit()
+// (lib/deposit.js), SAMA PERSIS logic-nya kayak tombol "Batal" di halaman web /topup, cuma di sini
+// lewat API key 'deposit' (bukan session login).
+router.post('/deposit/:trxid/cancel', requireApiKey('deposit'), async (req, res) => {
+  try {
+    const dep = await cancelDeposit(req.params.trxid, req.apiUser.id);
+    res.json({ success: true, message: 'Transaksi deposit berhasil dibatalkan', data: formatDepositForApi(dep) });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
 });
 
 // ---------- Riwayat deposit milik pemilik API key ----------
